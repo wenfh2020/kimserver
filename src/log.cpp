@@ -7,6 +7,10 @@ namespace kim {
 
 #define LOG_MAX_LEN 1024
 
+Log::Log(const char* path) {
+    if (path != NULL) m_path = path;
+}
+
 void Log::log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...) {
     va_list ap;
     char msg[LOG_MAX_LEN] = {0};
@@ -19,7 +23,7 @@ void Log::log_data(const char* file_name, int file_line, const char* func_name, 
 }
 
 void Log::log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg) {
-    if (level < m_level) return;
+    if (level > m_level) return;
 
     FILE* fp;
     fp = m_path.empty() ? stdout : fopen(m_path.c_str(), "a");

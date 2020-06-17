@@ -1,17 +1,19 @@
-#include "server.h"
-
 #include <iostream>
 
-void init_server() {
-    if (g_log == NULL) {
-        g_log = new kim::Log("./server.log");
-    }
-
-    LOG_INFO("%s", "hello world\n");
-}
+#include "manager.h"
 
 int main(int argc, char** argv) {
-    init_server();
-    SAFE_DELETE(g_log);
+    if (argc != 2) {
+        std::cerr << "invalid param num!" << std::endl;
+        exit(0);
+    }
+
+    kim::Manager mgr;
+    if (!mgr.init(argv[1])) {
+        std::cerr << "init server fail!" << std::endl;
+        exit(0);
+    }
+
+    mgr.run();
     return 0;
 }
