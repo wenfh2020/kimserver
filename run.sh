@@ -7,7 +7,6 @@ work_path=$(pwd)
 server_name=kim_server
 output_file=$work_path/bin/$server_name
 
-src_path=$work_path/src
-cd $src_path
+cd $work_path/src
 
-g++ -g log.cpp server.cpp -o $output_file && $output_file
+g++ -g log.cpp server.cpp -o $output_file && cd $work_path/bin && $output_file
