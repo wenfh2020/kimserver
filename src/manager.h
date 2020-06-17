@@ -18,7 +18,7 @@ class Manager {
     bool init(const char* conf_path);
     bool init_logger();
     void set_logger(kim::Log* l) { m_log = l; }
-    bool load_conf(const char* path);
+    bool load_config(const char* path);
 
    private:
     kim::Log* m_log;

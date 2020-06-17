@@ -32,7 +32,7 @@ bool Manager::init(const char* conf_path) {
         m_work_path = file_path;
     }
 
-    if (!load_conf(conf_path)) {
+    if (!load_config(conf_path)) {
         std::cerr << "init conf fail!" << std::endl;
         return false;
     }
@@ -67,6 +67,7 @@ bool Manager::init_logger() {
     // init log level.
     int ll = 0;
     std::string level = m_cur_conf("log_level");
+
     if (level.compare("DEBUG") == 0) {
         ll = kim::Log::LL_DEBUG;
     } else if (level.compare("INFO") == 0) {
@@ -90,11 +91,10 @@ bool Manager::init_logger() {
 
     m_log = new kim::Log(log_path);
     m_log->set_level(ll);
-    std::cout << log_path << std::endl;
     return true;
 }
 
-bool Manager::load_conf(const char* path) {
+bool Manager::load_config(const char* path) {
     std::ifstream fin(path);
     if (!fin.good()) {
         return false;
