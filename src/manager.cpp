@@ -4,19 +4,22 @@
 #include <iosfwd>
 #include <sstream>
 
+#include "util/set_proc_title.h"
+
 namespace kim {
 
 #define MAX_PATH 256
 
-Manager::Manager() : m_log(NULL), m_is_load_config(false) {
+Manager::Manager() : m_logger(NULL), m_is_config_loaded(false) {
 }
 
 Manager::~Manager() {
-    SAFE_DELETE(m_log);
+    SAFE_DELETE(m_logger);
 }
 
 void Manager::run() {
     LOG_INFO("%s", "run server!");
+    sleep(1000);
 }
 
 bool Manager::init(const char* conf_path) {
@@ -37,24 +40,25 @@ bool Manager::init(const char* conf_path) {
         return false;
     }
 
-    m_is_load_config = true;
+    m_is_config_loaded = true;
 
     if (!init_logger()) {
         std::cerr << "init logger fail!" << std::endl;
         return false;
     }
 
+    set_proc_title("%s", m_cur_json_conf("server_name").c_str());
+
     LOG_INFO("init log success!");
     return true;
 }
 
 bool Manager::init_logger() {
-    if (!m_is_load_config) return false;
+    if (!m_is_config_loaded) return false;
 
-    // init log path.
     char log_path[MAX_PATH] = {0};
-    snprintf(log_path, sizeof(log_path),
-             "%s/%s", m_work_path.c_str(), m_cur_conf("log_path").c_str());
+    snprintf(log_path, sizeof(log_path), "%s/%s",
+             m_work_path.c_str(), m_cur_json_conf("log_path").c_str());
 
     FILE* f;
     f = fopen(log_path, "a");
@@ -64,9 +68,8 @@ bool Manager::init_logger() {
     }
     fclose(f);
 
-    // init log level.
     int ll = 0;
-    std::string level = m_cur_conf("log_level");
+    std::string level = m_cur_json_conf("log_level");
 
     if (level.compare("DEBUG") == 0) {
         ll = kim::Log::LL_DEBUG;
@@ -89,8 +92,8 @@ bool Manager::init_logger() {
         return false;
     }
 
-    m_log = new kim::Log(log_path);
-    m_log->set_level(ll);
+    m_logger = new kim::Log(log_path);
+    m_logger->set_level(ll);
     return true;
 }
 
@@ -110,8 +113,8 @@ bool Manager::load_config(const char* path) {
     fin.close();
 
     m_conf_path = path;
-    m_cur_conf = conf;
-    m_old_conf = m_cur_conf;
+    m_cur_json_conf = conf;
+    m_old_json_conf = m_cur_json_conf;
     return true;
 }
 

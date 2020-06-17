@@ -8,6 +8,10 @@ namespace kim {
 #define LOG_MAX_LEN 1024
 
 Log::Log(const char* path) {
+    set_log_path(path);
+}
+
+void Log::set_log_path(const char* path) {
     if (path != NULL) m_path = path;
 }
 

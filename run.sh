@@ -11,5 +11,6 @@ cd $work_path/src
 make
 
 if [ -f $output_file ]; then
-    cd $work_path/bin $output_file config.json
+    cd $work_path/bin
+    $output_file config.json
 fi
