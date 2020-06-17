@@ -1,4 +1,5 @@
-#include <iostream>
+
+#include "server.h"
 
 #include "manager.h"
 #include "util/set_proc_title.h"

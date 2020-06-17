@@ -8,8 +8,6 @@
 
 namespace kim {
 
-#define MAX_PATH 256
-
 Manager::Manager() : m_logger(NULL), m_is_config_loaded(false) {
 }
 
