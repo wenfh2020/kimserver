@@ -1,0 +1,4 @@
+{
+    "log_path": "kim_server.log",
+    "log_level": "DEBUG"
+}
