@@ -27,21 +27,21 @@ bool Log::set_level(const char* level) {
 
     int ll = -1;
     if (strcasecmp(level, "DEBUG") == 0) {
-        ll = kim::Log::LL_DEBUG;
+        ll = LL_DEBUG;
     } else if (strcasecmp(level, "INFO") == 0) {
-        ll = kim::Log::LL_INFO;
+        ll = LL_INFO;
     } else if (strcasecmp(level, "NOTICE") == 0) {
-        ll = kim::Log::LL_NOTICE;
+        ll = LL_NOTICE;
     } else if (strcasecmp(level, "WARNING") == 0) {
-        ll = kim::Log::LL_WARNING;
+        ll = LL_WARNING;
     } else if (strcasecmp(level, "ERR") == 0) {
-        ll = kim::Log::LL_ERR;
+        ll = LL_ERR;
     } else if (strcasecmp(level, "CRIT") == 0) {
-        ll = kim::Log::LL_CRIT;
+        ll = LL_CRIT;
     } else if (strcasecmp(level, "ALERT") == 0) {
-        ll = kim::Log::LL_ALERT;
+        ll = LL_ALERT;
     } else if (strcasecmp(level, "EMERG") == 0) {
-        ll = kim::Log::LL_EMERG;
+        ll = LL_EMERG;
     } else {
         return false;
     }

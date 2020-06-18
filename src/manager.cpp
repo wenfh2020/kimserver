@@ -17,7 +17,7 @@ Manager::~Manager() {
 }
 
 void Manager::run() {
-    LOG_INFO("%s", "run server!");
+    LOG_DEBUG("%s", "server running!");
     sleep(1000);
 }
 
