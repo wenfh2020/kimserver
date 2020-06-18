@@ -1,4 +1,3 @@
-
 #include "server.h"
 
 #include "manager.h"
@@ -13,10 +12,12 @@ int main(int argc, char** argv) {
     spt_init(argc, argv);
 
     kim::Manager mgr;
-    if (!mgr.init(argv[1])) {
+    kim::Log* logger = new kim::Log;
+    if (!mgr.init(argv[1], logger)) {
+        delete logger;
         exit(-1);
     }
-
     mgr.run();
+    delete logger;
     return 0;
 }

@@ -1,5 +1,5 @@
-#ifndef __LOG__
-#define __LOG__
+#ifndef __LOG_H__
+#define __LOG_H__
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -41,4 +41,4 @@ class Log {
 
 }  // namespace kim
 
-#endif  //__LOG__
+#endif  //__LOG_H__

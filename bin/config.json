@@ -1,5 +1,11 @@
 {
+    "process_num": "4",
+    "node_type": "gate",
     "server_name": "my_server",
+    "host": "127.0.0.1",
+    "port": "3344",
+    "gate_host": "127.0.0.1",
+    "gate_port": "3355",
     "log_path": "kim_server.log",
-    "log_level": "DEBUG"
+    "log_level": "debug"
 }
