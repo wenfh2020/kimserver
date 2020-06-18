@@ -19,21 +19,23 @@ class Log {
         LL_NOTICE,    /* normal but significant condition */
         LL_INFO,      /* informational */
         LL_DEBUG,     /* debug-level messages */
+        LL_COUNT
     };
 
-    Log(const char* path = NULL);
+    Log();
     virtual ~Log() {}
 
    public:
-    void set_level(int level) { m_level = level; }
+    bool set_level(int level);
+    bool set_level(const char* level);
     void set_log_path(const char* path);
-    void log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...);
+    bool log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...);
 
    private:
-    void log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg);
+    bool log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg);
 
    private:
-    int m_level;
+    int m_cur_level;
     std::string m_path;
 };
 
