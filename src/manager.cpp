@@ -1,42 +1,51 @@
 #include "manager.h"
 
+#include <sys/socket.h>
+
 #include <fstream>
 #include <iosfwd>
 #include <sstream>
 
+#include "net/anet.h"
 #include "util/set_proc_title.h"
+#include "worker.h"
 
 namespace kim {
 
-Manager::Manager() : m_logger(NULL), m_is_config_loaded(false) {
+Manager::Manager() : m_logger(NULL), m_events(NULL) {
 }
 
 Manager::~Manager() {
+    SAFE_DELETE(m_events);
 }
 
 void Manager::run() {
-    LOG_DEBUG("%s", "server running!");
+    if (m_events != NULL) {
+        LOG_INFO("%s", "server is running!");
+        m_events->run();
+    }
 }
 
 bool Manager::init(const char* conf_path, kim::Log* logger) {
-    if (access(conf_path, R_OK) == -1) {
-        LOG_ERROR("no config file!");
-        return false;
-    }
-
-    if (logger == NULL) {
+    if (NULL == logger) {
+        LOG_ERROR("no log file!");
         return false;
     }
 
     m_logger = logger;
 
-    if (m_work_path.empty()) {
+    if (access(conf_path, R_OK) == -1) {
+        LOG_ERROR("no config file!");
+        return false;
+    }
+
+    if (m_node_info.work_path.empty()) {
         char file_path[MAX_PATH] = {0};
         if (!getcwd(file_path, sizeof(file_path))) {
             LOG_ERROR("cant not get work path!");
             return false;
         }
-        m_work_path = file_path;
+        m_node_info.work_path = file_path;
     }
 
     if (!load_config(conf_path)) {
@@ -51,24 +60,19 @@ bool Manager::init(const char* conf_path, kim::Log* logger) {
         return false;
     }
 
-    if (!m_events.init()) {
+    if (!init_events()) {
         LOG_ERROR("init events fail!");
         return false;
     }
-    m_events.set_logger(m_logger);
 
     LOG_INFO("init success!");
     return true;
 }
 
 bool Manager::init_logger() {
-    if (!m_is_config_loaded) {
-        return false;
-    }
-
     char log_path[MAX_PATH] = {0};
     snprintf(log_path, sizeof(log_path), "%s/%s",
-             m_work_path.c_str(), m_json_conf("log_path").c_str());
+             m_node_info.work_path.c_str(), m_json_conf("log_path").c_str());
 
     FILE* f;
     f = fopen(log_path, "a");
@@ -98,13 +102,13 @@ bool Manager::load_config(const char* path) {
     }
     fin.close();
 
-    m_conf_path = path;
+    m_node_info.conf_path = path;
     m_old_json_conf = m_json_conf;
     m_json_conf = json_conf;
-    m_is_config_loaded = true;
 
     if (m_old_json_conf.ToString() != m_json_conf.ToString()) {
         if (m_old_json_conf.ToString().empty()) {
+            m_node_info.worker_num = strtoul(m_json_conf("process_num").c_str(), NULL, 10);
             m_json_conf.Get("node_type", m_node_info.node_type);
             m_json_conf.Get("host", m_node_info.host);
             m_json_conf.Get("port", m_node_info.port);
@@ -113,6 +117,59 @@ bool Manager::load_config(const char* path) {
         }
     }
     return true;
+}
+
+bool Manager::init_events() {
+    m_events = new Events(m_logger);
+    if (!m_events->init(&on_terminated, &on_child_terminated)) {
+        LOG_ERROR("init events fail!");
+        return false;
+    }
+    return true;
+}
+
+void Manager::on_terminated(struct ev_signal* watcher) {
+}
+void Manager::on_child_terminated(struct ev_signal* watcher) {
+}
+
+void Manager::create_workers() {
+    int pid = 0;
+
+    for (int i = 0; i < m_node_info.worker_num; i++) {
+        int data_fds[2];
+        int ctrl_fds[2];
+
+        if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
+            LOG_ERROR("create socket pair error %d: %s", errno, strerror(errno));
+        }
+
+        if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
+            LOG_ERROR("create socket pair error %d: %s", errno, strerror(errno));
+        }
+
+        if ((pid = fork()) == 0) {
+            m_events->close_listen_sockets();
+            close(ctrl_fds[0]);
+            close(data_fds[0]);
+            anet_no_block(NULL, ctrl_fds[1]);
+            anet_no_block(NULL, data_fds[1]);
+
+            Worker worker(m_node_info.work_path, ctrl_fds[1], data_fds[1], i);
+            if (!worker.init(m_json_conf)) {
+                exit(3);
+            }
+            worker.run();
+            exit(-2);
+        } else if (pid > 0) {
+            close(ctrl_fds[1]);
+            close(data_fds[1]);
+            anet_no_block(NULL, ctrl_fds[0]);
+            anet_no_block(NULL, data_fds[0]);
+        } else {
+            LOG_ERROR("error %d: %s", errno, strerror(errno));
+        }
+    }
 }
 
 }  // namespace kim
