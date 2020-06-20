@@ -30,7 +30,7 @@ class Events {
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
 
    private:
-    // kim::Log* m_logger;
+    kim::Log* m_logger;
     struct ev_loop* m_ev_loop;
     signal_callback_info_t* m_sig_cb_info;
 };

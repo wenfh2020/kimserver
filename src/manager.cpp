@@ -65,6 +65,7 @@ bool Manager::init(const char* conf_path, kim::Log* logger) {
         return false;
     }
 
+    create_workers();
     LOG_INFO("init success!");
     return true;
 }
@@ -110,10 +111,10 @@ bool Manager::load_config(const char* path) {
         if (m_old_json_conf.ToString().empty()) {
             m_node_info.worker_num = strtoul(m_json_conf("process_num").c_str(), NULL, 10);
             m_json_conf.Get("node_type", m_node_info.node_type);
-            m_json_conf.Get("host", m_node_info.host);
-            m_json_conf.Get("port", m_node_info.port);
-            m_json_conf.Get("gate_host", m_node_info.gate_host);
-            m_json_conf.Get("gate_port", m_node_info.gate_port);
+            m_json_conf.Get("bind", m_node_info.addr_info.bind);
+            m_json_conf.Get("port", m_node_info.addr_info.port);
+            m_json_conf.Get("gate_bind", m_node_info.addr_info.gate_port);
+            m_json_conf.Get("gate_port", m_node_info.addr_info.gate_port);
         }
     }
     return true;
@@ -141,11 +142,11 @@ void Manager::create_workers() {
         int ctrl_fds[2];
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
-            LOG_ERROR("create socket pair error %d: %s", errno, strerror(errno));
+            LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
         }
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
-            LOG_ERROR("create socket pair error %d: %s", errno, strerror(errno));
+            LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
         }
 
         if ((pid = fork()) == 0) {
@@ -155,8 +156,14 @@ void Manager::create_workers() {
             anet_no_block(NULL, ctrl_fds[1]);
             anet_no_block(NULL, data_fds[1]);
 
-            Worker worker(m_node_info.work_path, ctrl_fds[1], data_fds[1], i);
-            if (!worker.init(m_json_conf)) {
+            worker_info_s work_info;
+            work_info.work_path = m_node_info.work_path;
+            work_info.ctrl_fd = ctrl_fds[1];
+            work_info.data_fd = data_fds[1];
+            work_info.worker_idx = i;
+
+            Worker worker(&work_info);
+            if (!worker.init(m_logger, m_json_conf("server_name"))) {
                 exit(3);
             }
             worker.run();

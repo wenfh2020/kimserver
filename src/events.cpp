@@ -5,7 +5,8 @@
 
 namespace kim {
 
-Events::Events(kim::Log* logger) : /*m_logger(logger),*/ m_ev_loop(NULL) {
+Events::Events(kim::Log* logger)
+    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL) {
 }
 
 Events::~Events() {
@@ -23,6 +24,7 @@ bool Events::init(ev_cb_fn* fn_terminated, ev_cb_fn* fn_child_terminated) {
     }
 
     create_events();
+    LOG_INFO("init events success!");
     return true;
 }
 

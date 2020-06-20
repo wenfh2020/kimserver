@@ -25,7 +25,7 @@ class Manager {
    private:
     bool init_logger();
     bool init_events();
-    void set_logger(kim::Log* l) { m_logger = l; }
+    void set_logger(kim::Log* log) { m_logger = log; }
     bool load_config(const char* path);
     void create_workers();
 

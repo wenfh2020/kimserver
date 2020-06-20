@@ -5,7 +5,7 @@
 #include "manager.h"
 #include "util/set_proc_title.h"
 
-#define DAEMONSIZE 1
+// #define DAEMONSIZE 1
 
 void daemonize(void) {
     int fd;

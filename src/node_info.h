@@ -5,21 +5,27 @@
 
 namespace kim {
 
-typedef struct node_info_s {
-    node_info_s() {
+typedef struct addr_info_s {
+    addr_info_s() {
         port = 0;
         gate_port = 0;
+    }
+    std::string bind;       // bind host for inner server.
+    int port;               // port for inner server.
+    std::string gate_bind;  // bind host for user client.
+    int gate_port;          // port for user client.
+} addr_info_t;
+
+typedef struct node_info_s {
+    node_info_s() {
         worker_num = 0;
     }
 
-    std::string node_type;
-    std::string host;
-    int port;
-    std::string gate_host;
-    int gate_port;
-    std::string conf_path;
-    std::string work_path;
-    int worker_num;
+    addr_info_t addr_info;  // network addr info.
+    std::string node_type;  // node type in cluster.
+    std::string conf_path;  // config path.
+    std::string work_path;  // process work path.
+    int worker_num;         // number of worker's processes.
 } node_info_t;
 
 typedef struct worker_info_s {
@@ -30,13 +36,13 @@ typedef struct worker_info_s {
         data_fd = -1;
     }
 
-    std::string work_path;
-    int worker_pid;
-    int worker_idx;
-    int ctrl_fd;  //socketpair for parent and child contact.
-    int data_fd;  //socketpair for parent and child contact.
+    int worker_pid;         // worker's process id.
+    int worker_idx;         // worker's index which assiged by master process.
+    int ctrl_fd;            // socketpair for parent and child contact.
+    int data_fd;            // socketpair for parent and child contact.
+    std::string work_path;  // process work path.
 } worker_info_t;
 
 }  // namespace kim
 
-#endif
+#endif  //__NODE_INFO_H__
