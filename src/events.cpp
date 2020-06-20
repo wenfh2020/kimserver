@@ -5,7 +5,7 @@
 
 namespace kim {
 
-Events::Events(kim::Log* logger) : m_logger(logger), m_ev_loop(NULL) {
+Events::Events(kim::Log* logger) : /*m_logger(logger),*/ m_ev_loop(NULL) {
 }
 
 Events::~Events() {
