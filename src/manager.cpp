@@ -12,8 +12,8 @@
 
 namespace kim {
 
-Manager::Manager()
-    : m_logger(NULL), m_events(NULL), m_network(NULL) {
+Manager::Manager(Log* logger)
+    : m_logger(logger), m_events(NULL), m_network(NULL) {
     m_fds.clear();
 }
 
@@ -34,14 +34,7 @@ void Manager::run() {
     }
 }
 
-bool Manager::init(const char* conf_path, Log* logger) {
-    if (NULL == logger) {
-        LOG_ERROR("no log file!");
-        return false;
-    }
-
-    m_logger = logger;
-
+bool Manager::init(const char* conf_path) {
     if (m_node_info.work_path.empty()) {
         char file_path[MAX_PATH] = {0};
         if (!getcwd(file_path, sizeof(file_path))) {

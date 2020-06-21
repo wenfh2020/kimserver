@@ -11,11 +11,11 @@ namespace kim {
 
 class Manager {
    public:
-    Manager();
+    Manager(Log* logger);
     virtual ~Manager();
 
     void run();
-    bool init(const char* conf_path, kim::Log* l);
+    bool init(const char* conf_path);
     void destory();
 
     static void on_terminated(struct ev_signal* watcher);
@@ -25,7 +25,6 @@ class Manager {
     bool init_logger();
     bool init_events();
     bool init_network();
-    void set_logger(Log* log) { m_logger = log; }
     bool load_config(const char* path);
     void create_workers();
     void close_listen_sockets();

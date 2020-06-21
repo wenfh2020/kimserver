@@ -41,13 +41,14 @@ int main(int argc, char** argv) {
 
     init_server(argc, argv);
 
-    kim::Manager mgr;
     kim::Log* logger = new kim::Log;
-    if (!mgr.init(argv[1], logger)) {
+    kim::Manager mgr(logger);
+    if (!mgr.init(argv[1])) {
         delete logger;
         exit(-1);
     }
     mgr.run();
+
     delete logger;
     return 0;
 }
