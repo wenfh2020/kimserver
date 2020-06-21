@@ -2,9 +2,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #define ANET_OK 0
 #define ANET_ERR -1
@@ -46,4 +49,89 @@ int anet_no_block(char *err, int fd) {
 
 int anet_block(char *err, int fd) {
     return anet_set_block(err, fd, 0);
+}
+
+static int anet_listen(char *err, int s, struct sockaddr *sa, socklen_t len,
+                       int backlog) {
+    if (bind(s, sa, len) == -1) {
+        anet_set_error(err, "bind: %s", strerror(errno));
+        close(s);
+        return ANET_ERR;
+    }
+
+    if (listen(s, backlog) == -1) {
+        anet_set_error(err, "listen: %s", strerror(errno));
+        close(s);
+        return ANET_ERR;
+    }
+    return ANET_OK;
+}
+
+static int anet_set_reuse_addr(char *err, int fd) {
+    int yes = 1;
+    /* Make sure connection-intensive things like the redis benchmark
+     * will be able to close/open sockets a zillion of times */
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+        anet_set_error(err, "setsockopt SO_REUSEADDR: %s", strerror(errno));
+        return ANET_ERR;
+    }
+    return ANET_OK;
+}
+
+static int anet_v6_only(char *err, int s) {
+    int yes = 1;
+    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &yes, sizeof(yes)) == -1) {
+        anet_set_error(err, "setsockopt: %s", strerror(errno));
+        close(s);
+        return ANET_ERR;
+    }
+    return ANET_OK;
+}
+
+static int _anet_tcp_server(char *err, int port, const char *bindaddr, int af,
+                            int backlog) {
+    int s = -1, rv;
+    char _port[6]; /* strlen("65535") */
+    struct addrinfo hints, *servinfo, *p;
+
+    snprintf(_port, 6, "%d", port);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; /* No effect if bindaddr != NULL */
+
+    if ((rv = getaddrinfo(bindaddr, _port, &hints, &servinfo)) != 0) {
+        anet_set_error(err, "%s", gai_strerror(rv));
+        return ANET_ERR;
+    }
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        if ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+            continue;
+
+        if (af == AF_INET6 && anet_v6_only(err, s) == ANET_ERR) goto error;
+        if (anet_set_reuse_addr(err, s) == ANET_ERR) goto error;
+        if (anet_listen(err, s, p->ai_addr, p->ai_addrlen, backlog) == ANET_ERR)
+            s = ANET_ERR;
+        goto end;
+    }
+
+    if (p == NULL) {
+        anet_set_error(err, "unable to bind socket, errno: %d", errno);
+        goto error;
+    }
+
+error:
+    if (s != -1) close(s);
+    s = ANET_ERR;
+end:
+    freeaddrinfo(servinfo);
+    return s;
+}
+
+int anet_tcp_server(char *err, int port, const char *bindaddr, int backlog) {
+    return _anet_tcp_server(err, port, bindaddr, AF_INET, backlog);
+}
+
+int anet_tcp6_server(char *err, int port, const char *bindaddr, int backlog) {
+    return _anet_tcp_server(err, port, bindaddr, AF_INET6, backlog);
 }

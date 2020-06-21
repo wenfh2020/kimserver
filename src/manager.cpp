@@ -12,11 +12,19 @@
 
 namespace kim {
 
-Manager::Manager() : m_logger(NULL), m_events(NULL) {
+Manager::Manager()
+    : m_logger(NULL), m_events(NULL), m_network(NULL) {
+    m_fds.clear();
 }
 
 Manager::~Manager() {
+    destory();
+}
+
+void Manager::destory() {
+    close_listen_sockets();
     SAFE_DELETE(m_events);
+    SAFE_DELETE(m_network);
 }
 
 void Manager::run() {
@@ -26,18 +34,13 @@ void Manager::run() {
     }
 }
 
-bool Manager::init(const char* conf_path, kim::Log* logger) {
+bool Manager::init(const char* conf_path, Log* logger) {
     if (NULL == logger) {
         LOG_ERROR("no log file!");
         return false;
     }
 
     m_logger = logger;
-
-    if (access(conf_path, R_OK) == -1) {
-        LOG_ERROR("no config file!");
-        return false;
-    }
 
     if (m_node_info.work_path.empty()) {
         char file_path[MAX_PATH] = {0};
@@ -65,6 +68,11 @@ bool Manager::init(const char* conf_path, kim::Log* logger) {
         return false;
     }
 
+    if (!init_network()) {
+        LOG_ERROR("init network fail!");
+        return false;
+    }
+
     create_workers();
     LOG_INFO("init success!");
     return true;
@@ -89,6 +97,11 @@ bool Manager::init_logger() {
 }
 
 bool Manager::load_config(const char* path) {
+    if (access(path, R_OK) == -1) {
+        LOG_ERROR("no config file!");
+        return false;
+    }
+
     std::ifstream fin(path);
     if (!fin.good()) {
         return false;
@@ -109,7 +122,8 @@ bool Manager::load_config(const char* path) {
 
     if (m_old_json_conf.ToString() != m_json_conf.ToString()) {
         if (m_old_json_conf.ToString().empty()) {
-            m_node_info.worker_num = strtoul(m_json_conf("process_num").c_str(), NULL, 10);
+            m_node_info.worker_num =
+                strtoul(m_json_conf("process_num").c_str(), NULL, 10);
             m_json_conf.Get("node_type", m_node_info.node_type);
             m_json_conf.Get("bind", m_node_info.addr_info.bind);
             m_json_conf.Get("port", m_node_info.addr_info.port);
@@ -122,15 +136,38 @@ bool Manager::load_config(const char* path) {
 
 bool Manager::init_events() {
     m_events = new Events(m_logger);
-    if (!m_events->init(&on_terminated, &on_child_terminated)) {
+    if (!m_events->create()) {
         LOG_ERROR("init events fail!");
         return false;
     }
+    m_events->set_cb_terminated(&on_terminated);
+    m_events->set_cb_child_terminated(&on_child_terminated);
+
+    LOG_INFO("init events done!");
     return true;
 }
 
-void Manager::on_terminated(struct ev_signal* watcher) {
+bool Manager::init_network() {
+    m_network = new Network(m_logger);
+    if (NULL == m_network) return false;
+
+    if (!m_network->create(&m_node_info.addr_info, m_fds)) {
+        LOG_ERROR("create network failed!");
+        return false;
+    }
+
+    LOG_INFO("init network done!");
+    return true;
 }
+
+void Manager::on_terminated(struct ev_signal* s) {
+    if (NULL == s) return;
+
+    // LOG_WARNING("%s terminated by signal %d!",
+    //             m_json_conf("server_name").c_str(), s->signum);
+    exit(s->signum);
+}
+
 void Manager::on_child_terminated(struct ev_signal* watcher) {
 }
 
@@ -150,7 +187,7 @@ void Manager::create_workers() {
         }
 
         if ((pid = fork()) == 0) {
-            m_events->close_listen_sockets();
+            close_listen_sockets();
             close(ctrl_fds[0]);
             close(data_fds[0]);
             anet_no_block(NULL, ctrl_fds[1]);
@@ -176,6 +213,13 @@ void Manager::create_workers() {
         } else {
             LOG_ERROR("error %d: %s", errno, strerror(errno));
         }
+    }
+}
+
+void Manager::close_listen_sockets() {
+    std::list<int>::iterator itr = m_fds.begin();
+    for (; itr != m_fds.end(); itr++) {
+        if (*itr != -1) close(*itr);
     }
 }
 

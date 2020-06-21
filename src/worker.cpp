@@ -12,7 +12,7 @@ Worker::Worker(const worker_info_s* worker_info) {
     m_worker_info.worker_pid = getpid();
 }
 
-bool Worker::init(kim::Log* log, const std::string& server_name) {
+bool Worker::init(Log* log, const std::string& server_name) {
     m_logger = log;
 
     char name[64] = {0};

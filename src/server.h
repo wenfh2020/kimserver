@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+namespace kim {
+
 #define MAX_PATH 256
 
 #define SAFE_DELETE(x) \
@@ -22,5 +24,7 @@
 #define LOG_NOTICE(args...) LOG_DETAIL((kim::Log::LL_NOTICE), ##args)
 #define LOG_INFO(args...) LOG_DETAIL((kim::Log::LL_INFO), ##args)
 #define LOG_DEBUG(args...) LOG_DETAIL((kim::Log::LL_DEBUG), ##args)
+
+}  // namespace kim
 
 #endif  //__SERVER__

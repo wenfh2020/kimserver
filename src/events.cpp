@@ -5,19 +5,15 @@
 
 namespace kim {
 
-Events::Events(kim::Log* logger)
+Events::Events(Log* logger)
     : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL) {
 }
 
 Events::~Events() {
-    SAFE_DELETE(m_sig_cb_info);
 }
 
-bool Events::init(ev_cb_fn* fn_terminated, ev_cb_fn* fn_child_terminated) {
+bool Events::create() {
     m_sig_cb_info = new signal_callback_info_t;
-    m_sig_cb_info->fn_terminated = fn_terminated;
-    m_sig_cb_info->fn_child_terminated = fn_child_terminated;
-
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (NULL == m_ev_loop) {
         return false;
@@ -30,6 +26,14 @@ bool Events::init(ev_cb_fn* fn_terminated, ev_cb_fn* fn_child_terminated) {
 
 void Events::run() {
     if (m_ev_loop) ev_run(m_ev_loop, 0);
+}
+
+void Events::set_cb_terminated(ev_cb_fn* cb) {
+    m_sig_cb_info->fn_terminated = cb;
+}
+
+void Events::set_cb_child_terminated(ev_cb_fn* cb) {
+    m_sig_cb_info->fn_child_terminated = cb;
 }
 
 void Events::create_ev_signal(int signum) {
@@ -60,9 +64,6 @@ void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int reve
             cb_info->fn_terminated(s);
         }
     }
-}
-
-void Events::close_listen_sockets() {
 }
 
 }  // namespace kim

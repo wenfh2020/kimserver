@@ -1,10 +1,8 @@
 #ifndef __MANAGER_H__
 #define __MANAGER_H__
 
-#include <iostream>
-
 #include "events.h"
-#include "log.h"
+#include "network.h"
 #include "node_info.h"
 #include "server.h"
 #include "util/CJsonObject.hpp"
@@ -18,6 +16,7 @@ class Manager {
 
     void run();
     bool init(const char* conf_path, kim::Log* l);
+    void destory();
 
     static void on_terminated(struct ev_signal* watcher);
     static void on_child_terminated(struct ev_signal* watcher);
@@ -25,16 +24,20 @@ class Manager {
    private:
     bool init_logger();
     bool init_events();
-    void set_logger(kim::Log* log) { m_logger = log; }
+    bool init_network();
+    void set_logger(Log* log) { m_logger = log; }
     bool load_config(const char* path);
     void create_workers();
+    void close_listen_sockets();
 
    private:
-    kim::Log* m_logger;
+    Log* m_logger;
     util::CJsonObject m_json_conf;
     util::CJsonObject m_old_json_conf;
-    kim::node_info_t m_node_info;
-    kim::Events* m_events;
+    node_info_t m_node_info;
+    Events* m_events;
+    Network* m_network;
+    std::list<int> m_fds;
 };
 
 }  // namespace kim
