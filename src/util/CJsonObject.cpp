@@ -1,6 +1,6 @@
 #include "CJsonObject.hpp"
 
-namespace util {
+namespace kim {
 
 CJsonObject::CJsonObject()
     : m_pJsonData(NULL), m_pExternJsonDataRef(NULL) {
@@ -2200,4 +2200,4 @@ CJsonObject::CJsonObject(cJSON* pJsonData)
     : m_pJsonData(NULL), m_pExternJsonDataRef(pJsonData) {
 }
 
-}  // namespace util
+}  // namespace kim

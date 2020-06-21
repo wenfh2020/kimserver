@@ -31,8 +31,8 @@ class Manager {
 
    private:
     Log* m_logger;
-    util::CJsonObject m_json_conf;
-    util::CJsonObject m_old_json_conf;
+    CJsonObject m_json_conf;
+    CJsonObject m_old_json_conf;
     node_info_t m_node_info;
     Events* m_events;
     Network* m_network;

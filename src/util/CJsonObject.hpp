@@ -16,7 +16,7 @@
 
 #include "cJSON.h"
 
-namespace util {
+namespace kim {
 
 /**
  * @brief Json管理类
@@ -133,6 +133,6 @@ class CJsonObject {
     std::unordered_map<std::string, CJsonObject*> m_mapJsonObjectRef;
 };
 
-}  // namespace util
+}  // namespace kim
 
 #endif /* CJSONHELPER_HPP_ */

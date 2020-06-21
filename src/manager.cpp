@@ -100,7 +100,7 @@ bool Manager::load_config(const char* path) {
         return false;
     }
 
-    util::CJsonObject json_conf;
+    CJsonObject json_conf;
     std::stringstream content;
     content << fin.rdbuf();
     if (!json_conf.Parse(content.str())) {
