@@ -18,14 +18,14 @@ typedef struct addr_info_s {
 
 typedef struct node_info_s {
     node_info_s() {
-        worker_num = 0;
+        worker_processes = 0;
     }
 
     addr_info_t addr_info;  // network addr info.
     std::string node_type;  // node type in cluster.
     std::string conf_path;  // config path.
     std::string work_path;  // process work path.
-    int worker_num;         // number of worker's processes.
+    int worker_processes;   // number of worker's processes.
 } node_info_t;
 
 typedef struct worker_info_s {

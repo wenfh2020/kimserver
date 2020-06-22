@@ -7,7 +7,7 @@
 namespace kim {
 
 Events::Events(Log* logger)
-    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL), m_seq(0), m_network(NULL) {
+    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL), m_network(NULL), m_seq(0) {
 }
 
 Events::~Events() {

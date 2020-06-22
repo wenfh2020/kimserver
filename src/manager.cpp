@@ -121,13 +121,13 @@ bool Manager::load_config(const char* path) {
 
     if (m_old_json_conf.ToString() != m_json_conf.ToString()) {
         if (m_old_json_conf.ToString().empty()) {
-            m_node_info.worker_num =
-                strtoul(m_json_conf("process_num").c_str(), NULL, 10);
+            m_json_conf.Get("worker_processes", m_node_info.worker_processes);
             m_json_conf.Get("node_type", m_node_info.node_type);
             m_json_conf.Get("bind", m_node_info.addr_info.bind);
             m_json_conf.Get("port", m_node_info.addr_info.port);
-            m_json_conf.Get("gate_bind", m_node_info.addr_info.gate_port);
+            m_json_conf.Get("gate_bind", m_node_info.addr_info.gate_bind);
             m_json_conf.Get("gate_port", m_node_info.addr_info.gate_port);
+            // LOG_DEBUG("worker processes: %d", m_node_info.worker_processes);
         }
     }
     return true;
@@ -161,7 +161,7 @@ void Manager::create_workers() {
     int pid = 0;
     int sum = 0;
 
-    for (int i = 0; i < m_node_info.worker_num; i++) {
+    for (int i = 0; i < m_node_info.worker_processes; i++) {
         int data_fds[2];
         int ctrl_fds[2];
 

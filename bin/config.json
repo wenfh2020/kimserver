@@ -1,11 +1,11 @@
 {
-    "process_num": "4",
+    "worker_processes": 4,
     "node_type": "gate",
     "server_name": "my_server",
     "bind": "127.0.0.1",
-    "port": "3344",
+    "port": 3344,
     "gate_bind": "127.0.0.1",
-    "gate_port": "3355",
+    "gate_port": 3355,
     "log_path": "kim_server.log",
     "log_level": "debug"
 }
