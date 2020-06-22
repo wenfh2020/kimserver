@@ -22,6 +22,6 @@ bool Worker::init(Log* log, const std::string& server_name) {
     return true;
 }
 
-bool Worker::run() { return true; }
+void Worker::run() {}
 
 }  // namespace kim

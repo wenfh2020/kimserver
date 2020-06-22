@@ -2,26 +2,44 @@
 
 #include <ev.h>
 #include <signal.h>
+#include <unistd.h>
 
 namespace kim {
 
 Events::Events(Log* logger)
-    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL) {
+    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL), m_seq(0), m_network(NULL) {
 }
 
 Events::~Events() {
+    destory();
 }
 
-bool Events::create() {
+bool Events::create(const addr_info_t* addr_info) {
     m_sig_cb_info = new signal_callback_info_t;
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (NULL == m_ev_loop) {
         return false;
     }
 
+    if (!init_network(addr_info)) {
+        LOG_ERROR("init network failed!");
+        return false;
+    }
+
     create_events();
     LOG_INFO("init events success!");
     return true;
+}
+
+void Events::destory() {
+    SAFE_DELETE(m_sig_cb_info);
+    close_listen_sockets();
+    SAFE_DELETE(m_network);
+
+    if (m_ev_loop != NULL) {
+        ev_loop_destroy(m_ev_loop);
+        m_ev_loop = NULL;
+    }
 }
 
 void Events::run() {
@@ -63,6 +81,40 @@ void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int reve
         if (cb_info->fn_terminated) {
             cb_info->fn_terminated(s);
         }
+    }
+}
+
+bool Events::add_io_event(int fd) {
+    return true;
+}
+
+void Events::close_listen_sockets() {
+    std::list<int>::iterator itr = m_fds.begin();
+    for (; itr != m_fds.end(); itr++) {
+        if (*itr != -1) close(*itr);
+    }
+}
+
+bool Events::init_network(const addr_info_t* addr_info) {
+    m_network = new Network(m_logger);
+    if (NULL == m_network) return false;
+
+    if (!m_network->create(addr_info, m_fds)) {
+        LOG_ERROR("create network failed!");
+        return false;
+    }
+
+    LOG_INFO("init network done!");
+    return true;
+}
+
+void Events::close_chanel(int* fds) {
+    if (close(fds[0]) == -1) {
+        LOG_WARNING("close() channel failed!");
+    }
+
+    if (close(fds[1]) == -1) {
+        LOG_WARNING("close() channel failed!");
     }
 }
 

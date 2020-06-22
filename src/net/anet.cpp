@@ -1,5 +1,6 @@
 #include "anet.h"
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -134,4 +135,42 @@ int anet_tcp_server(char *err, int port, const char *bindaddr, int backlog) {
 
 int anet_tcp6_server(char *err, int port, const char *bindaddr, int backlog) {
     return _anet_tcp_server(err, port, bindaddr, AF_INET6, backlog);
+}
+
+static int anet_generic_accept(char *err, int s, struct sockaddr *sa,
+                               socklen_t *len) {
+    int fd;
+    while (1) {
+        fd = accept(s, sa, len);
+        if (fd == -1) {
+            if (errno == EINTR) {
+                continue;
+            } else {
+                anet_set_error(err, "accept: %s", strerror(errno));
+                return -1;
+            }
+        }
+        break;
+    }
+    return fd;
+}
+
+int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port) {
+    int fd;
+    struct sockaddr_storage sa;
+    socklen_t salen = sizeof(sa);
+    if ((fd = anet_generic_accept(err, s, (struct sockaddr *)&sa, &salen)) ==
+        -1)
+        return ANET_ERR;
+
+    if (sa.ss_family == AF_INET) {
+        struct sockaddr_in *s = (struct sockaddr_in *)&sa;
+        if (ip) inet_ntop(AF_INET, (void *)&(s->sin_addr), ip, ip_len);
+        if (port) *port = ntohs(s->sin_port);
+    } else {
+        struct sockaddr_in6 *s = (struct sockaddr_in6 *)&sa;
+        if (ip) inet_ntop(AF_INET6, (void *)&(s->sin6_addr), ip, ip_len);
+        if (port) *port = ntohs(s->sin6_port);
+    }
+    return fd;
 }

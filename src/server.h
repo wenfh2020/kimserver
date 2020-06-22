@@ -7,6 +7,11 @@ namespace kim {
 
 #define MAX_PATH 256
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAIL -1
+#define EXIT_CHILD -2
+#define EXIT_CHILD_INIT_FAIL -3
+
 #define SAFE_DELETE(x) \
     if (x != NULL) delete (x);
 

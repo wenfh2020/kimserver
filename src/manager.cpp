@@ -7,14 +7,14 @@
 #include <sstream>
 
 #include "net/anet.h"
+#include "server.h"
 #include "util/set_proc_title.h"
 #include "worker.h"
 
 namespace kim {
 
 Manager::Manager(Log* logger)
-    : m_logger(logger), m_events(NULL), m_network(NULL) {
-    m_fds.clear();
+    : m_logger(logger), m_events(NULL) {
 }
 
 Manager::~Manager() {
@@ -22,16 +22,27 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    close_listen_sockets();
     SAFE_DELETE(m_events);
-    SAFE_DELETE(m_network);
+
+    std::map<int, worker_info_t*>::iterator itr = m_work_info.begin();
+    for (; itr != m_work_info.end(); itr++) {
+        worker_info_t* info = (worker_info_t*)itr->second;
+        if (info != NULL) {
+            if (info->ctrl_fd != -1) close(info->ctrl_fd);
+            if (info->data_fd != -1) close(info->data_fd);
+            SAFE_DELETE(info);
+        }
+    }
 }
 
 void Manager::run() {
-    if (m_events != NULL) {
-        LOG_INFO("%s", "server is running!");
-        m_events->run();
+    if (m_events == NULL) {
+        LOG_CRIT("create events failed!");
+        return;
     }
+
+    m_events->run();
+    LOG_INFO("server is running!");
 }
 
 bool Manager::init(const char* conf_path) {
@@ -58,11 +69,6 @@ bool Manager::init(const char* conf_path) {
 
     if (!init_events()) {
         LOG_ERROR("init events fail!");
-        return false;
-    }
-
-    if (!init_network()) {
-        LOG_ERROR("init network fail!");
         return false;
     }
 
@@ -129,7 +135,7 @@ bool Manager::load_config(const char* path) {
 
 bool Manager::init_events() {
     m_events = new Events(m_logger);
-    if (!m_events->create()) {
+    if (!m_events->create(&m_node_info.addr_info)) {
         LOG_ERROR("init events fail!");
         return false;
     }
@@ -137,19 +143,6 @@ bool Manager::init_events() {
     m_events->set_cb_child_terminated(&on_child_terminated);
 
     LOG_INFO("init events done!");
-    return true;
-}
-
-bool Manager::init_network() {
-    m_network = new Network(m_logger);
-    if (NULL == m_network) return false;
-
-    if (!m_network->create(&m_node_info.addr_info, m_fds)) {
-        LOG_ERROR("create network failed!");
-        return false;
-    }
-
-    LOG_INFO("init network done!");
     return true;
 }
 
@@ -166,6 +159,7 @@ void Manager::on_child_terminated(struct ev_signal* watcher) {
 
 void Manager::create_workers() {
     int pid = 0;
+    int sum = 0;
 
     for (int i = 0; i < m_node_info.worker_num; i++) {
         int data_fds[2];
@@ -173,47 +167,60 @@ void Manager::create_workers() {
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
             LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
+            continue;
         }
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
             LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
+            m_events->close_chanel(ctrl_fds);
+            continue;
         }
 
         if ((pid = fork()) == 0) {
-            close_listen_sockets();
+            // child
+            m_events->close_listen_sockets();
             close(ctrl_fds[0]);
             close(data_fds[0]);
             anet_no_block(NULL, ctrl_fds[1]);
             anet_no_block(NULL, data_fds[1]);
 
-            worker_info_s work_info;
-            work_info.work_path = m_node_info.work_path;
-            work_info.ctrl_fd = ctrl_fds[1];
-            work_info.data_fd = data_fds[1];
-            work_info.worker_idx = i;
+            worker_info_t info;
+            info.work_path = m_node_info.work_path;
+            info.ctrl_fd = ctrl_fds[1];
+            info.data_fd = data_fds[1];
+            info.worker_idx = i;
 
-            Worker worker(&work_info);
+            Worker worker(&info);
             if (!worker.init(m_logger, m_json_conf("server_name"))) {
-                exit(3);
+                exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();
-            exit(-2);
+
+            LOG_INFO("exit process index: %d", i);
+            exit(EXIT_CHILD);
         } else if (pid > 0) {
+            sum++;
+            // parent
             close(ctrl_fds[1]);
             close(data_fds[1]);
             anet_no_block(NULL, ctrl_fds[0]);
             anet_no_block(NULL, data_fds[0]);
+
+            worker_info_t* info = new worker_info_t;
+            info->work_path = m_node_info.work_path;
+            info->ctrl_fd = ctrl_fds[0];
+            info->data_fd = data_fds[0];
+            info->worker_idx = i;
+            m_work_info[pid] = info;
+
+            m_chanel_fd_pid[ctrl_fds[0]] = pid;
+            m_chanel_fd_pid[data_fds[0]] = pid;
         } else {
-            LOG_ERROR("error %d: %s", errno, strerror(errno));
+            LOG_ERROR("error: %d, %s", errno, strerror(errno));
         }
     }
-}
 
-void Manager::close_listen_sockets() {
-    std::list<int>::iterator itr = m_fds.begin();
-    for (; itr != m_fds.end(); itr++) {
-        if (*itr != -1) close(*itr);
-    }
+    LOG_INFO("fork process count: %d", sum);
 }
 
 }  // namespace kim

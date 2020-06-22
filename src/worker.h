@@ -13,7 +13,7 @@ class Worker {
     virtual ~Worker() {}
 
     bool init(Log* log, const std::string& server_name);
-    bool run();
+    void run();
 
    private:
     Log* m_logger;

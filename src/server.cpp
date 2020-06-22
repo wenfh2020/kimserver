@@ -23,7 +23,7 @@ void init_server(int argc, char** argv) {
 int main(int argc, char** argv) {
     if (argc != 2) {
         std::cerr << "invalid param num!" << std::endl;
-        exit(-1);
+        exit(EXIT_FAIL);
     }
 
     init_server(argc, argv);
@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     kim::Manager mgr(&logger);
     if (!mgr.init(argv[1])) {
         std::cerr << "init manager failed!" << std::endl;
-        exit(-1);
+        exit(EXIT_FAIL);
     }
     mgr.run();
     return 0;

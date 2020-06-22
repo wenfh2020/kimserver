@@ -2,7 +2,6 @@
 #define __MANAGER_H__
 
 #include "events.h"
-#include "network.h"
 #include "node_info.h"
 #include "server.h"
 #include "util/CJsonObject.hpp"
@@ -24,10 +23,8 @@ class Manager {
    private:
     bool init_logger();
     bool init_events();
-    bool init_network();
     bool load_config(const char* path);
     void create_workers();
-    void close_listen_sockets();
 
    private:
     Log* m_logger;
@@ -35,8 +32,8 @@ class Manager {
     CJsonObject m_old_json_conf;
     node_info_t m_node_info;
     Events* m_events;
-    Network* m_network;
-    std::list<int> m_fds;
+    std::map<int, worker_info_t*> m_work_info;
+    std::map<int, int> m_chanel_fd_pid;
 };
 
 }  // namespace kim

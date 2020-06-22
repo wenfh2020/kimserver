@@ -8,11 +8,14 @@
 namespace kim {
 
 #define TCP_BACK_LOG 511
+#define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
+#define MAX_ACCEPTS_PER_CALL 1000
 
 Network::Network(Log* logger) : m_logger(logger) {
 }
 
 bool Network::create(const addr_info_t* addr_info, std::list<int>& fds) {
+    if (addr_info == NULL) return false;
     int fd = -1;
 
     if (!addr_info->bind.empty()) {
@@ -61,6 +64,23 @@ int Network::listen_to_port(const char* bind, int port) {
     }
 
     return fd;
+}
+
+void Network::accept_tcp_handler(int fd, void* privdata) {
+    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
+    char cip[NET_IP_STR_LEN];
+
+    while (max--) {
+        cfd = anet_tcp_accept(m_neterr, fd, cip, sizeof(cip), &cport);
+        if (cfd == ANET_ERR) {
+            if (errno != EWOULDBLOCK) {
+                LOG_WARNING("accepting client connection error: %s", m_neterr)
+            }
+            return;
+        }
+        LOG_DEBUG("accepted %s:%", cip, cport);
+        // acceptCommonHandler(connCreateAcceptedSocket(cfd), 0, cip);
+    }
 }
 
 }  // namespace kim
