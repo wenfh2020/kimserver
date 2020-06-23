@@ -3,6 +3,9 @@
 
 #include <ev.h>
 
+#include <map>
+
+#include "context.h"
 #include "log.h"
 #include "network.h"
 #include "server.h"
@@ -29,7 +32,9 @@ class Events {
     void destory();
     void run();
 
-    bool add_io_event(int fd);
+    Connection* create_conn(int fd);
+
+    bool add_read_event(Connection* c);
     void close_listen_sockets();
     void close_chanel(int* fds);
 
@@ -37,9 +42,11 @@ class Events {
     void set_cb_child_terminated(ev_cb_fn* cb);
     int get_new_seq() { return ++m_seq; }
 
+    static void cb_io_events(struct ev_loop* loop, struct ev_io* ev, int events);
+
    private:
     bool init_network(const addr_info_t* addr_info);
-    bool create_events();
+    bool setup_signals();
     void create_ev_signal(int signum);
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
 
@@ -49,7 +56,8 @@ class Events {
     signal_callback_info_t* m_sig_cb_info;
     Network* m_network;
     std::list<int> m_fds;
-    int m_seq;
+    uint64_t m_seq;
+    std::map<int, Connection*> m_conns;
 };
 
 }  // namespace kim

@@ -25,6 +25,7 @@ class Manager {
     bool init_events();
     bool load_config(const char* path);
     void create_workers();
+    bool add_chanel_event(int fd);
 
    private:
     Log* m_logger;
@@ -32,7 +33,7 @@ class Manager {
     CJsonObject m_old_json_conf;
     node_info_t m_node_info;
     Events* m_events;
-    std::map<int, worker_info_t*> m_work_info;
+    std::map<int, worker_info_t*> m_pid_worker_info;
     std::map<int, int> m_chanel_fd_pid;
 };
 

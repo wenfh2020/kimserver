@@ -4,6 +4,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "context.h"
+
 namespace kim {
 
 Events::Events(Log* logger)
@@ -18,15 +20,17 @@ bool Events::create(const addr_info_t* addr_info) {
     m_sig_cb_info = new signal_callback_info_t;
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (NULL == m_ev_loop) {
+        LOG_ERROR("new libev loop failed!");
         return false;
     }
+
+    setup_signals();
 
     if (!init_network(addr_info)) {
         LOG_ERROR("init network failed!");
         return false;
     }
 
-    create_events();
     LOG_INFO("init events success!");
     return true;
 }
@@ -55,13 +59,15 @@ void Events::set_cb_child_terminated(ev_cb_fn* cb) {
 }
 
 void Events::create_ev_signal(int signum) {
-    ev_signal* s = new ev_signal();
-    ev_signal_init(s, signal_callback, signum);
-    s->data = (void*)m_sig_cb_info;
-    ev_signal_start(m_ev_loop, s);
+    if (m_ev_loop != NULL) {
+        ev_signal* s = new ev_signal();
+        ev_signal_init(s, signal_callback, signum);
+        s->data = (void*)m_sig_cb_info;
+        ev_signal_start(m_ev_loop, s);
+    }
 }
 
-bool Events::create_events() {
+bool Events::setup_signals() {
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (int i = 0; i < sizeof(signals) / sizeof(int); i++) {
         create_ev_signal(signals[i]);
@@ -84,7 +90,7 @@ void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int reve
     }
 }
 
-bool Events::add_io_event(int fd) {
+bool Events::add_read_event(Connection* c) {
     return true;
 }
 
@@ -116,6 +122,37 @@ void Events::close_chanel(int* fds) {
     if (close(fds[1]) == -1) {
         LOG_WARNING("close() channel failed!");
     }
+}
+
+void Events::cb_io_events(struct ev_loop* loop, struct ev_io* ev, int events) {
+    if (ev == NULL) return;
+
+    if (events & EV_READ) {
+    }
+
+    if (events & EV_WRITE) {
+    }
+
+    if (events & EV_ERROR) {
+    }
+}
+
+Connection* Events::create_conn(int fd) {
+    std::map<int, Connection*>::iterator itr = m_conns.find(fd);
+    if (itr != m_conns.end()) {
+        return itr->second;
+    }
+
+    uint64_t seq = get_new_seq();
+    Connection* c = new Connection(fd, seq);
+    if (c == NULL) {
+        LOG_ERROR("new connection failed, fd: %d", fd);
+        return NULL;
+    }
+
+    LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
+    m_conns[fd] = c;
+    return c;
 }
 
 }  // namespace kim

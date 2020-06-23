@@ -6,6 +6,7 @@
 #include <iosfwd>
 #include <sstream>
 
+#include "context.h"
 #include "net/anet.h"
 #include "server.h"
 #include "util/set_proc_title.h"
@@ -24,8 +25,8 @@ Manager::~Manager() {
 void Manager::destory() {
     SAFE_DELETE(m_events);
 
-    std::map<int, worker_info_t*>::iterator itr = m_work_info.begin();
-    for (; itr != m_work_info.end(); itr++) {
+    std::map<int, worker_info_t*>::iterator itr = m_pid_worker_info.begin();
+    for (; itr != m_pid_worker_info.end(); itr++) {
         worker_info_t* info = (worker_info_t*)itr->second;
         if (info != NULL) {
             if (info->ctrl_fd != -1) close(info->ctrl_fd);
@@ -158,12 +159,10 @@ void Manager::on_child_terminated(struct ev_signal* watcher) {
 }
 
 void Manager::create_workers() {
-    int pid = 0;
-    int sum = 0;
+    int pid = 0, sum = 0;
 
     for (int i = 0; i < m_node_info.worker_processes; i++) {
-        int data_fds[2];
-        int ctrl_fds[2];
+        int data_fds[2], ctrl_fds[2];
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
             LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
@@ -196,7 +195,7 @@ void Manager::create_workers() {
             }
             worker.run();
 
-            LOG_INFO("exit process index: %d", i);
+            LOG_INFO("exit process pid: %d, index: %d", getpid(), i);
             exit(EXIT_CHILD);
         } else if (pid > 0) {
             sum++;
@@ -207,20 +206,34 @@ void Manager::create_workers() {
             anet_no_block(NULL, data_fds[0]);
 
             worker_info_t* info = new worker_info_t;
-            info->work_path = m_node_info.work_path;
+            info->worker_idx = i;
             info->ctrl_fd = ctrl_fds[0];
             info->data_fd = data_fds[0];
-            info->worker_idx = i;
-            m_work_info[pid] = info;
+            info->work_path = m_node_info.work_path;
+            m_pid_worker_info[pid] = info;
 
             m_chanel_fd_pid[ctrl_fds[0]] = pid;
             m_chanel_fd_pid[data_fds[0]] = pid;
+
+            add_chanel_event(ctrl_fds[0]);
+            add_chanel_event(data_fds[0]);
         } else {
             LOG_ERROR("error: %d, %s", errno, strerror(errno));
         }
     }
 
     LOG_INFO("fork process count: %d", sum);
+}
+
+bool Manager::add_chanel_event(int fd) {
+    Connection* c = m_events->create_conn(fd);
+    if (c != NULL) {
+        c->set_state(kim::Connection::CONN_STATE_CONNECTED);
+        m_events->add_read_event(c);
+        return true;
+    }
+
+    return false;
 }
 
 }  // namespace kim
