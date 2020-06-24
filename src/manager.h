@@ -25,14 +25,13 @@ class Manager {
     bool init_events();
     bool load_config(const char* path);
     void create_workers();
-    bool add_chanel_event(int fd);
 
    private:
-    Log* m_logger;
-    CJsonObject m_json_conf;
-    CJsonObject m_old_json_conf;
-    node_info_t m_node_info;
-    Events* m_events;
+    Log* m_logger;                // logger
+    CJsonObject m_json_conf;      // current config.
+    CJsonObject m_old_json_conf;  // old config
+    node_info_t m_node_info;      // cluster node.
+    Events* m_events;             // events handler.
     std::map<int, worker_info_t*> m_pid_worker_info;
     std::map<int, int> m_chanel_fd_pid;
 };

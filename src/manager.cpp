@@ -47,15 +47,6 @@ void Manager::run() {
 }
 
 bool Manager::init(const char* conf_path) {
-    if (m_node_info.work_path.empty()) {
-        char file_path[MAX_PATH] = {0};
-        if (!getcwd(file_path, sizeof(file_path))) {
-            LOG_ERROR("cant not get work path!");
-            return false;
-        }
-        m_node_info.work_path = file_path;
-    }
-
     if (!load_config(conf_path)) {
         LOG_ERROR("init conf fail! %s", conf_path);
         return false;
@@ -79,31 +70,41 @@ bool Manager::init(const char* conf_path) {
 }
 
 bool Manager::init_logger() {
-    char log_path[MAX_PATH] = {0};
-    snprintf(log_path, sizeof(log_path), "%s/%s",
+    char path[MAX_PATH] = {0};
+    snprintf(path, sizeof(path), "%s/%s",
              m_node_info.work_path.c_str(), m_json_conf("log_path").c_str());
 
     FILE* f;
-    f = fopen(log_path, "a");
+    f = fopen(path, "a");
     if (f == NULL) {
-        LOG_ERROR("cant not open log file: %s", log_path);
+        LOG_ERROR("cant not open log file: %s", path);
         return false;
     }
     fclose(f);
 
-    m_logger->set_log_path(log_path);
+    m_logger->set_log_path(path);
     m_logger->set_level(m_json_conf("log_level").c_str());
     return true;
 }
 
 bool Manager::load_config(const char* path) {
     if (access(path, R_OK) == -1) {
-        LOG_ERROR("no config file!");
+        LOG_ERROR("cant not access config file!");
         return false;
+    }
+
+    if (m_node_info.work_path.empty()) {
+        char work_path[MAX_PATH];
+        if (!getcwd(work_path, sizeof(work_path))) {
+            LOG_ERROR("get work path failed!");
+            return false;
+        }
+        m_node_info.work_path = work_path;
     }
 
     std::ifstream fin(path);
     if (!fin.good()) {
+        LOG_ERROR("load config file failed! %s", path);
         return false;
     }
 
@@ -112,6 +113,7 @@ bool Manager::load_config(const char* path) {
     content << fin.rdbuf();
     if (!json_conf.Parse(content.str())) {
         fin.close();
+        LOG_ERROR("parse json config failed! %s", path);
         return false;
     }
     fin.close();
@@ -131,6 +133,7 @@ bool Manager::load_config(const char* path) {
             // LOG_DEBUG("worker processes: %d", m_node_info.worker_processes);
         }
     }
+
     return true;
 }
 
@@ -148,7 +151,7 @@ bool Manager::init_events() {
 }
 
 void Manager::on_terminated(struct ev_signal* s) {
-    if (NULL == s) return;
+    if (s == NULL) return;
 
     // LOG_WARNING("%s terminated by signal %d!",
     //             m_json_conf("server_name").c_str(), s->signum);
@@ -215,25 +218,14 @@ void Manager::create_workers() {
             m_chanel_fd_pid[ctrl_fds[0]] = pid;
             m_chanel_fd_pid[data_fds[0]] = pid;
 
-            add_chanel_event(ctrl_fds[0]);
-            add_chanel_event(data_fds[0]);
+            // m_events->add_chanel_event(ctrl_fds[0]);
+            // m_events->add_chanel_event(data_fds[0]);
         } else {
             LOG_ERROR("error: %d, %s", errno, strerror(errno));
         }
     }
 
     LOG_INFO("fork process count: %d", sum);
-}
-
-bool Manager::add_chanel_event(int fd) {
-    Connection* c = m_events->create_conn(fd);
-    if (c != NULL) {
-        c->set_state(kim::Connection::CONN_STATE_CONNECTED);
-        m_events->add_read_event(c);
-        return true;
-    }
-
-    return false;
 }
 
 }  // namespace kim

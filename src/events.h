@@ -33,8 +33,10 @@ class Events {
     void run();
 
     Connection* create_conn(int fd);
+    void close_conns();
 
     bool add_read_event(Connection* c);
+    bool add_chanel_event(int fd);
     void close_listen_sockets();
     void close_chanel(int* fds);
 
@@ -46,7 +48,7 @@ class Events {
 
    private:
     bool init_network(const addr_info_t* addr_info);
-    bool setup_signals();
+    bool setup_signal_events();
     void create_ev_signal(int signum);
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
 
@@ -55,7 +57,7 @@ class Events {
     struct ev_loop* m_ev_loop;
     signal_callback_info_t* m_sig_cb_info;
     Network* m_network;
-    std::list<int> m_fds;
+    std::list<int> m_listen_fds;
     uint64_t m_seq;
     std::map<int, Connection*> m_conns;
 };

@@ -67,14 +67,14 @@ int Network::listen_to_port(const char* bind, int port) {
 }
 
 void Network::accept_tcp_handler(int fd, void* privdata) {
-    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
     char cip[NET_IP_STR_LEN];
+    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
-        cfd = anet_tcp_accept(m_neterr, fd, cip, sizeof(cip), &cport);
+        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK) {
-                LOG_WARNING("accepting client connection error: %s", m_neterr)
+                LOG_WARNING("accepting client connection error: %s", m_err)
             }
             return;
         }

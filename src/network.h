@@ -23,7 +23,7 @@ class Network {
 
    private:
     Log* m_logger;
-    char m_neterr[ANET_ERR_LEN];
+    char m_err[ANET_ERR_LEN];
 };
 
 }  // namespace kim
