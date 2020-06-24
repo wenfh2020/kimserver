@@ -15,6 +15,9 @@ namespace kim {
 #define SAFE_DELETE(x) \
     if (x != NULL) delete (x);
 
+#define SAFE_FREE(x) \
+    if (x != NULL) free(x);
+
 // new m_logger obj, before using.
 #define LOG_DETAIL(level, args...)                                           \
     if (m_logger != NULL) {                                                  \

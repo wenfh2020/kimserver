@@ -27,7 +27,7 @@ void Manager::destory() {
 
     std::map<int, worker_info_t*>::iterator itr = m_pid_worker_info.begin();
     for (; itr != m_pid_worker_info.end(); itr++) {
-        worker_info_t* info = (worker_info_t*)itr->second;
+        worker_info_t* info = itr->second;
         if (info != NULL) {
             if (info->ctrl_fd != -1) close(info->ctrl_fd);
             if (info->data_fd != -1) close(info->data_fd);
@@ -83,7 +83,10 @@ bool Manager::init_logger() {
     fclose(f);
 
     m_logger->set_log_path(path);
-    m_logger->set_level(m_json_conf("log_level").c_str());
+    if (!m_logger->set_level(m_json_conf("log_level").c_str())) {
+        LOG_ERROR("invalid log level!");
+        return false;
+    }
     return true;
 }
 
@@ -139,12 +142,10 @@ bool Manager::load_config(const char* path) {
 
 bool Manager::init_events() {
     m_events = new Events(m_logger);
-    if (!m_events->create(&m_node_info.addr_info)) {
+    if (!m_events->create(&m_node_info.addr_info, this)) {
         LOG_ERROR("init events fail!");
         return false;
     }
-    m_events->set_cb_terminated(&on_terminated);
-    m_events->set_cb_child_terminated(&on_child_terminated);
 
     LOG_INFO("init events done!");
     return true;

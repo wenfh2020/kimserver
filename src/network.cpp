@@ -11,7 +11,8 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger) : m_logger(logger) {
+Network::Network(Log* logger)
+    : m_logger(logger), m_bind_fd(0), m_gate_bind_fd(0) {
 }
 
 bool Network::create(const addr_info_t* addr_info, std::list<int>& fds) {
@@ -25,6 +26,7 @@ bool Network::create(const addr_info_t* addr_info, std::list<int>& fds) {
                       addr_info->bind.c_str(), addr_info->port);
             return false;
         }
+        m_bind_fd = fd;
         fds.push_back(fd);
     }
 
@@ -35,6 +37,7 @@ bool Network::create(const addr_info_t* addr_info, std::list<int>& fds) {
                       addr_info->gate_bind.c_str(), addr_info->gate_port);
             return false;
         }
+        m_gate_bind_fd = fd;
         fds.push_back(fd);
     }
 

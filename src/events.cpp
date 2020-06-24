@@ -9,22 +9,21 @@
 namespace kim {
 
 Events::Events(Log* logger)
-    : m_logger(logger), m_ev_loop(NULL), m_sig_cb_info(NULL), m_network(NULL), m_seq(0) {
+    : m_logger(logger), m_ev_loop(NULL), m_net(NULL), m_seq(0), m_sig_cb(NULL) {
 }
 
 Events::~Events() {
     destory();
 }
 
-bool Events::create(const addr_info_t* addr_info) {
-    m_sig_cb_info = new signal_callback_info_t;
+bool Events::create(const addr_info_t* addr_info, ISignalCallback* s) {
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (NULL == m_ev_loop) {
         LOG_ERROR("new libev loop failed!");
         return false;
     }
 
-    setup_signal_events();
+    setup_signal_events(s);
 
     if (!init_network(addr_info)) {
         LOG_ERROR("init network failed!");
@@ -36,9 +35,8 @@ bool Events::create(const addr_info_t* addr_info) {
 }
 
 void Events::destory() {
-    SAFE_DELETE(m_sig_cb_info);
     close_listen_sockets();
-    SAFE_DELETE(m_network);
+    SAFE_DELETE(m_net);
 
     if (m_ev_loop != NULL) {
         ev_loop_destroy(m_ev_loop);
@@ -52,24 +50,18 @@ void Events::run() {
     if (m_ev_loop) ev_run(m_ev_loop, 0);
 }
 
-void Events::set_cb_terminated(ev_cb_fn* cb) {
-    m_sig_cb_info->fn_terminated = cb;
-}
-
-void Events::set_cb_child_terminated(ev_cb_fn* cb) {
-    m_sig_cb_info->fn_child_terminated = cb;
-}
-
 void Events::create_ev_signal(int signum) {
     if (m_ev_loop != NULL) {
         ev_signal* s = new ev_signal();
         ev_signal_init(s, signal_callback, signum);
-        s->data = (void*)m_sig_cb_info;
+        s->data = (void*)m_sig_cb;
         ev_signal_start(m_ev_loop, s);
     }
 }
 
-bool Events::setup_signal_events() {
+bool Events::setup_signal_events(ISignalCallback* s) {
+    m_sig_cb = s;
+
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (int i = 0; i < sizeof(signals) / sizeof(int); i++) {
         create_ev_signal(signals[i]);
@@ -80,17 +72,13 @@ bool Events::setup_signal_events() {
 void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int revents) {
     if (NULL == s->data) return;
 
-    signal_callback_info_t* cb_info = (signal_callback_info_t*)s->data;
+    ISignalCallback* sig_cb = static_cast<ISignalCallback*>(s->data);
     if (SIGCHLD == s->signum) {
-        if (cb_info->fn_child_terminated) {
-            cb_info->fn_child_terminated(s);
-        }
+        sig_cb->on_child_terminated(s);
     } else {
-        if (cb_info->fn_terminated) {
-            cb_info->fn_terminated(s);
-        }
+        sig_cb->on_terminated(s);
     }
-}
+}  // namespace kim
 
 bool Events::add_read_event(Connection* c) {
     if (c == NULL) {
@@ -98,24 +86,26 @@ bool Events::add_read_event(Connection* c) {
         return false;
     }
 
-    std::map<int, Connection*>::iterator itr = m_conns.find(c->get_fd());
-    if (itr == m_conns.end()) {
+    std::map<int, Connection*>::iterator it = m_conns.find(c->get_fd());
+    if (it == m_conns.end()) {
         LOG_ERROR("can not find connetion from fd: %s", c->get_fd());
         return false;
     }
 
-    ev_io* e = (ev_io*)c->get_private_data();
+    ev_io* e = c->get_ev_io();
     if (e == NULL) {
-        e = new ev_io();
+        e = (ev_io*)malloc(sizeof(ev_io));
         if (e == NULL) {
             LOG_ERROR("new ev_io failed!");
             return false;
         }
-        c->set_private_data(e);
 
         e->data = c;
-        ev_io_init(e, cb_io_events, c->get_fd(), EV_READ);
+        ev_io_init(e, event_callback, c->get_fd(), EV_READ);
         ev_io_start(m_ev_loop, e);
+
+        c->set_ev_io(e);
+        c->set_private_data(this);
 
         LOG_DEBUG("start ev io, fd: %d", c->get_fd());
     } else {
@@ -124,9 +114,10 @@ bool Events::add_read_event(Connection* c) {
             ev_io_set(e, e->fd, e->events | EV_READ);
             ev_io_start(m_ev_loop, e);
         } else {
-            ev_io_init(e, cb_io_events, c->get_fd(), EV_READ);
+            ev_io_init(e, event_callback, c->get_fd(), EV_READ);
             ev_io_start(m_ev_loop, e);
         }
+
         LOG_DEBUG("restart ev io, fd: %d", c->get_fd());
     }
 
@@ -145,27 +136,27 @@ bool Events::add_chanel_event(int fd) {
 }
 
 void Events::close_listen_sockets() {
-    std::list<int>::iterator itr = m_listen_fds.begin();
-    for (; itr != m_listen_fds.end(); itr++) {
-        if (*itr != -1) close(*itr);
+    std::list<int>::iterator it = m_listen_fds.begin();
+    for (; it != m_listen_fds.end(); it++) {
+        if (*it != -1) close(*it);
     }
 }
 
 bool Events::init_network(const addr_info_t* addr_info) {
-    m_network = new Network(m_logger);
-    if (m_network == NULL) {
+    m_net = new Network(m_logger);
+    if (m_net == NULL) {
         LOG_ERROR("new network failed!");
         return false;
     }
 
-    if (!m_network->create(addr_info, m_listen_fds)) {
+    if (!m_net->create(addr_info, m_listen_fds)) {
         LOG_ERROR("create network failed!");
         return false;
     }
 
-    std::list<int>::iterator itr = m_listen_fds.begin();
-    for (; itr != m_listen_fds.end(); itr++) {
-        add_chanel_event(*itr);
+    std::list<int>::iterator it = m_listen_fds.begin();
+    for (; it != m_listen_fds.end(); it++) {
+        add_chanel_event(*it);
     }
 
     LOG_INFO("init network done!");
@@ -182,25 +173,33 @@ void Events::close_chanel(int* fds) {
     }
 }
 
-void Events::cb_io_events(struct ev_loop* loop, struct ev_io* ev, int events) {
-    if (ev == NULL) return;
+void Events::event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
+    if (e == NULL) return;
 
-    printf("cb_io_events %d\n", events);
+    Connection* c = static_cast<Connection*>(e->data);
+    if (c == NULL) return;
+
+    Events* event = static_cast<Events*>(c->get_private_data());
+    if (event == NULL) return;
 
     if (events & EV_READ) {
+        event->io_read(c, e);
     }
 
-    if (events & EV_WRITE) {
+    if (events & EV_WRITE &&
+        c->get_state() != Connection::CONN_STATE_CLOSED) {
+        event->io_write(c, e);
     }
 
     if (events & EV_ERROR) {
+        event->io_error(c, e);
     }
 }
 
 Connection* Events::create_conn(int fd) {
-    std::map<int, Connection*>::iterator itr = m_conns.find(fd);
-    if (itr != m_conns.end()) {
-        return itr->second;
+    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    if (it != m_conns.end()) {
+        return it->second;
     }
 
     uint64_t seq = get_new_seq();
@@ -216,10 +215,34 @@ Connection* Events::create_conn(int fd) {
 }
 
 void Events::close_conns() {
-    std::map<int, Connection*>::iterator itr = m_conns.begin();
-    for (; itr != m_conns.begin(); itr++) {
-        SAFE_DELETE(itr->second);
+    std::map<int, Connection*>::iterator it = m_conns.begin();
+    for (; it != m_conns.begin(); it++) {
+        SAFE_FREE(it->second->get_ev_io());
+        SAFE_DELETE(it->second);
     }
+}
+
+bool Events::io_read(Connection* c, struct ev_io* e) {
+    if (c == NULL || e == NULL) return false;
+
+    if (e->fd == m_net->get_bind_fd()) {
+    } else if (e->fd == m_net->get_gate_bind_fd()) {
+    } else {
+        return true;
+    }
+
+    LOG_DEBUG("io read fd: %d, seq: %d", c->get_fd(), c->get_id());
+    return true;
+}
+
+bool Events::io_write(Connection* c, struct ev_io* e) {
+    LOG_DEBUG("io write fd: %d, seq: %d", c->get_fd(), c->get_id());
+    return true;
+}
+
+bool Events::io_error(Connection* c, struct ev_io* e) {
+    LOG_DEBUG("io error fd: %d, seq: %d", c->get_fd(), c->get_id());
+    return true;
 }
 
 }  // namespace kim

@@ -1,6 +1,8 @@
 #ifndef __CONTEXT_H__
 #define __CONTEXT_H__
 
+#include <ev.h>
+
 #include <iostream>
 
 namespace kim {
@@ -33,6 +35,9 @@ class Connection {
 
     void set_errno(int err) { m_errno = err; }
 
+    void set_ev_io(ev_io* e) { m_ev_io = e; }
+    ev_io* get_ev_io() { return m_ev_io; }
+
    private:
     int m_fd;
     uint64_t m_id;
@@ -40,6 +45,7 @@ class Connection {
     CONN_STATE m_state;
     int m_errno;
     std::string m_error;
+    ev_io* m_ev_io;
 };
 
 }  // namespace kim
