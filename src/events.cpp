@@ -111,6 +111,19 @@ bool Events::add_read_event(Connection* c) {
     return true;
 }
 
+bool Events::del_event(Connection* c) {
+    if (c == NULL) return false;
+
+    ev_io* e = c->get_ev_io();
+    if (e == NULL) return false;
+
+    ev_io_stop(m_ev_loop, e);
+    e->data = NULL;
+    SAFE_FREE(e);
+
+    return true;
+}
+
 void Events::event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
     if (e == NULL) return;
 
@@ -132,10 +145,6 @@ void Events::event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
     if (events & EV_ERROR) {
         cb->io_error(c, e);
     }
-}
-
-bool Events::accept_server_conn(int fd) {
-    return true;
 }
 
 }  // namespace kim

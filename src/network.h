@@ -23,19 +23,20 @@ class Network : public IEventsCallback {
     void destory();
     bool init_events(ISignalCallBack* s);
 
-    void accept_tcp_handler(int fd, void* privdata);
+    void accept_tcp_handler(int fd);
     void close_chanel(int* fds);
     void close_listen_sockets();
+
     Connection* create_conn(int fd);
+    bool close_conn(Connection* c);
     void close_conns();
 
     bool add_chanel_event(int fd);
     bool add_conncted_read_event(int fd);
 
-    int get_bind_fd() { return m_bind_fd; }
-    int get_gate_bind_fd() { return m_gate_bind_fd; }
-
     int get_new_seq() { return ++m_seq; }
+
+    bool accept_server_conn(int fd);
 
     // IEventsCallback
     virtual bool io_read(Connection* c, struct ev_io* e);

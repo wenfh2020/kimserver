@@ -136,15 +136,14 @@ Connection* Network::create_conn(int fd) {
         return it->second;
     }
 
-    uint64_t seq = get_new_seq();
-    Connection* c = new Connection(fd, seq);
-    if (c == NULL) {
-        LOG_ERROR("new connection failed, fd: %d", fd);
-        return NULL;
-    }
+    uint64_t seq;
+    Connection* c;
+
+    seq = get_new_seq();
+    c = new Connection(fd, seq);
+    m_conns[fd] = c;
 
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
-    m_conns[fd] = c;
     return c;
 }
 
@@ -200,8 +199,7 @@ void Network::close_listen_sockets() {
 void Network::close_conns() {
     std::map<int, Connection*>::iterator it = m_conns.begin();
     for (; it != m_conns.begin(); it++) {
-        SAFE_FREE(it->second->get_ev_io());
-        SAFE_DELETE(it->second);
+        close_conn(it->second);
     }
 }
 
@@ -210,16 +208,17 @@ bool Network::io_read(Connection* c, struct ev_io* e) {
 
     if (c == NULL || e == NULL) return false;
 
-    // if (e->fd == m_net->get_bind_fd()) {
-    //     // accept.
-    //     accept_server_conn(e->fd);
-    // } else if (e->fd == m_net->get_gate_bind_fd()) {
-    //     // transfer client connect from manger to child pro.
-    // } else {
-    //     return true;
-    // }
+    if (e->fd == m_bind_fd) {
+        // accept.
+        accept_server_conn(e->fd);
+    } else if (e->fd == m_gate_bind_fd) {
+        // transfer client connect from manger to child pro.
+    } else {
+        return true;
+    }
 
-    LOG_DEBUG("io read fd: %d, seq: %d", c->get_fd(), c->get_id());
+    LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
+              c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
     return true;
 }
 
@@ -230,6 +229,67 @@ bool Network::io_write(Connection* c, struct ev_io* e) {
 
 bool Network::io_error(Connection* c, struct ev_io* e) {
     LOG_DEBUG("io error fd: %d, seq: %d", c->get_fd(), c->get_id());
+    return true;
+}
+
+bool Network::accept_server_conn(int fd) {
+    LOG_DEBUG("accept_server_conn()");
+
+    accept_tcp_handler(fd);
+    return true;
+}
+
+void Network::accept_tcp_handler(int fd) {
+    LOG_DEBUG("accept_tcp_handler()");
+
+    if (fd == -1) {
+        LOG_ERROR("invalid fd: %d", fd);
+        return;
+    }
+
+    char cip[NET_IP_STR_LEN];
+    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
+
+    while (max--) {
+        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
+        if (cfd == ANET_ERR) {
+            if (errno != EWOULDBLOCK)
+                LOG_WARNING("accepting client connection: %s", m_err);
+            return;
+        }
+
+        LOG_DEBUG("accepted %s:%d", cip, cport);
+
+        Connection* c = create_conn(cfd);
+        c->set_state(Connection::CONN_STATE_ACCEPTING);
+
+        anet_no_block(NULL, cfd);
+        anet_keep_alive(NULL, cfd, 100);
+        anet_set_tcp_no_delay(NULL, cfd, 1);
+        if (!m_events->add_read_event(c)) {
+            LOG_ERROR("add read event failed! fd: %d", cfd);
+            return;
+        }
+    }
+}
+
+bool Network::close_conn(Connection* c) {
+    LOG_DEBUG("close_conn()");
+
+    if (c == NULL) return false;
+
+    int fd = c->get_fd();
+    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        LOG_WARNING("close conn failed! fd: %d", fd);
+        return false;
+    }
+
+    m_events->del_event(c);
+
+    if (fd != -1) close(fd);
+    SAFE_DELETE(c);
+    m_conns.erase(it);
     return true;
 }
 

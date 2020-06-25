@@ -21,9 +21,8 @@ class Events {
     void destory();
     void run();
 
-    bool accept_server_conn(int fd);
-
     bool add_read_event(Connection* c);
+    bool del_event(Connection* c);
 
     static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);
 

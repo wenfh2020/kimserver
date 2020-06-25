@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -159,8 +161,9 @@ int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port) {
     int fd;
     struct sockaddr_storage sa;
     socklen_t salen = sizeof(sa);
-    if ((fd = anet_generic_accept(err, s, (struct sockaddr *)&sa, &salen)) ==
-        -1)
+
+    fd = anet_generic_accept(err, s, (struct sockaddr *)&sa, &salen);
+    if (fd == -1)
         return ANET_ERR;
 
     if (sa.ss_family == AF_INET) {
@@ -172,5 +175,58 @@ int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port) {
         if (ip) inet_ntop(AF_INET6, (void *)&(s->sin6_addr), ip, ip_len);
         if (port) *port = ntohs(s->sin6_port);
     }
+
     return fd;
+}
+
+int anet_keep_alive(char *err, int fd, int interval) {
+    int val = 1;
+
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val)) == -1) {
+        anet_set_error(err, "setsockopt SO_KEEPALIVE: %s", strerror(errno));
+        return ANET_ERR;
+    }
+
+#ifdef __linux__
+    /* Default settings are more or less garbage, with the keepalive time
+     * set to 7200 by default on Linux. Modify settings to make the feature
+     * actually useful. */
+
+    /* Send first probe after interval. */
+    val = interval;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &val, sizeof(val)) < 0) {
+        anet_set_error(err, "setsockopt TCP_KEEPIDLE: %s\n", strerror(errno));
+        return ANET_ERR;
+    }
+
+    /* Send next probes after the specified interval. Note that we set the
+     * delay as interval / 3, as we send three probes before detecting
+     * an error (see the next setsockopt call). */
+    val = interval / 3;
+    if (val == 0) val = 1;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &val, sizeof(val)) < 0) {
+        anet_set_error(err, "setsockopt TCP_KEEPINTVL: %s\n", strerror(errno));
+        return ANET_ERR;
+    }
+
+    /* Consider the socket in error state after three we send three ACK
+     * probes without getting a reply. */
+    val = 3;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val)) < 0) {
+        anet_set_error(err, "setsockopt TCP_KEEPCNT: %s\n", strerror(errno));
+        return ANET_ERR;
+    }
+#else
+    ((void)interval); /* Avoid unused var warning for non Linux systems. */
+#endif
+
+    return ANET_OK;
+}
+
+int anet_set_tcp_no_delay(char *err, int fd, int val) {
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1) {
+        anet_set_error(err, "setsockopt TCP_NODELAY: %s", strerror(errno));
+        return ANET_ERR;
+    }
+    return ANET_OK;
 }
