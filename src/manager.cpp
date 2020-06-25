@@ -15,7 +15,7 @@
 namespace kim {
 
 Manager::Manager(Log* logger)
-    : m_logger(logger), m_events(NULL) {
+    : m_logger(logger), m_net(NULL) {
 }
 
 Manager::~Manager() {
@@ -23,7 +23,7 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    SAFE_DELETE(m_events);
+    SAFE_DELETE(m_net);
 
     std::map<int, worker_info_t*>::iterator itr = m_pid_worker_info.begin();
     for (; itr != m_pid_worker_info.end(); itr++) {
@@ -37,12 +37,12 @@ void Manager::destory() {
 }
 
 void Manager::run() {
-    if (m_events == NULL) {
-        LOG_CRIT("create events failed!");
+    if (m_net == NULL) {
+        LOG_CRIT("create network failed!");
         return;
     }
 
-    m_events->run();
+    m_net->run();
     LOG_INFO("server is running!");
 }
 
@@ -59,13 +59,14 @@ bool Manager::init(const char* conf_path) {
         return false;
     }
 
-    if (!init_events()) {
+    if (!create_network()) {
         LOG_ERROR("init events fail!");
         return false;
     }
 
     create_workers();
-    LOG_INFO("init success!");
+
+    LOG_INFO("init manager success!");
     return true;
 }
 
@@ -140,22 +141,27 @@ bool Manager::load_config(const char* path) {
     return true;
 }
 
-bool Manager::init_events() {
-    m_events = new Events(m_logger);
-    if (!m_events->create(&m_node_info.addr_info, this)) {
-        LOG_ERROR("init events fail!");
+bool Manager::create_network() {
+    m_net = new Network(m_logger);
+    if (m_net == NULL) {
+        LOG_ERROR("new network failed!");
         return false;
     }
 
-    LOG_INFO("init events done!");
+    if (!m_net->create(&m_node_info.addr_info, this)) {
+        LOG_ERROR("init network fail!");
+        return false;
+    }
+
+    LOG_INFO("init network done!");
     return true;
 }
 
 void Manager::on_terminated(struct ev_signal* s) {
     if (s == NULL) return;
 
-    // LOG_WARNING("%s terminated by signal %d!",
-    //             m_json_conf("server_name").c_str(), s->signum);
+    LOG_WARNING("%s terminated by signal %d!",
+                m_json_conf("server_name").c_str(), s->signum);
     exit(s->signum);
 }
 
@@ -175,13 +181,13 @@ void Manager::create_workers() {
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
             LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
-            m_events->close_chanel(ctrl_fds);
+            m_net->close_chanel(ctrl_fds);
             continue;
         }
 
         if ((pid = fork()) == 0) {
             // child
-            m_events->close_listen_sockets();
+            m_net->close_listen_sockets();
             close(ctrl_fds[0]);
             close(data_fds[0]);
             anet_no_block(NULL, ctrl_fds[1]);
@@ -199,7 +205,7 @@ void Manager::create_workers() {
             }
             worker.run();
 
-            LOG_INFO("exit process pid: %d, index: %d", getpid(), i);
+            LOG_INFO("child exit! pid: %d, index: %d", getpid(), i);
             exit(EXIT_CHILD);
         } else if (pid > 0) {
             sum++;
