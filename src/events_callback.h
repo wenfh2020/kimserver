@@ -10,7 +10,7 @@ namespace kim {
 class ISignalCallBack {
    public:
     ISignalCallBack() {}
-    ~ISignalCallBack() {}
+    virtual ~ISignalCallBack() {}
 
     virtual void on_terminated(struct ev_signal* watcher) {}
     virtual void on_child_terminated(struct ev_signal* watcher) {}
@@ -19,7 +19,7 @@ class ISignalCallBack {
 class IEventsCallback {
    public:
     IEventsCallback() {}
-    ~IEventsCallback() {}
+    virtual ~IEventsCallback() {}
 
     // socket io event callback.
     virtual bool io_read(Connection* c, struct ev_io* e) { return true; }
