@@ -24,11 +24,11 @@ class Events {
     bool add_read_event(Connection* c);
     bool del_event(Connection* c);
 
-    static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);
-
    private:
     bool setup_signal_events(ISignalCallBack* s);
-    void create_ev_signal(int signum);
+    void create_signal_events(int signum);
+
+    static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
 
    private:

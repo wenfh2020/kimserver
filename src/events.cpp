@@ -19,6 +19,8 @@ Events::~Events() {
 }
 
 bool Events::create(ISignalCallBack* sig, IEventsCallback* io) {
+    LOG_DEBUG("create()");
+
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (NULL == m_ev_loop) {
         LOG_ERROR("new libev loop failed!");
@@ -33,6 +35,8 @@ bool Events::create(ISignalCallBack* sig, IEventsCallback* io) {
 }
 
 void Events::destory() {
+    LOG_DEBUG("destory()");
+
     if (m_ev_loop != NULL) {
         ev_loop_destroy(m_ev_loop);
         m_ev_loop = NULL;
@@ -40,10 +44,14 @@ void Events::destory() {
 }
 
 void Events::run() {
+    LOG_DEBUG("run()");
+
     if (m_ev_loop) ev_run(m_ev_loop, 0);
 }
 
-void Events::create_ev_signal(int signum) {
+void Events::create_signal_events(int signum) {
+    LOG_DEBUG("create_signal_events()");
+
     if (m_ev_loop != NULL) {
         ev_signal* s = new ev_signal();
         ev_signal_init(s, signal_callback, signum);
@@ -53,17 +61,19 @@ void Events::create_ev_signal(int signum) {
 }
 
 bool Events::setup_signal_events(ISignalCallBack* s) {
+    LOG_DEBUG("setup_signal_events()");
+
     m_sig_cb = s;
 
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (int i = 0; i < sizeof(signals) / sizeof(int); i++) {
-        create_ev_signal(signals[i]);
+        create_signal_events(signals[i]);
     }
     return true;
 }
 
 void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int revents) {
-    if (NULL == s->data) return;
+    if (s->data == NULL) return;
 
     ISignalCallBack* sig_cb = static_cast<ISignalCallBack*>(s->data);
     if (SIGCHLD == s->signum) {
@@ -71,9 +81,11 @@ void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int reve
     } else {
         sig_cb->on_terminated(s);
     }
-}  // namespace kim
+}
 
 bool Events::add_read_event(Connection* c) {
+    LOG_DEBUG("add_read_event()");
+
     if (c == NULL) {
         LOG_ERROR("invalid connection!");
         return false;
@@ -112,11 +124,12 @@ bool Events::add_read_event(Connection* c) {
 }
 
 bool Events::del_event(Connection* c) {
+    LOG_DEBUG("del_event()");
+
     if (c == NULL) return false;
 
     ev_io* e = c->get_ev_io();
     if (e == NULL) return false;
-
     ev_io_stop(m_ev_loop, e);
     e->data = NULL;
     SAFE_FREE(e);
@@ -137,8 +150,8 @@ void Events::event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
         cb->io_read(c, e);
     }
 
-    if (events & EV_WRITE &&
-        c->get_state() != Connection::CONN_STATE_CLOSED) {
+    if ((events & EV_WRITE) &&
+        (c->get_state() != Connection::CONN_STATE_CLOSED)) {
         cb->io_write(c, e);
     }
 

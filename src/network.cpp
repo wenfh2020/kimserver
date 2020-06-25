@@ -25,12 +25,16 @@ Network::~Network() {
 }
 
 void Network::destory() {
+    LOG_DEBUG("destory()");
+
     close_conns();
     close_listen_sockets();
     SAFE_DELETE(m_events);
 }
 
 bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
+    LOG_DEBUG("create()");
+
     if (addr_info == NULL) return false;
 
     if (m_is_created) {
@@ -70,6 +74,8 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
 }
 
 bool Network::init_events(ISignalCallBack* s) {
+    LOG_DEBUG("init_events()");
+
     m_events = new Events(m_logger);
     if (m_events == NULL) {
         LOG_ERROR("new events failed!");
@@ -105,7 +111,7 @@ bool Network::init_events(ISignalCallBack* s) {
 }
 
 bool Network::add_conncted_read_event(int fd) {
-    LOG_DEBUG("add_conncted_read_event");
+    LOG_DEBUG("add_conncted_read_event()");
 
     Connection* c = create_conn(fd);
     if (c == NULL) {
@@ -118,6 +124,8 @@ bool Network::add_conncted_read_event(int fd) {
 }
 
 bool Network::add_chanel_event(int fd) {
+    LOG_DEBUG("add_chanel_event()");
+
     Connection* c = create_conn(fd);
     if (c != NULL) {
         c->set_state(kim::Connection::CONN_STATE_CONNECTED);
@@ -129,7 +137,7 @@ bool Network::add_chanel_event(int fd) {
 }
 
 Connection* Network::create_conn(int fd) {
-    LOG_DEBUG("create_conn");
+    LOG_DEBUG("create_conn()");
 
     std::map<int, Connection*>::iterator it = m_conns.find(fd);
     if (it != m_conns.end()) {
@@ -148,6 +156,8 @@ Connection* Network::create_conn(int fd) {
 }
 
 void Network::run() {
+    LOG_DEBUG("run()");
+
     if (m_events == NULL) {
         LOG_ERROR("pls create events firstly!")
         return;
@@ -157,6 +167,8 @@ void Network::run() {
 }
 
 int Network::listen_to_port(const char* bind, int port) {
+    LOG_DEBUG("listen_to_port()");
+
     int fd = -1;
     char err[256] = {0};
 
@@ -178,10 +190,13 @@ int Network::listen_to_port(const char* bind, int port) {
         anet_no_block(NULL, fd);
     }
 
+    LOG_INFO("listen_to_port, %s:%d", bind, port);
     return fd;
 }
 
 void Network::close_chanel(int* fds) {
+    LOG_DEBUG("close_chanel()");
+
     if (close(fds[0]) == -1) {
         LOG_WARNING("close channel failed, fd: %d.", fds[0]);
     }
@@ -192,11 +207,15 @@ void Network::close_chanel(int* fds) {
 }
 
 void Network::close_listen_sockets() {
+    LOG_DEBUG("close_listen_sockets()");
+
     if (m_bind_fd != -1) close(m_bind_fd);
     if (m_gate_bind_fd != -1) close(m_gate_bind_fd);
 }
 
 void Network::close_conns() {
+    LOG_DEBUG("close_conns()");
+
     std::map<int, Connection*>::iterator it = m_conns.begin();
     for (; it != m_conns.begin(); it++) {
         close_conn(it->second);
