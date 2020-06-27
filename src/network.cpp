@@ -98,7 +98,7 @@ bool Network::init_events(ISignalCallBack* s) {
         return false;
     }
 
-    LOG_DEBUG("add bind read event failed, fd: %d", m_bind_fd);
+    LOG_DEBUG("add bind read event done, fd: %d", m_bind_fd);
 
     if (!add_conncted_read_event(m_gate_bind_fd)) {
         SAFE_DELETE(m_events);
@@ -233,12 +233,51 @@ bool Network::io_read(Connection* c, struct ev_io* e) {
     } else if (e->fd == m_gate_bind_fd) {
         // transfer client connect from manger to child pro.
     } else {
-        return true;
+        read_query_from_client(c);
     }
 
     LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
               c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
     return true;
+}
+
+void Network::read_query_from_client(Connection* c) {
+    if (c == NULL) return;
+
+    int fd = -1, recv_len = 0;
+
+    fd = c->get_fd();
+    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        LOG_WARNING("find connection failed, fd: %d, seq: %d", c->get_id());
+        return;
+    }
+
+    LOG_DEBUG("read_query_from_client, fd: %d, seq: %d", c->get_id());
+
+    // connection recv data.
+    recv_len = c->read_data();
+    if (recv_len == 0) {
+        LOG_DEBUG("connection closed, fd: %d, seq: %llu",
+                  c->get_fd(), c->get_id());
+        close_conn(c);
+        return;
+    }
+
+    if (recv_len < 0) {
+        if ((recv_len == -1) &&
+            (c->get_state() == Connection::CONN_STATE_CONNECTED)) {
+            return;
+        }
+
+        LOG_DEBUG("client closed connection! fd: %d, seq: %llu",
+                  c->get_fd(), c->get_id());
+        close_conn(c);
+        return;
+    }
+
+    // analysis data.
+    LOG_DEBUG("recv data: %s", c->get_query_data());
 }
 
 bool Network::io_write(Connection* c, struct ev_io* e) {
@@ -289,6 +328,7 @@ void Network::accept_tcp_handler(int fd) {
             LOG_ERROR("add read event failed! fd: %d", cfd);
             return;
         }
+        c->set_state(Connection::CONN_STATE_CONNECTED);
     }
 }
 

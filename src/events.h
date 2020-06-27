@@ -35,8 +35,8 @@ class Events {
     Log* m_logger;
     struct ev_loop* m_ev_loop;
 
-    ISignalCallBack* m_sig_cb;
     IEventsCallback* m_io_cb;
+    ISignalCallBack* m_sig_cb;
 };
 
 }  // namespace kim

@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+#include "util/sds.h"
+
 namespace kim {
 
 class Connection {
@@ -19,7 +21,7 @@ class Connection {
     } CONN_STATE;
 
     Connection(int fd = -1, uint64_t id = 0);
-    virtual ~Connection() {}
+    virtual ~Connection();
 
     void set_fd(int fd) { m_fd = fd; }
     int get_fd() { return m_fd; }
@@ -38,6 +40,12 @@ class Connection {
     void set_ev_io(ev_io* e) { m_ev_io = e; }
     ev_io* get_ev_io() { return m_ev_io; }
 
+    int read_data();
+    const char* get_query_data() { return m_query_buf; }
+
+   private:
+    int conn_read(void* buf, size_t buf_len);
+
    private:
     int m_fd;
     uint64_t m_id;
@@ -46,6 +54,9 @@ class Connection {
     int m_errno;
     std::string m_error;
     ev_io* m_ev_io;
+
+    size_t m_qb_pos;
+    sds m_query_buf;
 };
 
 }  // namespace kim

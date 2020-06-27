@@ -10,8 +10,8 @@ namespace kim {
 
 Events::Events(Log* logger) : m_logger(logger),
                               m_ev_loop(NULL),
-                              m_sig_cb(NULL),
-                              m_io_cb(NULL) {
+                              m_io_cb(NULL),
+                              m_sig_cb(NULL) {
 }
 
 Events::~Events() {
@@ -106,7 +106,7 @@ bool Events::add_read_event(Connection* c) {
         c->set_ev_io(e);
         c->set_private_data(m_io_cb);
 
-        LOG_DEBUG("start ev io, fd: %d", c->get_fd());
+        LOG_INFO("start ev io, fd: %d", c->get_fd());
     } else {
         if (ev_is_active(e)) {
             ev_io_stop(m_ev_loop, e);
@@ -117,7 +117,7 @@ bool Events::add_read_event(Connection* c) {
             ev_io_start(m_ev_loop, e);
         }
 
-        LOG_DEBUG("restart ev io, fd: %d", c->get_fd());
+        LOG_INFO("restart ev io, fd: %d", c->get_fd());
     }
 
     return true;

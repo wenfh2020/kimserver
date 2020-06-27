@@ -42,6 +42,7 @@ class Network : public IEventsCallback {
     Connection* create_conn(int fd);
     bool close_conn(Connection* c);
     void close_conns();
+    void read_query_from_client(Connection* c);
 
     // events
     bool add_chanel_event(int fd);
