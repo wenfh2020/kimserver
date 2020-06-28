@@ -20,6 +20,7 @@ class Network : public IEventsCallback {
 
     bool create(const addr_info_t* addr_info, ISignalCallBack* s = NULL);
     void run();
+    void end_ev_loop();
     void destory();
 
     void close_listen_sockets();
@@ -57,7 +58,6 @@ class Network : public IEventsCallback {
     int m_bind_fd;                       // inner servers contact each other.
     int m_gate_bind_fd;                  // gate bind fd for client.
     Events* m_events;                    // libev's events manager.
-    bool m_is_created;                   // check create obj.
     std::map<int, Connection*> m_conns;  // key:fd, value: connection
 };
 

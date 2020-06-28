@@ -16,8 +16,7 @@ Network::Network(Log* logger) : m_logger(logger),
                                 m_seq(0),
                                 m_bind_fd(0),
                                 m_gate_bind_fd(0),
-                                m_events(NULL),
-                                m_is_created(false) {
+                                m_events(NULL) {
 }
 
 Network::~Network() {
@@ -36,11 +35,6 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
     LOG_DEBUG("create()");
 
     if (addr_info == NULL) return false;
-
-    if (m_is_created) {
-        LOG_ERROR("network has been created!");
-        return false;
-    }
 
     int fd = -1;
 
@@ -69,7 +63,6 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
         return false;
     }
 
-    m_is_created = true;
     return true;
 }
 
@@ -82,15 +75,11 @@ bool Network::init_events(ISignalCallBack* s) {
         return false;
     }
 
-    LOG_DEBUG("new events done!");
-
     if (!m_events->create(s, this)) {
         SAFE_DELETE(m_events);
         LOG_ERROR("create events failed!");
         return false;
     }
-
-    LOG_DEBUG("create events done!");
 
     if (!add_conncted_read_event(m_bind_fd)) {
         SAFE_DELETE(m_events);
@@ -144,11 +133,8 @@ Connection* Network::create_conn(int fd) {
         return it->second;
     }
 
-    uint64_t seq;
-    Connection* c;
-
-    seq = get_new_seq();
-    c = new Connection(fd, seq);
+    uint64_t seq = get_new_seq();
+    Connection* c = new Connection(fd, seq);
     m_conns[fd] = c;
 
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
@@ -223,7 +209,7 @@ void Network::close_conns() {
 }
 
 bool Network::io_read(Connection* c, struct ev_io* e) {
-    LOG_DEBUG("io_read");
+    LOG_DEBUG("io_read()");
 
     if (c == NULL || e == NULL) return false;
 
@@ -350,6 +336,14 @@ bool Network::close_conn(Connection* c) {
     SAFE_DELETE(c);
     m_conns.erase(it);
     return true;
+}
+
+void Network::end_ev_loop() {
+    LOG_DEBUG("ev_break()");
+
+    if (m_events != NULL) {
+        m_events->end_ev_loop();
+    }
 }
 
 }  // namespace kim

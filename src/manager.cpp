@@ -14,8 +14,7 @@
 
 namespace kim {
 
-Manager::Manager(Log* logger)
-    : m_logger(logger), m_net(NULL) {
+Manager::Manager(Log* logger) : m_logger(logger), m_net(NULL) {
 }
 
 Manager::~Manager() {
@@ -23,7 +22,10 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    SAFE_DELETE(m_net);
+    if (m_net != NULL) {
+        m_net->end_ev_loop();
+        SAFE_DELETE(m_net);
+    }
 
     std::map<int, worker_info_t*>::iterator itr = m_pid_worker_info.begin();
     for (; itr != m_pid_worker_info.end(); itr++) {
@@ -162,6 +164,8 @@ void Manager::on_terminated(struct ev_signal* s) {
 
     LOG_WARNING("%s terminated by signal %d!",
                 m_json_conf("server_name").c_str(), s->signum);
+    SAFE_DELETE(s);
+    destory();
     exit(s->signum);
 }
 

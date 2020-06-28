@@ -20,6 +20,7 @@ class Events {
     bool create(ISignalCallBack* sig, IEventsCallback* io);
     void destory();
     void run();
+    void end_ev_loop();
 
     bool add_read_event(Connection* c);
     bool del_event(Connection* c);

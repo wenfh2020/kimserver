@@ -46,7 +46,15 @@ void Events::destory() {
 void Events::run() {
     LOG_DEBUG("run()");
 
-    if (m_ev_loop) ev_run(m_ev_loop, 0);
+    if (m_ev_loop != NULL) {
+        ev_run(m_ev_loop, 0);
+    }
+}
+
+void Events::end_ev_loop() {
+    if (m_ev_loop != NULL) {
+        ev_break(m_ev_loop, EVBREAK_ALL);
+    }
 }
 
 void Events::create_signal_events(int signum) {
