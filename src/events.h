@@ -17,7 +17,7 @@ class Events {
     Events(Log* logger);
     virtual ~Events();
 
-    bool create(ISignalCallBack* sig, IEventsCallback* io);
+    bool create(ISignalCallBack* s, IEventsCallback* e);
     void destory();
     void run();
     void end_ev_loop();
@@ -27,7 +27,7 @@ class Events {
 
    private:
     bool setup_signal_events(ISignalCallBack* s);
-    void create_signal_events(int signum);
+    void create_signal_events(int signum, ISignalCallBack* s);
 
     static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
@@ -35,9 +35,7 @@ class Events {
    private:
     Log* m_logger;
     struct ev_loop* m_ev_loop;
-
-    IEventsCallback* m_io_cb;
-    ISignalCallBack* m_sig_cb;
+    IEventsCallback* m_ev_cb;
 };
 
 }  // namespace kim

@@ -286,7 +286,7 @@ bool Network::accept_server_conn(int fd) {
 void Network::accept_tcp_handler(int fd) {
     LOG_DEBUG("accept_tcp_handler()");
 
-    if (fd == -1) {
+    if (fd < 0) {
         LOG_ERROR("invalid fd: %d", fd);
         return;
     }
@@ -311,6 +311,7 @@ void Network::accept_tcp_handler(int fd) {
         anet_keep_alive(NULL, cfd, 100);
         anet_set_tcp_no_delay(NULL, cfd, 1);
         if (!m_events->add_read_event(c)) {
+            close_conn(c);
             LOG_ERROR("add read event failed! fd: %d", cfd);
             return;
         }

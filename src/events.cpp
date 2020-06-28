@@ -10,15 +10,14 @@ namespace kim {
 
 Events::Events(Log* logger) : m_logger(logger),
                               m_ev_loop(NULL),
-                              m_io_cb(NULL),
-                              m_sig_cb(NULL) {
+                              m_ev_cb(NULL) {
 }
 
 Events::~Events() {
     destory();
 }
 
-bool Events::create(ISignalCallBack* sig, IEventsCallback* io) {
+bool Events::create(ISignalCallBack* s, IEventsCallback* e) {
     LOG_DEBUG("create()");
 
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
@@ -27,8 +26,8 @@ bool Events::create(ISignalCallBack* sig, IEventsCallback* io) {
         return false;
     }
 
-    m_io_cb = io;
-    setup_signal_events(sig);
+    m_ev_cb = e;
+    setup_signal_events(s);
 
     LOG_INFO("init events success!");
     return true;
@@ -57,25 +56,25 @@ void Events::end_ev_loop() {
     }
 }
 
-void Events::create_signal_events(int signum) {
+void Events::create_signal_events(int signum, ISignalCallBack* s) {
     LOG_DEBUG("create_signal_events()");
 
-    if (m_ev_loop != NULL) {
-        ev_signal* s = new ev_signal();
-        ev_signal_init(s, signal_callback, signum);
-        s->data = (void*)m_sig_cb;
-        ev_signal_start(m_ev_loop, s);
-    }
+    if (m_ev_loop == NULL) return;
+
+    ev_signal* sig = new ev_signal();
+    ev_signal_init(sig, signal_callback, signum);
+    sig->data = (void*)s;
+    ev_signal_start(m_ev_loop, sig);
 }
 
 bool Events::setup_signal_events(ISignalCallBack* s) {
     LOG_DEBUG("setup_signal_events()");
 
-    m_sig_cb = s;
+    if (s == NULL) return false;
 
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (int i = 0; i < sizeof(signals) / sizeof(int); i++) {
-        create_signal_events(signals[i]);
+        create_signal_events(signals[i], s);
     }
     return true;
 }
@@ -107,12 +106,11 @@ bool Events::add_read_event(Connection* c) {
             return false;
         }
 
+        c->set_ev_io(e);
+        c->set_private_data(m_ev_cb);
         e->data = c;
         ev_io_init(e, event_callback, c->get_fd(), EV_READ);
         ev_io_start(m_ev_loop, e);
-
-        c->set_ev_io(e);
-        c->set_private_data(m_io_cb);
 
         LOG_INFO("start ev io, fd: %d", c->get_fd());
     } else {
