@@ -12,11 +12,14 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger) : m_logger(logger),
-                                m_seq(0),
-                                m_bind_fd(0),
-                                m_gate_bind_fd(0),
-                                m_events(NULL) {
+Network::Network(Log* logger, IEventsCallback::OBJ_TYPE type) : m_logger(logger),
+                                                                m_seq(0),
+                                                                m_bind_fd(0),
+                                                                m_gate_bind_fd(0),
+                                                                m_events(NULL),
+                                                                m_manager_ctrl_fd(-1),
+                                                                m_manager_data_fd(-1) {
+    set_type(type);
 }
 
 Network::~Network() {
@@ -58,16 +61,16 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
         m_gate_bind_fd = fd;
     }
 
-    if (!init_events(s)) {
-        LOG_ERROR("init events failed!");
+    if (!create_events(s)) {
+        LOG_ERROR("create events failed!");
         return false;
     }
 
     return true;
 }
 
-bool Network::init_events(ISignalCallBack* s) {
-    LOG_DEBUG("init_events()");
+bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
+    LOG_DEBUG("create()");
 
     m_events = new Events(m_logger);
     if (m_events == NULL) {
@@ -75,11 +78,52 @@ bool Network::init_events(ISignalCallBack* s) {
         return false;
     }
 
-    if (!m_events->create(s, this)) {
+    if (!m_events->create(this)) {
         SAFE_DELETE(m_events);
         LOG_ERROR("create events failed!");
         return false;
     }
+
+    m_events->create_signal_events(SIGINT, s);
+
+    if (!add_conncted_read_event(ctrl_fd)) {
+        SAFE_DELETE(m_events);
+        LOG_ERROR("add ctrl fd event failed, fd: %d", ctrl_fd);
+        return false;
+    }
+
+    LOG_DEBUG("add ctrl fd event done, fd: %d", ctrl_fd);
+
+    if (!add_conncted_read_event(data_fd)) {
+        SAFE_DELETE(m_events);
+        LOG_ERROR("add data fd read event failed, fd: %d", data_fd);
+        return false;
+    }
+
+    LOG_DEBUG("add data fd read event failed, fd: %d", data_fd);
+
+    m_manager_ctrl_fd = ctrl_fd;
+    m_manager_data_fd = data_fd;
+    LOG_DEBUG("manager ctrl fd: %d, data fd: %d", ctrl_fd, data_fd);
+    return true;
+}
+
+bool Network::create_events(ISignalCallBack* s) {
+    LOG_DEBUG("create_events()");
+
+    m_events = new Events(m_logger);
+    if (m_events == NULL) {
+        LOG_ERROR("new events failed!");
+        return false;
+    }
+
+    if (!m_events->create(this)) {
+        SAFE_DELETE(m_events);
+        LOG_ERROR("create events failed!");
+        return false;
+    }
+
+    m_events->setup_signal_events(s);
 
     if (!add_conncted_read_event(m_bind_fd)) {
         SAFE_DELETE(m_events);
@@ -142,14 +186,7 @@ Connection* Network::create_conn(int fd) {
 }
 
 void Network::run() {
-    LOG_DEBUG("run()");
-
-    if (m_events == NULL) {
-        LOG_ERROR("pls create events firstly!")
-        return;
-    }
-
-    m_events->run();
+    if (m_events != NULL) m_events->run();
 }
 
 int Network::listen_to_port(const char* bind, int port) {
@@ -208,22 +245,29 @@ void Network::close_conns() {
     }
 }
 
-bool Network::io_read(Connection* c, struct ev_io* e) {
-    LOG_DEBUG("io_read()");
+bool Network::on_io_read(Connection* c, struct ev_io* e) {
+    LOG_DEBUG("on_io_read()");
 
     if (c == NULL || e == NULL) return false;
 
-    if (e->fd == m_bind_fd) {
-        // accept.
-        accept_server_conn(e->fd);
-    } else if (e->fd == m_gate_bind_fd) {
-        // transfer client connect from manger to child pro.
+    if (get_type() == IEventsCallback::MANAGER) {
+        if (e->fd == m_bind_fd) {
+            // accept.
+            accept_server_conn(e->fd);
+        } else if (e->fd == m_gate_bind_fd) {
+            // accept and transfer client fd to worker.
+        } else {
+            read_query_from_client(c);
+        }
+
+        LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
+                  c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
+    } else if (get_type() == IEventsCallback::WORKER) {
+        LOG_DEBUG("worker io read!");
     } else {
-        read_query_from_client(c);
+        LOG_ERROR("unknown work type io read!");
     }
 
-    LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
-              c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
     return true;
 }
 
@@ -266,12 +310,12 @@ void Network::read_query_from_client(Connection* c) {
     LOG_DEBUG("recv data: %s", c->get_query_data());
 }
 
-bool Network::io_write(Connection* c, struct ev_io* e) {
+bool Network::on_io_write(Connection* c, struct ev_io* e) {
     LOG_DEBUG("io write fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }
 
-bool Network::io_error(Connection* c, struct ev_io* e) {
+bool Network::on_io_error(Connection* c, struct ev_io* e) {
     LOG_DEBUG("io error fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }

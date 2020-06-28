@@ -17,18 +17,17 @@ class Events {
     Events(Log* logger);
     virtual ~Events();
 
-    bool create(ISignalCallBack* s, IEventsCallback* e);
+    bool create(IEventsCallback* e);
     void destory();
     void run();
     void end_ev_loop();
 
     bool add_read_event(Connection* c);
     bool del_event(Connection* c);
-
-   private:
     bool setup_signal_events(ISignalCallBack* s);
     void create_signal_events(int signum, ISignalCallBack* s);
 
+   private:
     static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);
     static void signal_callback(struct ev_loop* loop, struct ev_signal* watcher, int revents);
 

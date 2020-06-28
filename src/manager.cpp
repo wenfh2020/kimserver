@@ -39,30 +39,24 @@ void Manager::destory() {
 }
 
 void Manager::run() {
-    if (m_net == NULL) {
-        LOG_CRIT("create network failed!");
-        return;
-    }
-
-    m_net->run();
-    LOG_INFO("server is running!");
+    if (m_net != NULL) m_net->run();
 }
 
 bool Manager::init(const char* conf_path) {
     if (!load_config(conf_path)) {
-        LOG_ERROR("init conf fail! %s", conf_path);
+        LOG_ERROR("load config failed! %s", conf_path);
         return false;
     }
 
     set_proc_title("%s", m_json_conf("server_name").c_str());
 
     if (!init_logger()) {
-        LOG_ERROR("init log fail!");
+        LOG_ERROR("init log failed!");
         return false;
     }
 
     if (!create_network()) {
-        LOG_ERROR("init events fail!");
+        LOG_ERROR("create network failed!");
         return false;
     }
 
@@ -144,7 +138,7 @@ bool Manager::load_config(const char* path) {
 }
 
 bool Manager::create_network() {
-    m_net = new Network(m_logger);
+    m_net = new Network(m_logger, IEventsCallback::MANAGER);
     if (m_net == NULL) {
         LOG_ERROR("new network failed!");
         return false;
@@ -201,10 +195,10 @@ void Manager::create_workers() {
             info.work_path = m_node_info.work_path;
             info.ctrl_fd = ctrl_fds[1];
             info.data_fd = data_fds[1];
-            info.worker_idx = i;
+            info.index = i;
 
-            Worker worker(&info);
-            if (!worker.init(m_logger, m_json_conf("server_name"))) {
+            Worker worker(m_logger);
+            if (!worker.init(&info, m_json_conf("server_name"))) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();
@@ -219,18 +213,10 @@ void Manager::create_workers() {
             anet_no_block(NULL, ctrl_fds[0]);
             anet_no_block(NULL, data_fds[0]);
 
-            worker_info_t* info = new worker_info_t;
-            info->worker_idx = i;
-            info->ctrl_fd = ctrl_fds[0];
-            info->data_fd = data_fds[0];
-            info->work_path = m_node_info.work_path;
-            m_pid_worker_info[pid] = info;
+            add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
 
-            m_chanel_fd_pid[ctrl_fds[0]] = pid;
-            m_chanel_fd_pid[data_fds[0]] = pid;
-
-            // m_events->add_chanel_event(ctrl_fds[0]);
-            // m_events->add_chanel_event(data_fds[0]);
+            m_net->add_chanel_event(ctrl_fds[0]);
+            m_net->add_chanel_event(data_fds[0]);
         } else {
             LOG_ERROR("error: %d, %s", errno, strerror(errno));
         }

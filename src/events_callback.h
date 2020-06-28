@@ -19,13 +19,25 @@ class ISignalCallBack {
 
 class IEventsCallback {
    public:
-    IEventsCallback() {}
+    enum OBJ_TYPE {
+        UNKNOWN = 0,
+        MANAGER,
+        WORKER,
+    };
+
+    IEventsCallback() : m_type(UNKNOWN) {}
     virtual ~IEventsCallback() {}
 
+    OBJ_TYPE get_type() { return m_type; }
+    void set_type(OBJ_TYPE type) { m_type = type; }
+
     // socket's io event callback.
-    virtual bool io_read(Connection* c, struct ev_io* e) { return true; }
-    virtual bool io_write(Connection* c, struct ev_io* e) { return true; }
-    virtual bool io_error(Connection* c, struct ev_io* e) { return true; }
+    virtual bool on_io_read(Connection* c, struct ev_io* e) { return true; }
+    virtual bool on_io_write(Connection* c, struct ev_io* e) { return true; }
+    virtual bool on_io_error(Connection* c, struct ev_io* e) { return true; }
+
+   private:
+    OBJ_TYPE m_type;
 };
 
 }  // namespace kim

@@ -6,10 +6,11 @@
 #include "node_info.h"
 #include "server.h"
 #include "util/CJsonObject.hpp"
+#include "worker_mgr.h"
 
 namespace kim {
 
-class Manager : public ISignalCallBack {
+class Manager : public ISignalCallBack, public WorkerMgr {
    public:
     Manager(Log* logger);
     virtual ~Manager();
@@ -36,7 +37,6 @@ class Manager : public ISignalCallBack {
     // Events* m_events;             // events handler.
     Network* m_net;
     std::map<int, worker_info_t*> m_pid_worker_info;
-    std::map<int, int> m_chanel_fd_pid;
 };
 
 }  // namespace kim

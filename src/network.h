@@ -15,24 +15,26 @@ namespace kim {
 
 class Network : public IEventsCallback {
    public:
-    Network(Log* logger = NULL);
+    Network(Log* logger, IEventsCallback::OBJ_TYPE type);
     virtual ~Network();
 
     bool create(const addr_info_t* addr_info, ISignalCallBack* s = NULL);
+    bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
     void run();
     void end_ev_loop();
     void destory();
 
     void close_listen_sockets();
+    bool add_chanel_event(int fd);
     void close_chanel(int* fds);
 
     // for io events call back. IEventsCallback
-    virtual bool io_read(Connection* c, struct ev_io* e);
-    virtual bool io_write(Connection* c, struct ev_io* e);
-    virtual bool io_error(Connection* c, struct ev_io* e);
+    virtual bool on_io_read(Connection* c, struct ev_io* e);
+    virtual bool on_io_write(Connection* c, struct ev_io* e);
+    virtual bool on_io_error(Connection* c, struct ev_io* e);
 
    private:
-    bool init_events(ISignalCallBack* s);
+    bool create_events(ISignalCallBack* s);
 
     // socket
     int listen_to_port(const char* bind, int port);
@@ -46,7 +48,7 @@ class Network : public IEventsCallback {
     void read_query_from_client(Connection* c);
 
     // events
-    bool add_chanel_event(int fd);
+
     bool add_conncted_read_event(int fd);
 
     int get_new_seq() { return ++m_seq; }
@@ -59,6 +61,8 @@ class Network : public IEventsCallback {
     int m_gate_bind_fd;                  // gate bind fd for client.
     Events* m_events;                    // libev's events manager.
     std::map<int, Connection*> m_conns;  // key:fd, value: connection
+    int m_manager_ctrl_fd;
+    int m_manager_data_fd;
 };
 
 }  // namespace kim

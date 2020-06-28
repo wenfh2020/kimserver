@@ -11,14 +11,14 @@ namespace kim {
 
 class Connection {
    public:
-    typedef enum {
+    enum CONN_STATE {
         CONN_STATE_NONE = 0,
         CONN_STATE_CONNECTING,
         CONN_STATE_ACCEPTING,
         CONN_STATE_CONNECTED,
         CONN_STATE_CLOSED,
         CONN_STATE_ERROR
-    } CONN_STATE;
+    };
 
     Connection(int fd = -1, uint64_t id = 0);
     virtual ~Connection();

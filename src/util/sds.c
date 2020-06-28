@@ -438,4 +438,3 @@ void sdsIncrLen(sds s, ssize_t incr) {
     }
     s[len] = '\0';
 }
-

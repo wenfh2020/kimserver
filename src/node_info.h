@@ -30,14 +30,14 @@ typedef struct node_info_s {
 
 typedef struct worker_info_s {
     worker_info_s() {
-        worker_pid = 0;
-        worker_idx = 0;
+        pid = 0;
+        index = 0;
         ctrl_fd = -1;
         data_fd = -1;
     }
 
-    int worker_pid;         // worker's process id.
-    int worker_idx;         // worker's index which assiged by master process.
+    int pid;                // worker's process id.
+    int index;              // worker's index which assiged by master process.
     int ctrl_fd;            // socketpair for parent and child contact.
     int data_fd;            // socketpair for parent and child contact.
     std::string work_path;  // process work path.

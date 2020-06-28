@@ -17,7 +17,7 @@ Events::~Events() {
     destory();
 }
 
-bool Events::create(ISignalCallBack* s, IEventsCallback* e) {
+bool Events::create(IEventsCallback* e) {
     LOG_DEBUG("create()");
 
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
@@ -27,7 +27,6 @@ bool Events::create(ISignalCallBack* s, IEventsCallback* e) {
     }
 
     m_ev_cb = e;
-    setup_signal_events(s);
 
     LOG_INFO("init events success!");
     return true;
@@ -43,11 +42,7 @@ void Events::destory() {
 }
 
 void Events::run() {
-    LOG_DEBUG("run()");
-
-    if (m_ev_loop != NULL) {
-        ev_run(m_ev_loop, 0);
-    }
+    if (m_ev_loop != NULL) ev_run(m_ev_loop, 0);
 }
 
 void Events::end_ev_loop() {
@@ -80,14 +75,10 @@ bool Events::setup_signal_events(ISignalCallBack* s) {
 }
 
 void Events::signal_callback(struct ev_loop* loop, struct ev_signal* s, int revents) {
-    if (s->data == NULL) return;
+    if (s == NULL || s->data == NULL) return;
 
-    ISignalCallBack* sig_cb = static_cast<ISignalCallBack*>(s->data);
-    if (SIGCHLD == s->signum) {
-        sig_cb->on_child_terminated(s);
-    } else {
-        sig_cb->on_terminated(s);
-    }
+    ISignalCallBack* cb = static_cast<ISignalCallBack*>(s->data);
+    (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
 bool Events::add_read_event(Connection* c) {
@@ -153,16 +144,16 @@ void Events::event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
     if (cb == NULL) return;
 
     if (events & EV_READ) {
-        cb->io_read(c, e);
+        cb->on_io_read(c, e);
     }
 
     if ((events & EV_WRITE) &&
         (c->get_state() != Connection::CONN_STATE_CLOSED)) {
-        cb->io_write(c, e);
+        cb->on_io_write(c, e);
     }
 
     if (events & EV_ERROR) {
-        cb->io_error(c, e);
+        cb->on_io_error(c, e);
     }
 }
 
