@@ -1,5 +1,9 @@
 #include "set_proc_title.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>  /* errno program_invocation_name program_invocation_short_name */
 #include <stdarg.h> /* va_list va_start va_end */
 #include <stddef.h> /* NULL size_t */

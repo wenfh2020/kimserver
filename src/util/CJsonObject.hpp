@@ -3,10 +3,16 @@
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
+
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <sys/malloc.h>
 #include <unistd.h>
 
 #include <map>

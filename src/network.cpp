@@ -1,5 +1,6 @@
 #include "network.h"
 
+#include <errno.h>
 #include <unistd.h>
 
 #include "context.h"
