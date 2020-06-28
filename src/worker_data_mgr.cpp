@@ -1,14 +1,13 @@
-#include "worker_mgr.h"
-
 #include "server.h"
+#include "worker_data_mgr.h"
 
 namespace kim {
 
-WorkerMgr::WorkerMgr() {
+WorkerDataMgr::WorkerDataMgr() {
     m_itr_worker_info = m_worker_info.begin();
 }
 
-WorkerMgr::~WorkerMgr() {
+WorkerDataMgr::~WorkerDataMgr() {
     std::map<int, worker_info_t*>::iterator it = m_worker_info.begin();
     for (; it != m_worker_info.end(); it++) {
         SAFE_DELETE(it->second);
@@ -18,7 +17,7 @@ WorkerMgr::~WorkerMgr() {
     m_fd_pid.clear();
 }
 
-void WorkerMgr::add_worker_info(int worker_index, int pid, int ctrl_fd, int data_fd) {
+void WorkerDataMgr::add_worker_info(int worker_index, int pid, int ctrl_fd, int data_fd) {
     worker_info_t* info = new worker_info_t;
     info->index = worker_index;
     info->ctrl_fd = ctrl_fd;
@@ -32,7 +31,7 @@ void WorkerMgr::add_worker_info(int worker_index, int pid, int ctrl_fd, int data
     m_fd_pid[data_fd] = pid;
 }
 
-int WorkerMgr::get_next_worker_data_fd() {
+int WorkerDataMgr::get_next_worker_data_fd() {
     if (m_worker_info.empty()) return -1;
 
     ++m_itr_worker_info;

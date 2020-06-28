@@ -6,11 +6,11 @@
 #include "node_info.h"
 #include "server.h"
 #include "util/CJsonObject.hpp"
-#include "worker_mgr.h"
+#include "worker_data_mgr.h"
 
 namespace kim {
 
-class Manager : public ISignalCallBack, public WorkerMgr {
+class Manager : public ISignalCallBack, public WorkerDataMgr {
    public:
     Manager(Log* logger);
     virtual ~Manager();
@@ -34,7 +34,6 @@ class Manager : public ISignalCallBack, public WorkerMgr {
     CJsonObject m_json_conf;      // current config.
     CJsonObject m_old_json_conf;  // old config
     node_info_t m_node_info;      // cluster node.
-    // Events* m_events;             // events handler.
     Network* m_net;
     std::map<int, worker_info_t*> m_pid_worker_info;
 };

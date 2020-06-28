@@ -4,24 +4,24 @@
 
 namespace kim {
 
-Worker::Worker(Log* logger) : m_logger(logger), m_net(NULL) {
-}
-
-bool Worker::init(const worker_info_t* info, const std::string& server_name) {
-    m_worker_info.work_path = info->work_path;
-    m_worker_info.ctrl_fd = info->ctrl_fd;
-    m_worker_info.data_fd = info->data_fd;
-    m_worker_info.index = info->index;
-    m_worker_info.pid = getpid();
-
+Worker::Worker(Log* logger, const std::string& server_name) : m_logger(logger),
+                                                              m_net(NULL) {
     char name[64] = {0};
     snprintf(name, sizeof(name), "%s_w_%d",
              server_name.c_str(), m_worker_info.index);
     set_proc_title("%s", name);
 
     LOG_DEBUG("worker name: %s", name);
+}
 
-    if (!create_network()) {
+bool Worker::init(const worker_info_t* info, WorkerDataMgr* mgr) {
+    m_worker_info.work_path = info->work_path;
+    m_worker_info.ctrl_fd = info->ctrl_fd;
+    m_worker_info.data_fd = info->data_fd;
+    m_worker_info.index = info->index;
+    m_worker_info.pid = getpid();
+
+    if (!create_network(mgr)) {
         LOG_ERROR("create network failed!");
         return false;
     }
@@ -30,7 +30,7 @@ bool Worker::init(const worker_info_t* info, const std::string& server_name) {
     return true;
 }
 
-bool Worker::create_network() {
+bool Worker::create_network(WorkerDataMgr* mgr) {
     LOG_DEBUG("create_network()");
 
     m_net = new Network(m_logger, IEventsCallback::WORKER);
@@ -39,7 +39,7 @@ bool Worker::create_network() {
         return false;
     }
 
-    if (!m_net->create(this, m_worker_info.ctrl_fd, m_worker_info.data_fd)) {
+    if (!m_net->create(this, mgr, m_worker_info.ctrl_fd, m_worker_info.data_fd)) {
         LOG_ERROR("init network fail!");
         return false;
     }

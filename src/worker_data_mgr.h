@@ -1,5 +1,5 @@
-#ifndef __WORKER_MGR_H__
-#define __WORKER_MGR_H__
+#ifndef __WORKER_DATA_MGR_H__
+#define __WORKER_DATA_MGR_H__
 
 #include <map>
 
@@ -7,10 +7,10 @@
 
 namespace kim {
 
-class WorkerMgr {
+class WorkerDataMgr {
    public:
-    WorkerMgr();
-    virtual ~WorkerMgr();
+    WorkerDataMgr();
+    virtual ~WorkerDataMgr();
 
    public:
     void add_worker_info(int worker_index, int pid, int ctrl_fd, int data_fd);
@@ -24,4 +24,4 @@ class WorkerMgr {
 
 }  // namespace kim
 
-#endif  //__WORKER_MGR_H__
+#endif  //__WORKER_DATA_MGR_H__

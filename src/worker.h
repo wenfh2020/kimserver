@@ -5,21 +5,22 @@
 #include "network.h"
 #include "node_info.h"
 #include "util/CJsonObject.hpp"
+#include "worker_data_mgr.h"
 
 namespace kim {
 
 class Worker : public ISignalCallBack {
    public:
-    Worker(Log* logger);
+    Worker(Log* logger, const std::string& server_name);
     virtual ~Worker() {}
 
-    bool init(const worker_info_t* info, const std::string& server_name);
+    bool init(const worker_info_t* info, WorkerDataMgr* mgr = NULL);
     void run();
 
     virtual void on_terminated(struct ev_signal* s);
 
    private:
-    bool create_network();
+    bool create_network(WorkerDataMgr* mgr);
 
    private:
     Log* m_logger;

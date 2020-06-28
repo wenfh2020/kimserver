@@ -197,8 +197,8 @@ void Manager::create_workers() {
             info.data_fd = data_fds[1];
             info.index = i;
 
-            Worker worker(m_logger);
-            if (!worker.init(&info, m_json_conf("server_name"))) {
+            Worker worker(m_logger, m_json_conf("server_name"));
+            if (!worker.init(&info, this)) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();

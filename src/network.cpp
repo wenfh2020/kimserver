@@ -12,13 +12,15 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger, IEventsCallback::OBJ_TYPE type) : m_logger(logger),
-                                                                m_seq(0),
-                                                                m_bind_fd(0),
-                                                                m_gate_bind_fd(0),
-                                                                m_events(NULL),
-                                                                m_manager_ctrl_fd(-1),
-                                                                m_manager_data_fd(-1) {
+Network::Network(Log* logger, IEventsCallback::OBJ_TYPE type)
+    : m_logger(logger),
+      m_seq(0),
+      m_bind_fd(0),
+      m_gate_bind_fd(0),
+      m_events(NULL),
+      m_manager_ctrl_fd(-1),
+      m_manager_data_fd(-1),
+      m_woker_data_mgr(NULL) {
     set_type(type);
 }
 
@@ -69,7 +71,7 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
     return true;
 }
 
-bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
+bool Network::create(ISignalCallBack* s, WorkerDataMgr* mgr, int ctrl_fd, int data_fd) {
     LOG_DEBUG("create()");
 
     m_events = new Events(m_logger);
@@ -251,19 +253,21 @@ bool Network::on_io_read(Connection* c, struct ev_io* e) {
     if (c == NULL || e == NULL) return false;
 
     if (get_type() == IEventsCallback::MANAGER) {
-        if (e->fd == m_bind_fd) {
-            // accept.
-            accept_server_conn(e->fd);
-        } else if (e->fd == m_gate_bind_fd) {
-            // accept and transfer client fd to worker.
-        } else {
-            read_query_from_client(c);
-        }
-
         LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
                   c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
+
+        if (e->fd == m_bind_fd) {
+            return accept_server_conn(e->fd);
+        } else if (e->fd == m_gate_bind_fd) {
+            // accept and transfer client fd to worker.
+            return accept_and_transfer_fd(e->fd);
+        } else {
+            return read_query_from_client(c);
+        }
+
     } else if (get_type() == IEventsCallback::WORKER) {
-        LOG_DEBUG("worker io read!");
+        LOG_DEBUG("worker io read!, fd: %d", e->fd);
+        return read_query_from_client(c);
     } else {
         LOG_ERROR("unknown work type io read!");
     }
@@ -271,8 +275,8 @@ bool Network::on_io_read(Connection* c, struct ev_io* e) {
     return true;
 }
 
-void Network::read_query_from_client(Connection* c) {
-    if (c == NULL) return;
+bool Network::read_query_from_client(Connection* c) {
+    if (c == NULL) return false;
 
     int fd = -1, recv_len = 0;
 
@@ -280,10 +284,10 @@ void Network::read_query_from_client(Connection* c) {
     std::map<int, Connection*>::iterator it = m_conns.find(fd);
     if (it == m_conns.end()) {
         LOG_WARNING("find connection failed, fd: %d, seq: %d", c->get_id());
-        return;
+        return false;
     }
 
-    LOG_DEBUG("read_query_from_client, fd: %d, seq: %d", c->get_id());
+    LOG_DEBUG("read_query_from_client, fd: %d, seq: %d", c->get_fd(), c->get_id());
 
     // connection recv data.
     recv_len = c->read_data();
@@ -291,23 +295,24 @@ void Network::read_query_from_client(Connection* c) {
         LOG_DEBUG("connection closed, fd: %d, seq: %llu",
                   c->get_fd(), c->get_id());
         close_conn(c);
-        return;
+        return false;
     }
 
     if (recv_len < 0) {
         if ((recv_len == -1) &&
             (c->get_state() == Connection::CONN_STATE_CONNECTED)) {
-            return;
+            return false;
         }
 
         LOG_DEBUG("client closed connection! fd: %d, seq: %llu",
                   c->get_fd(), c->get_id());
         close_conn(c);
-        return;
+        return false;
     }
 
     // analysis data.
     LOG_DEBUG("recv data: %s", c->get_query_data());
+    return true;
 }
 
 bool Network::on_io_write(Connection* c, struct ev_io* e) {
@@ -327,14 +332,35 @@ bool Network::accept_server_conn(int fd) {
     return true;
 }
 
-void Network::accept_tcp_handler(int fd) {
-    LOG_DEBUG("accept_tcp_handler()");
+bool Network::accept_and_transfer_fd(int fd) {
+    char cip[NET_IP_STR_LEN];
+    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
-    if (fd < 0) {
-        LOG_ERROR("invalid fd: %d", fd);
-        return;
+    while (max--) {
+        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
+        if (cfd == ANET_ERR) {
+            if (errno != EWOULDBLOCK) {
+                LOG_WARNING("accepting client connection: %s", m_err);
+            }
+            return false;
+        }
+
+        LOG_DEBUG("accepted: %s:%d", cip, cport);
+
+        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+        if (chanel_fd != -1) {
+            // transfer.
+            close(cfd);
+            return true;
+        }
+        close(cfd);
+        return false;
     }
 
+    return false;
+}
+
+void Network::accept_tcp_handler(int fd) {
     char cip[NET_IP_STR_LEN];
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
@@ -364,8 +390,6 @@ void Network::accept_tcp_handler(int fd) {
 }
 
 bool Network::close_conn(Connection* c) {
-    LOG_DEBUG("close_conn()");
-
     if (c == NULL) return false;
 
     int fd = c->get_fd();
@@ -380,12 +404,12 @@ bool Network::close_conn(Connection* c) {
     if (fd != -1) close(fd);
     SAFE_DELETE(c);
     m_conns.erase(it);
+
+    LOG_DEBUG("close fd: %d", fd);
     return true;
 }
 
 void Network::end_ev_loop() {
-    LOG_DEBUG("ev_break()");
-
     if (m_events != NULL) {
         m_events->end_ev_loop();
     }

@@ -10,6 +10,7 @@
 #include "log.h"
 #include "net/anet.h"
 #include "node_info.h"
+#include "worker_data_mgr.h"
 
 namespace kim {
 
@@ -19,7 +20,7 @@ class Network : public IEventsCallback {
     virtual ~Network();
 
     bool create(const addr_info_t* addr_info, ISignalCallBack* s = NULL);
-    bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
+    bool create(ISignalCallBack* s, WorkerDataMgr* mgr, int ctrl_fd, int data_fd);
     void run();
     void end_ev_loop();
     void destory();
@@ -40,12 +41,13 @@ class Network : public IEventsCallback {
     int listen_to_port(const char* bind, int port);
     bool accept_server_conn(int fd);
     void accept_tcp_handler(int fd);
+    bool accept_and_transfer_fd(int fd);
 
     // connection
     Connection* create_conn(int fd);
     bool close_conn(Connection* c);
     void close_conns();
-    void read_query_from_client(Connection* c);
+    bool read_query_from_client(Connection* c);
 
     // events
 
@@ -63,6 +65,7 @@ class Network : public IEventsCallback {
     std::map<int, Connection*> m_conns;  // key:fd, value: connection
     int m_manager_ctrl_fd;
     int m_manager_data_fd;
+    WorkerDataMgr* m_woker_data_mgr;
 };
 
 }  // namespace kim
