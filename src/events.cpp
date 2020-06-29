@@ -144,7 +144,7 @@ void Events::on_event_callback(struct ev_loop* loop, struct ev_io* e, int events
     }
 
     if ((events & EV_WRITE) &&
-        (c->get_state() != Connection::CONN_STATE::CONN_STATE_CLOSED)) {
+        (c->get_state() != Connection::CONN_STATE::CLOSED)) {
         cb->on_io_write(c, e);
     }
 

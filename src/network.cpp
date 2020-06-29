@@ -149,7 +149,7 @@ bool Network::add_conncted_read_event(int fd) {
         return false;
     }
 
-    c->set_state(kim::Connection::CONN_STATE::CONN_STATE_CONNECTED);
+    c->set_state(Connection::CONN_STATE::CONNECTED);
     return m_events->add_read_event(c);
 }
 
@@ -160,7 +160,7 @@ bool Network::add_chanel_event(int fd) {
         return false;
     }
 
-    c->set_state(kim::Connection::CONN_STATE::CONN_STATE_CONNECTED);
+    c->set_state(Connection::CONN_STATE::CONNECTED);
     m_events->add_read_event(c);
     LOG_DEBUG("add chanel event success! fd: %d", fd);
     return true;
@@ -292,7 +292,7 @@ bool Network::read_query_from_client(Connection* c) {
 
     if (recv_len < 0) {
         if ((recv_len == -1) &&
-            (c->get_state() == Connection::CONN_STATE::CONN_STATE_CONNECTED)) {
+            (c->get_state() == Connection::CONN_STATE::CONNECTED)) {
             return false;
         }
 
@@ -366,7 +366,7 @@ void Network::accept_tcp_handler(int fd) {
         LOG_DEBUG("accepted %s:%d", cip, cport);
 
         Connection* c = create_conn(cfd);
-        c->set_state(Connection::CONN_STATE::CONN_STATE_ACCEPTING);
+        c->set_state(Connection::CONN_STATE::ACCEPTING);
 
         anet_no_block(NULL, cfd);
         anet_keep_alive(NULL, cfd, 100);
@@ -376,7 +376,7 @@ void Network::accept_tcp_handler(int fd) {
             LOG_ERROR("add read event failed! fd: %d", cfd);
             return;
         }
-        c->set_state(Connection::CONN_STATE::CONN_STATE_CONNECTED);
+        c->set_state(Connection::CONN_STATE::CONNECTED);
     }
 }
 

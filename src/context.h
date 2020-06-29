@@ -12,12 +12,12 @@ namespace kim {
 class Connection {
    public:
     enum class CONN_STATE {
-        CONN_STATE_NONE = 0,
-        CONN_STATE_CONNECTING,
-        CONN_STATE_ACCEPTING,
-        CONN_STATE_CONNECTED,
-        CONN_STATE_CLOSED,
-        CONN_STATE_ERROR
+        NONE = 0,
+        CONNECTING,
+        ACCEPTING,
+        CONNECTED,
+        CLOSED,
+        ERROR
     };
 
     Connection(int fd = -1, uint64_t id = 0);
