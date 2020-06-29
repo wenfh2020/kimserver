@@ -12,6 +12,7 @@ Connection::Connection(int fd, uint64_t id) : m_fd(fd),
                                               m_ev_io(NULL),
                                               m_qb_pos(0) {
     m_query_buf = sdsempty();
+    m_qb_pos = 0;
 }
 
 Connection::~Connection() {

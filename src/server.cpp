@@ -6,7 +6,7 @@
 #include "util/set_proc_title.h"
 #include "util/util.h"
 
-// #define DAEMONSIZE 1
+#define DAEMONSIZE 1
 
 kim::Log logger;
 

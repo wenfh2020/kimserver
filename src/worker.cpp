@@ -31,8 +31,6 @@ bool Worker::init(const worker_info_t* info, WorkerDataMgr* mgr) {
 }
 
 bool Worker::create_network(WorkerDataMgr* mgr) {
-    LOG_DEBUG("create_network()");
-
     m_net = new Network(m_logger, IEventsCallback::WORKER);
     if (m_net == NULL) {
         LOG_ERROR("new network failed!");
@@ -44,6 +42,7 @@ bool Worker::create_network(WorkerDataMgr* mgr) {
         return false;
     }
 
+    LOG_INFO("create network done!");
     return true;
 }
 
@@ -53,10 +52,11 @@ void Worker::run() {
 
 void Worker::on_terminated(struct ev_signal* s) {
     LOG_DEBUG("on_terminated()");
+    if (s == NULL) return;
 
     int signum = s->signum;
-    SAFE_DELETE(s);
     LOG_CRIT("worker terminated by signal: %d", signum);
+    SAFE_DELETE(s);
     exit(signum);
     return;
 }

@@ -20,21 +20,33 @@ CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))
 C_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.c))
 OBJS = $(patsubst %.cpp,%.o,$(CPP_SRCS)) $(patsubst %.c,%.o,$(C_SRCS)) $(patsubst %.cc,%.o,$(CC_SRCS))
 
-TARGET = kimserver
+CCCOLOR="\033[34m"
+LINKCOLOR="\033[34;1m"
+SRCCOLOR="\033[33m"
+BINCOLOR="\033[37;1m"
+ENDCOLOR="\033[0m"
+QUIET_CC = @printf '    %b %b\n' $(CCCOLOR)CC$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_LINK = @printf '    %b %b\n' $(LINKCOLOR)LINK$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
+
+SERVER_CC = $(QUIET_CC) $(CC) $(CFLAGS)
+SERVER_LD = $(QUIET_LINK) $(CXX) $(CXXFLAG)
+SERVER_CPP = $(QUIET_CC) $(CXX) $(CXXFLAG)
+
+SERVER_NAME = kimserver
 
 .PHONY: clean
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAG) -o $@ $(OBJS) $(INC) $(LDFLAGS)
+$(SERVER_NAME): $(OBJS)
+	$(SERVER_LD) -o $@ $(OBJS) $(INC) $(LDFLAGS)
 	cp -f $@ ../bin/
 
 %.o:%.cpp
-	$(CXX) $(INC) $(CXXFLAG) $(CFLAGS) -c -o $@ $< 
+	$(SERVER_CPP) $(INC) -c -o $@ $< 
 %.o:%.cc
-	$(CXX) $(INC) $(CXXFLAG) -c -o $@ $<
+	$(SERVER_CPP) $(INC) -c -o $@ $<
 %.o:%.c
-	$(CC) $(INC) $(CFLAGS) -c -o $@ $<
+	$(SERVER_CC) $(INC)  -c -o $@ $<
 clean:
 	rm -f $(OBJS)
-	rm -f $(TARGET)
-	rm -f ../bin/$(TARGET)
+	rm -f $(SERVER_NAME)
+	rm -f ../bin/$(SERVER_NAME)
