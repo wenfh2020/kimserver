@@ -11,7 +11,7 @@ namespace kim {
 
 class Connection {
    public:
-    enum CONN_STATE {
+    enum class CONN_STATE {
         CONN_STATE_NONE = 0,
         CONN_STATE_CONNECTING,
         CONN_STATE_ACCEPTING,

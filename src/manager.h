@@ -20,8 +20,8 @@ class Manager : public ISignalCallBack {
     void run();
 
     // signal callback
-    virtual void on_terminated(struct ev_signal* watcher);
-    virtual void on_child_terminated(struct ev_signal* watcher);
+    void on_terminated(struct ev_signal* watcher) override;
+    void on_child_terminated(struct ev_signal* watcher) override;
 
    private:
     bool init_logger();

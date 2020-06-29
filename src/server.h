@@ -12,22 +12,22 @@ namespace kim {
 #define EXIT_CHILD -2
 #define EXIT_CHILD_INIT_FAIL -3
 
-#define SAFE_FREE(x)    \
-    {                   \
-        if (x) free(x); \
-        x = NULL;       \
+#define SAFE_FREE(x)               \
+    {                              \
+        if (x != nullptr) free(x); \
+        x = nullptr;                  \
     }
 
-#define SAFE_DELETE(x)   \
-    {                    \
-        if (x) delete x; \
-        x = NULL;        \
+#define SAFE_DELETE(x)              \
+    {                               \
+        if (x != nullptr) delete x; \
+        x = nullptr;                \
     }
 
-#define SAFE_ARRAY_DELETE(x) \
-    {                        \
-        if (x) delete[] x;   \
-        x = NULL;            \
+#define SAFE_ARRAY_DELETE(x)          \
+    {                                 \
+        if (x != nullptr) delete[] x; \
+        x = nullptr;                  \
     }
 
 // new m_logger obj, before using.

@@ -22,10 +22,10 @@ Connection::~Connection() {
 int Connection::conn_read(void *buf, size_t buf_len) {
     int ret = read(m_fd, buf, buf_len);
     if (!ret) {
-        m_state = CONN_STATE_CLOSED;
+        m_state = CONN_STATE::CONN_STATE_CLOSED;
     } else if (ret < 0 && errno != EAGAIN) {
         m_errno = errno;
-        m_state = CONN_STATE_ERROR;
+        m_state = CONN_STATE::CONN_STATE_ERROR;
     }
 
     return ret;

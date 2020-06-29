@@ -19,13 +19,13 @@ class ISignalCallBack {
 
 class IEventsCallback {
    public:
-    enum OBJ_TYPE {
+    enum class OBJ_TYPE {
         UNKNOWN = 0,
         MANAGER,
         WORKER,
     };
 
-    IEventsCallback() : m_type(UNKNOWN) {}
+    IEventsCallback() : m_type(OBJ_TYPE::UNKNOWN) {}
     virtual ~IEventsCallback() {}
 
     OBJ_TYPE get_type() { return m_type; }
