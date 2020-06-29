@@ -12,11 +12,12 @@ make
 
 kill_proc() {
     name=$1
-    ps -ef | grep -i $name | grep -v grep | awk '{if ($3 > 1) print $3;}' | xargs kill
+    ps -ef | grep $name | grep -v grep | grep -v log | awk '{if ($2 > 1) print $2;}' | xargs kill
 }
 
+kill_proc $server_name
+
 if [ -f $output_file ]; then
-    kill_proc $server_name
     cd $work_path/bin
     $output_file config.json
 fi
