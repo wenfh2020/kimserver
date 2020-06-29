@@ -6,12 +6,7 @@ namespace kim {
 
 Worker::Worker(Log* logger, const std::string& server_name) : m_logger(logger),
                                                               m_net(NULL) {
-    char name[64] = {0};
-    snprintf(name, sizeof(name), "%s_w_%d",
-             server_name.c_str(), m_worker_info.index);
-    set_proc_title("%s", name);
-
-    LOG_DEBUG("worker name: %s", name);
+    set_proc_title("%s", server_name.c_str());
 }
 
 bool Worker::init(const worker_info_t* info, WorkerDataMgr* mgr) {

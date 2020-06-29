@@ -197,7 +197,11 @@ void Manager::create_workers() {
             info.data_fd = data_fds[1];
             info.index = i;
 
-            Worker worker(m_logger, m_json_conf("server_name"));
+            char name[64] = {0};
+            snprintf(name, sizeof(name), "%s_w_%d",
+                     m_json_conf("server_name").c_str(), i);
+
+            Worker worker(m_logger, name);
             if (!worker.init(&info, this)) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
