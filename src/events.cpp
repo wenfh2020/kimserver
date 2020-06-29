@@ -68,7 +68,7 @@ bool Events::setup_signal_events(ISignalCallBack* s) {
     if (s == nullptr) return false;
 
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
-    for (int i = 0; i < sizeof(signals) / sizeof(int); i++) {
+    for (unsigned int i = 0; i < sizeof(signals) / sizeof(int); i++) {
         create_signal_events(signals[i], s);
     }
     return true;
