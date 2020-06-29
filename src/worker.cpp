@@ -26,7 +26,7 @@ bool Worker::init(const worker_info_t* info) {
 }
 
 bool Worker::create_network() {
-    m_net = new Network(m_logger, IEventsCallback::OBJ_TYPE::WORKER);
+    m_net = new Network(m_logger, IEventsCallback::TYPE::WORKER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;

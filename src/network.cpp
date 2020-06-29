@@ -13,7 +13,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger, IEventsCallback::OBJ_TYPE type)
+Network::Network(Log* logger, IEventsCallback::TYPE type)
     : m_logger(logger),
       m_seq(0),
       m_bind_fd(0),
@@ -38,9 +38,7 @@ void Network::destory() {
 }
 
 bool Network::create(const addr_info_t* addr_info,
-                     ISignalCallBack* s, WorkerDataMgr* mgr) {
-    LOG_DEBUG("create()");
-
+                     ISignalCallBack* s, WorkerDataMgr* m) {
     if (addr_info == nullptr) return false;
 
     int fd = -1;
@@ -70,7 +68,7 @@ bool Network::create(const addr_info_t* addr_info,
         return false;
     }
 
-    m_woker_data_mgr = mgr;
+    m_woker_data_mgr = m;
     return true;
 }
 
@@ -112,8 +110,6 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
 }
 
 bool Network::create_events(ISignalCallBack* s) {
-    LOG_DEBUG("create_events()");
-
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -147,8 +143,6 @@ bool Network::create_events(ISignalCallBack* s) {
 }
 
 bool Network::add_conncted_read_event(int fd) {
-    LOG_DEBUG("add_conncted_read_event()");
-
     Connection* c = create_conn(fd);
     if (c == nullptr) {
         LOG_ERROR("create connection failed!");
@@ -160,21 +154,19 @@ bool Network::add_conncted_read_event(int fd) {
 }
 
 bool Network::add_chanel_event(int fd) {
-    LOG_DEBUG("add_chanel_event()");
-
     Connection* c = create_conn(fd);
-    if (c != nullptr) {
-        c->set_state(kim::Connection::CONN_STATE::CONN_STATE_CONNECTED);
-        m_events->add_read_event(c);
-        return true;
+    if (c == nullptr) {
+        LOG_ERROR("add chanel event failed! fd: %d", fd);
+        return false;
     }
 
-    return false;
+    c->set_state(kim::Connection::CONN_STATE::CONN_STATE_CONNECTED);
+    m_events->add_read_event(c);
+    LOG_DEBUG("add chanel event success! fd: %d", fd);
+    return true;
 }
 
 Connection* Network::create_conn(int fd) {
-    LOG_DEBUG("create_conn()");
-
     auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
         return it->second;
@@ -193,8 +185,6 @@ void Network::run() {
 }
 
 int Network::listen_to_port(const char* bind, int port) {
-    LOG_DEBUG("listen_to_port()");
-
     int fd = -1;
     char err[256] = {0};
 
@@ -221,7 +211,7 @@ int Network::listen_to_port(const char* bind, int port) {
 }
 
 void Network::close_chanel(int* fds) {
-    LOG_DEBUG("close_chanel()");
+    LOG_DEBUG("close chanel, fd0: %d, fd1: %d", fds[0], fds[1]);
 
     if (close(fds[0]) == -1) {
         LOG_WARNING("close channel failed, fd: %d.", fds[0]);
@@ -233,7 +223,8 @@ void Network::close_chanel(int* fds) {
 }
 
 void Network::close_listen_sockets() {
-    LOG_DEBUG("close_listen_sockets()");
+    LOG_DEBUG("close listen sockets, bind fd: %d, gate bind fd: %d",
+              m_bind_fd, m_gate_bind_fd);
 
     if (m_bind_fd != -1) close(m_bind_fd);
     if (m_gate_bind_fd != -1) close(m_gate_bind_fd);
@@ -253,7 +244,7 @@ bool Network::on_io_read(Connection* c, struct ev_io* e) {
 
     if (c == nullptr || e == nullptr) return false;
 
-    if (get_type() == IEventsCallback::OBJ_TYPE::MANAGER) {
+    if (get_type() == IEventsCallback::TYPE::MANAGER) {
         LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
                   c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
 
@@ -266,7 +257,7 @@ bool Network::on_io_read(Connection* c, struct ev_io* e) {
             return read_query_from_client(c);
         }
 
-    } else if (get_type() == IEventsCallback::OBJ_TYPE::WORKER) {
+    } else if (get_type() == IEventsCallback::TYPE::WORKER) {
         LOG_DEBUG("worker io read!, fd: %d", e->fd);
         return read_query_from_client(c);
     } else {
@@ -328,13 +319,12 @@ bool Network::on_io_error(Connection* c, struct ev_io* e) {
 
 bool Network::accept_server_conn(int fd) {
     LOG_DEBUG("accept_server_conn()");
-
     accept_tcp_handler(fd);
     return true;
 }
 
 bool Network::accept_and_transfer_fd(int fd) {
-    char cip[NET_IP_STR_LEN];
+    char cip[NET_IP_STR_LEN] = {0};
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
@@ -400,20 +390,17 @@ bool Network::close_conn(Connection* c) {
         return false;
     }
 
-    m_events->del_event(c);
+    LOG_DEBUG("close fd: %d, seq: %llu", fd, c->get_id());
 
+    m_events->del_event(c);
     if (fd != -1) close(fd);
     SAFE_DELETE(c);
     m_conns.erase(it);
-
-    LOG_DEBUG("close fd: %d", fd);
     return true;
 }
 
 void Network::end_ev_loop() {
-    if (m_events != nullptr) {
-        m_events->end_ev_loop();
-    }
+    if (m_events != nullptr) m_events->end_ev_loop();
 }
 
 }  // namespace kim

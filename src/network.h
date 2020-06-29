@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <list>
+#include <unordered_map>
 
 #include "context.h"
 #include "events.h"
@@ -16,10 +17,10 @@ namespace kim {
 
 class Network : public IEventsCallback {
    public:
-    Network(Log* logger, IEventsCallback::OBJ_TYPE type);
+    Network(Log* logger, IEventsCallback::TYPE type);
     virtual ~Network();
 
-    bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* mgr);
+    bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
     void run();
     void end_ev_loop();
@@ -56,13 +57,13 @@ class Network : public IEventsCallback {
     int get_new_seq() { return ++m_seq; }
 
    private:
-    Log* m_logger;                       // log manager.
-    uint64_t m_seq;                      // sequence.
-    char m_err[ANET_ERR_LEN];            // error string.
-    int m_bind_fd;                       // inner servers contact each other.
-    int m_gate_bind_fd;                  // gate bind fd for client.
-    Events* m_events;                    // libev's events manager.
-    std::map<int, Connection*> m_conns;  // key:fd, value: connection
+    Log* m_logger;                                 // log manager.
+    uint64_t m_seq;                                // sequence.
+    char m_err[ANET_ERR_LEN];                      // error string.
+    int m_bind_fd;                                 // inner servers contact each other.
+    int m_gate_bind_fd;                            // gate bind fd for client.
+    Events* m_events;                              // libev's events manager.
+    std::unordered_map<int, Connection*> m_conns;  // key:fd, value: connection
     int m_manager_ctrl_fd;
     int m_manager_data_fd;
     WorkerDataMgr* m_woker_data_mgr;

@@ -94,7 +94,7 @@ bool Manager::load_config(const char* path) {
     }
 
     if (m_node_info.work_path.empty()) {
-        char work_path[MAX_PATH];
+        char work_path[MAX_PATH] = {0};
         if (!getcwd(work_path, sizeof(work_path))) {
             LOG_ERROR("get work path failed!");
             return false;
@@ -138,7 +138,7 @@ bool Manager::load_config(const char* path) {
 }
 
 bool Manager::create_network() {
-    m_net = new Network(m_logger, IEventsCallback::OBJ_TYPE::MANAGER);
+    m_net = new Network(m_logger, IEventsCallback::TYPE::MANAGER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;
