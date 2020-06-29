@@ -8,8 +8,8 @@ namespace kim {
 
 Connection::Connection(int fd, uint64_t id) : m_fd(fd),
                                               m_id(id),
-                                              m_private_data(NULL),
-                                              m_ev_io(NULL),
+                                              m_private_data(nullptr),
+                                              m_ev_io(nullptr),
                                               m_qb_pos(0) {
     m_query_buf = sdsempty();
     m_qb_pos = 0;

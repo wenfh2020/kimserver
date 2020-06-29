@@ -1,5 +1,6 @@
-#include "server.h"
 #include "worker_data_mgr.h"
+
+#include "server.h"
 
 namespace kim {
 
@@ -8,10 +9,11 @@ WorkerDataMgr::WorkerDataMgr() {
 }
 
 WorkerDataMgr::~WorkerDataMgr() {
-    std::map<int, worker_info_t*>::iterator it = m_worker_info.begin();
+    auto it = m_worker_info.begin();
     for (; it != m_worker_info.end(); it++) {
         SAFE_DELETE(it->second);
     }
+
     m_worker_info.clear();
     m_itr_worker_info = m_worker_info.end();
     m_fd_pid.clear();

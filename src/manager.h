@@ -10,7 +10,7 @@
 
 namespace kim {
 
-class Manager : public ISignalCallBack, public WorkerDataMgr {
+class Manager : public ISignalCallBack {
    public:
     Manager(Log* logger);
     virtual ~Manager();
@@ -36,6 +36,7 @@ class Manager : public ISignalCallBack, public WorkerDataMgr {
     node_info_t m_node_info;      // cluster node.
     Network* m_net;
     std::map<int, worker_info_t*> m_pid_worker_info;
+    WorkerDataMgr m_worker_data_mgr;
 };
 
 }  // namespace kim

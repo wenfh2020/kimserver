@@ -14,7 +14,7 @@
 
 namespace kim {
 
-Manager::Manager(Log* logger) : m_logger(logger), m_net(NULL) {
+Manager::Manager(Log* logger) : m_logger(logger), m_net(nullptr) {
 }
 
 Manager::~Manager() {
@@ -22,15 +22,15 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    if (m_net != NULL) {
+    if (m_net != nullptr) {
         m_net->end_ev_loop();
         SAFE_DELETE(m_net);
     }
 
-    std::map<int, worker_info_t*>::iterator itr = m_pid_worker_info.begin();
+    auto itr = m_pid_worker_info.begin();
     for (; itr != m_pid_worker_info.end(); itr++) {
         worker_info_t* info = itr->second;
-        if (info != NULL) {
+        if (info != nullptr) {
             if (info->ctrl_fd != -1) close(info->ctrl_fd);
             if (info->data_fd != -1) close(info->data_fd);
             SAFE_DELETE(info);
@@ -39,7 +39,7 @@ void Manager::destory() {
 }
 
 void Manager::run() {
-    if (m_net != NULL) m_net->run();
+    if (m_net != nullptr) m_net->run();
 }
 
 bool Manager::init(const char* conf_path) {
@@ -73,7 +73,7 @@ bool Manager::init_logger() {
 
     FILE* f;
     f = fopen(path, "a");
-    if (f == NULL) {
+    if (f == nullptr) {
         LOG_ERROR("cant not open log file: %s", path);
         return false;
     }
@@ -139,12 +139,12 @@ bool Manager::load_config(const char* path) {
 
 bool Manager::create_network() {
     m_net = new Network(m_logger, IEventsCallback::MANAGER);
-    if (m_net == NULL) {
+    if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;
     }
 
-    if (!m_net->create(&m_node_info.addr_info, this)) {
+    if (!m_net->create(&m_node_info.addr_info, this, &m_worker_data_mgr)) {
         LOG_ERROR("init network fail!");
         return false;
     }
@@ -154,7 +154,7 @@ bool Manager::create_network() {
 }
 
 void Manager::on_terminated(struct ev_signal* s) {
-    if (s == NULL) return;
+    if (s == nullptr) return;
 
     LOG_WARNING("%s terminated by signal %d!",
                 m_json_conf("server_name").c_str(), s->signum);
@@ -202,7 +202,7 @@ void Manager::create_workers() {
                      m_json_conf("server_name").c_str(), i);
 
             Worker worker(m_logger, name);
-            if (!worker.init(&info, this)) {
+            if (!worker.init(&info)) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();
@@ -217,7 +217,7 @@ void Manager::create_workers() {
             anet_no_block(NULL, ctrl_fds[0]);
             anet_no_block(NULL, data_fds[0]);
 
-            add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
+            m_worker_data_mgr.add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
 
             m_net->add_chanel_event(ctrl_fds[0]);
             m_net->add_chanel_event(data_fds[0]);

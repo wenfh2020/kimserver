@@ -11,16 +11,16 @@ namespace kim {
 
 class Worker : public ISignalCallBack {
    public:
-    Worker(Log* logger, const std::string& server_name);
+    Worker(Log* logger, const std::string& name);
     virtual ~Worker() {}
 
-    bool init(const worker_info_t* info, WorkerDataMgr* mgr = NULL);
+    bool init(const worker_info_t* info);
     void run();
 
     virtual void on_terminated(struct ev_signal* s);
 
    private:
-    bool create_network(WorkerDataMgr* mgr);
+    bool create_network();
 
    private:
     Log* m_logger;

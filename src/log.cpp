@@ -13,7 +13,7 @@ Log::Log() : m_cur_level(LL_DEBUG) {
 }
 
 void Log::set_log_path(const char* path) {
-    if (path != NULL) m_path = path;
+    if (path != nullptr) m_path = path;
 }
 
 bool Log::set_level(int level) {

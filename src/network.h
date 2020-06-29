@@ -19,8 +19,8 @@ class Network : public IEventsCallback {
     Network(Log* logger, IEventsCallback::OBJ_TYPE type);
     virtual ~Network();
 
-    bool create(const addr_info_t* addr_info, ISignalCallBack* s = NULL);
-    bool create(ISignalCallBack* s, WorkerDataMgr* mgr, int ctrl_fd, int data_fd);
+    bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* mgr);
+    bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
     void run();
     void end_ev_loop();
     void destory();

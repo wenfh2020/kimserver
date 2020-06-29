@@ -18,10 +18,10 @@ Network::Network(Log* logger, IEventsCallback::OBJ_TYPE type)
       m_seq(0),
       m_bind_fd(0),
       m_gate_bind_fd(0),
-      m_events(NULL),
+      m_events(nullptr),
       m_manager_ctrl_fd(-1),
       m_manager_data_fd(-1),
-      m_woker_data_mgr(NULL) {
+      m_woker_data_mgr(nullptr) {
     set_type(type);
 }
 
@@ -37,10 +37,11 @@ void Network::destory() {
     SAFE_DELETE(m_events);
 }
 
-bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
+bool Network::create(const addr_info_t* addr_info,
+                     ISignalCallBack* s, WorkerDataMgr* mgr) {
     LOG_DEBUG("create()");
 
-    if (addr_info == NULL) return false;
+    if (addr_info == nullptr) return false;
 
     int fd = -1;
 
@@ -69,14 +70,13 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s) {
         return false;
     }
 
+    m_woker_data_mgr = mgr;
     return true;
 }
 
-bool Network::create(ISignalCallBack* s, WorkerDataMgr* mgr, int ctrl_fd, int data_fd) {
-    LOG_DEBUG("create()");
-
+bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
     m_events = new Events(m_logger);
-    if (m_events == NULL) {
+    if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
         return false;
     }
@@ -115,7 +115,7 @@ bool Network::create_events(ISignalCallBack* s) {
     LOG_DEBUG("create_events()");
 
     m_events = new Events(m_logger);
-    if (m_events == NULL) {
+    if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
         return false;
     }
@@ -150,7 +150,7 @@ bool Network::add_conncted_read_event(int fd) {
     LOG_DEBUG("add_conncted_read_event()");
 
     Connection* c = create_conn(fd);
-    if (c == NULL) {
+    if (c == nullptr) {
         LOG_ERROR("create connection failed!");
         return false;
     }
@@ -163,7 +163,7 @@ bool Network::add_chanel_event(int fd) {
     LOG_DEBUG("add_chanel_event()");
 
     Connection* c = create_conn(fd);
-    if (c != NULL) {
+    if (c != nullptr) {
         c->set_state(kim::Connection::CONN_STATE_CONNECTED);
         m_events->add_read_event(c);
         return true;
@@ -175,7 +175,7 @@ bool Network::add_chanel_event(int fd) {
 Connection* Network::create_conn(int fd) {
     LOG_DEBUG("create_conn()");
 
-    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
         return it->second;
     }
@@ -189,7 +189,7 @@ Connection* Network::create_conn(int fd) {
 }
 
 void Network::run() {
-    if (m_events != NULL) m_events->run();
+    if (m_events != nullptr) m_events->run();
 }
 
 int Network::listen_to_port(const char* bind, int port) {
@@ -242,7 +242,7 @@ void Network::close_listen_sockets() {
 void Network::close_conns() {
     LOG_DEBUG("close_conns()");
 
-    std::map<int, Connection*>::iterator it = m_conns.begin();
+    auto it = m_conns.begin();
     for (; it != m_conns.begin(); it++) {
         close_conn(it->second);
     }
@@ -251,7 +251,7 @@ void Network::close_conns() {
 bool Network::on_io_read(Connection* c, struct ev_io* e) {
     LOG_DEBUG("on_io_read()");
 
-    if (c == NULL || e == NULL) return false;
+    if (c == nullptr || e == nullptr) return false;
 
     if (get_type() == IEventsCallback::MANAGER) {
         LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
@@ -277,12 +277,12 @@ bool Network::on_io_read(Connection* c, struct ev_io* e) {
 }
 
 bool Network::read_query_from_client(Connection* c) {
-    if (c == NULL) return false;
+    if (c == nullptr) return false;
 
     int fd = -1, recv_len = 0;
 
     fd = c->get_fd();
-    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
         LOG_WARNING("find connection failed, fd: %d, seq: %d", c->get_id());
         return false;
@@ -391,10 +391,10 @@ void Network::accept_tcp_handler(int fd) {
 }
 
 bool Network::close_conn(Connection* c) {
-    if (c == NULL) return false;
+    if (c == nullptr) return false;
 
     int fd = c->get_fd();
-    std::map<int, Connection*>::iterator it = m_conns.find(fd);
+    auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
         LOG_WARNING("close conn failed! fd: %d", fd);
         return false;
@@ -411,7 +411,7 @@ bool Network::close_conn(Connection* c) {
 }
 
 void Network::end_ev_loop() {
-    if (m_events != NULL) {
+    if (m_events != nullptr) {
         m_events->end_ev_loop();
     }
 }
