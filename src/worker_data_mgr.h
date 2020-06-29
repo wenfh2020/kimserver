@@ -13,7 +13,7 @@ class WorkerDataMgr {
     virtual ~WorkerDataMgr();
 
    public:
-    void add_worker_info(int worker_index, int pid, int ctrl_fd, int data_fd);
+    void add_worker_info(int index, int pid, int ctrl_fd, int data_fd);
     int get_next_worker_data_fd();
 
    private:

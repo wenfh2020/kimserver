@@ -87,7 +87,7 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
         return false;
     }
 
-    m_events->create_signal_events(SIGINT, s);
+    m_events->create_signal_event(SIGINT, s);
 
     if (!add_conncted_read_event(ctrl_fd)) {
         SAFE_DELETE(m_events);

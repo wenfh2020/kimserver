@@ -25,7 +25,7 @@ class Events {
     bool add_read_event(Connection* c);
     bool del_event(Connection* c);
     bool setup_signal_events(ISignalCallBack* s);
-    void create_signal_events(int signum, ISignalCallBack* s);
+    void create_signal_event(int signum, ISignalCallBack* s);
 
    private:
     static void event_callback(struct ev_loop* loop, struct ev_io* e, int events);

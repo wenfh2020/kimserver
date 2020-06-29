@@ -19,12 +19,12 @@ WorkerDataMgr::~WorkerDataMgr() {
     m_fd_pid.clear();
 }
 
-void WorkerDataMgr::add_worker_info(int worker_index, int pid, int ctrl_fd, int data_fd) {
+void WorkerDataMgr::add_worker_info(int index, int pid, int ctrl_fd, int data_fd) {
     worker_info_t* info = new worker_info_t;
-    info->index = worker_index;
+    info->pid = pid;
+    info->index = index;
     info->ctrl_fd = ctrl_fd;
     info->data_fd = data_fd;
-    info->pid = pid;
 
     m_worker_info[pid] = info;
     m_itr_worker_info = m_worker_info.begin();
