@@ -10,7 +10,8 @@ DIRS := $(SUB_DIRS)
 
 
 INC := $(INC) \
-       -I .
+       -I . \
+       -I ./util
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
           -lev \
@@ -25,12 +26,13 @@ LINKCOLOR="\033[34;1m"
 SRCCOLOR="\033[33m"
 BINCOLOR="\033[37;1m"
 ENDCOLOR="\033[0m"
-QUIET_CC = @printf '    %b %b\n' $(CCCOLOR)CC$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_CC = @printf '    %b %b\n' $(CCCOLOR)GCC$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_CPP = @printf '    %b %b\n' $(CCCOLOR)G++$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
 QUIET_LINK = @printf '    %b %b\n' $(LINKCOLOR)LINK$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
 
 SERVER_CC = $(QUIET_CC) $(CC) $(CFLAGS)
 SERVER_LD = $(QUIET_LINK) $(CXX) $(CXXFLAG)
-SERVER_CPP = $(QUIET_CC) $(CXX) $(CXXFLAG)
+SERVER_CPP = $(QUIET_CPP) $(CXX) $(CXXFLAG)
 
 SERVER_NAME = kimserver
 
@@ -43,7 +45,7 @@ $(SERVER_NAME): $(OBJS)
 %.o:%.cpp
 	$(SERVER_CPP) $(INC) -c -o $@ $< 
 %.o:%.cc
-	$(SERVER_CPP) $(INC) -c -o $@ $<
+	$(SERVER_CC) $(INC) -c -o $@ $<
 %.o:%.c
 	$(SERVER_CC) $(INC)  -c -o $@ $<
 clean:

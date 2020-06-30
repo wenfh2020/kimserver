@@ -8,7 +8,6 @@
 #include "context.h"
 #include "events.h"
 #include "events_callback.h"
-#include "log.h"
 #include "net/anet.h"
 #include "node_info.h"
 #include "worker_data_mgr.h"

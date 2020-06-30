@@ -40,7 +40,9 @@ void Events::destory() {
 }
 
 void Events::run() {
-    if (m_ev_loop != nullptr) ev_run(m_ev_loop, 0);
+    if (m_ev_loop != nullptr) {
+        ev_run(m_ev_loop, 0);
+    }
 }
 
 void Events::end_ev_loop() {
@@ -52,7 +54,9 @@ void Events::end_ev_loop() {
 void Events::create_signal_event(int signum, ISignalCallBack* s) {
     LOG_DEBUG("create_signal_event, sig: %d", signum);
 
-    if (m_ev_loop == nullptr) return;
+    if (m_ev_loop == nullptr) {
+        return;
+    }
 
     ev_signal* sig = new ev_signal();
     ev_signal_init(sig, on_signal_callback, signum);
@@ -63,7 +67,9 @@ void Events::create_signal_event(int signum, ISignalCallBack* s) {
 bool Events::setup_signal_events(ISignalCallBack* s) {
     LOG_DEBUG("setup_signal_events()");
 
-    if (s == nullptr) return false;
+    if (s == nullptr) {
+        return false;
+    }
 
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (unsigned int i = 0; i < sizeof(signals) / sizeof(int); i++) {
@@ -117,10 +123,14 @@ bool Events::add_read_event(Connection* c) {
 }
 
 bool Events::del_event(Connection* c) {
-    if (c == nullptr) return false;
+    if (c == nullptr) {
+        return false;
+    }
 
     ev_io* e = c->get_ev_io();
-    if (e == nullptr) return false;
+    if (e == nullptr) {
+        return false;
+    }
 
     LOG_DEBUG("delete event, fd: %d, seq: %llu", c->get_fd(), c->get_id());
 
@@ -131,13 +141,15 @@ bool Events::del_event(Connection* c) {
 }
 
 void Events::on_event_callback(struct ev_loop* loop, ev_io* e, int events) {
-    if (e == nullptr) return;
+    if (e == nullptr || e->data == nullptr) {
+        return;
+    }
 
     Connection* c = static_cast<Connection*>(e->data);
-    if (c == nullptr) return;
-
     IEventsCallback* cb = static_cast<IEventsCallback*>(c->get_private_data());
-    if (cb == nullptr) return;
+    if (cb == nullptr) {
+        return;
+    }
 
     if (events & EV_READ) {
         cb->on_io_read(c, e);

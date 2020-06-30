@@ -1,7 +1,6 @@
 #ifndef __WORKER_H__
 #define __WORKER_H__
 
-#include "log.h"
 #include "network.h"
 #include "node_info.h"
 #include "util/CJsonObject.hpp"

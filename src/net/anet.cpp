@@ -12,6 +12,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+namespace kim {
+
 #define ANET_OK 0
 #define ANET_ERR -1
 #define ANET_ERR_LEN 256
@@ -229,4 +231,6 @@ int anet_set_tcp_no_delay(char *err, int fd, int val) {
         return ANET_ERR;
     }
     return ANET_OK;
+}
+
 }

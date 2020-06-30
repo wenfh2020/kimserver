@@ -231,8 +231,6 @@ void Network::close_listen_sockets() {
 }
 
 void Network::close_conns() {
-    LOG_DEBUG("close_conns()");
-
     auto it = m_conns.begin();
     for (; it != m_conns.begin(); it++) {
         close_conn(it->second);
@@ -240,12 +238,10 @@ void Network::close_conns() {
 }
 
 bool Network::on_io_read(Connection* c, ev_io* e) {
-    LOG_DEBUG("on_io_read()");
-
     if (c == nullptr || e == nullptr) return false;
 
     if (get_type() == IEventsCallback::TYPE::MANAGER) {
-        LOG_DEBUG("io read fd: %d, seq: %d, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
+        LOG_DEBUG("io read fd: %d, seq: %llu, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
                   c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
 
         if (e->fd == m_bind_fd) {
@@ -268,7 +264,9 @@ bool Network::on_io_read(Connection* c, ev_io* e) {
 }
 
 bool Network::read_query_from_client(Connection* c) {
-    if (c == nullptr) return false;
+    if (c == nullptr) {
+        return false;
+    }
 
     int fd = -1, recv_len = 0;
 
@@ -323,34 +321,6 @@ bool Network::accept_server_conn(int fd) {
     return true;
 }
 
-bool Network::accept_and_transfer_fd(int fd) {
-    char cip[NET_IP_STR_LEN] = {0};
-    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
-
-    while (max--) {
-        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
-        if (cfd == ANET_ERR) {
-            if (errno != EWOULDBLOCK) {
-                LOG_WARNING("accepting client connection: %s", m_err);
-            }
-            return false;
-        }
-
-        LOG_DEBUG("accepted: %s:%d", cip, cport);
-
-        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
-        if (chanel_fd != -1) {
-            // transfer.
-            close(cfd);
-            return true;
-        }
-        close(cfd);
-        return false;
-    }
-
-    return false;
-}
-
 void Network::accept_tcp_handler(int fd) {
     char cip[NET_IP_STR_LEN];
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
@@ -380,27 +350,62 @@ void Network::accept_tcp_handler(int fd) {
     }
 }
 
-bool Network::close_conn(Connection* c) {
-    if (c == nullptr) return false;
+bool Network::accept_and_transfer_fd(int fd) {
+    char cip[NET_IP_STR_LEN] = {0};
+    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
-    int fd = c->get_fd();
-    auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
-        LOG_WARNING("close conn failed! fd: %d", fd);
+    while (max--) {
+        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
+        if (cfd == ANET_ERR) {
+            if (errno != EWOULDBLOCK) {
+                LOG_WARNING("accepting client connection: %s", m_err);
+            }
+            return false;
+        }
+
+        LOG_DEBUG("accepted: %s:%d", cip, cport);
+
+        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+        if (chanel_fd != -1) {
+            // transfer.
+            close(cfd);
+            return true;
+        }
+        close(cfd);
         return false;
     }
 
-    LOG_DEBUG("close fd: %d, seq: %llu", fd, c->get_id());
+    return false;
+}
+
+// delete event to stop callback, and then close fd.
+bool Network::close_conn(Connection* c) {
+    if (c == nullptr) {
+        return false;
+    }
+
+    int fd = c->get_fd();
+    auto it = m_conns.find(fd);
+    if (it != m_conns.end()) {
+        m_conns.erase(it);
+    } else {
+        LOG_WARNING("delele conn failed! fd: %d", fd);
+    }
 
     m_events->del_event(c);
-    if (fd != -1) close(fd);
+    if (fd != -1) {
+        close(fd);
+    }
     SAFE_DELETE(c);
-    m_conns.erase(it);
+
+    LOG_DEBUG("close fd: %d", fd);
     return true;
 }
 
 void Network::end_ev_loop() {
-    if (m_events != nullptr) m_events->end_ev_loop();
+    if (m_events != nullptr) {
+        m_events->end_ev_loop();
+    }
 }
 
 }  // namespace kim
