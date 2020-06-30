@@ -42,6 +42,7 @@ class Network : public IEventsCallback {
     bool accept_server_conn(int fd);
     void accept_tcp_handler(int fd);
     bool accept_and_transfer_fd(int fd);
+    bool read_transfer_fd(int fd);
 
     // connection
     Connection* create_conn(int fd);

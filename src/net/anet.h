@@ -19,7 +19,7 @@ int anet_tcp6_server(char *err, int port, const char *bindaddr, int backlog);
 int anet_block(char *err, int fd);
 int anet_no_block(char *err, int fd);
 
-int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port);
+int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port, int *family);
 int anet_keep_alive(char *err, int fd, int interval);
 int anet_set_tcp_no_delay(char *err, int fd, int val);
 

@@ -5,6 +5,7 @@
 
 #include "context.h"
 #include "net/anet.h"
+#include "net/chanel.h"
 #include "server.h"
 
 namespace kim {
@@ -240,24 +241,26 @@ void Network::close_conns() {
 bool Network::on_io_read(Connection* c, ev_io* e) {
     if (c == nullptr || e == nullptr) return false;
 
-    if (get_type() == IEventsCallback::TYPE::MANAGER) {
-        LOG_DEBUG("io read fd: %d, seq: %llu, e->fd: %d, bind fd: %d, gate_bind_fd: %d",
-                  c->get_fd(), c->get_id(), e->fd, m_bind_fd, m_gate_bind_fd);
+    int fd = e->fd;
 
-        if (e->fd == m_bind_fd) {
-            return accept_server_conn(e->fd);
-        } else if (e->fd == m_gate_bind_fd) {
-            // accept and transfer client fd to worker.
-            return accept_and_transfer_fd(e->fd);
+    if (get_type() == IEventsCallback::TYPE::MANAGER) {
+        if (fd == m_bind_fd) {
+            return accept_server_conn(fd);
+        } else if (fd == m_gate_bind_fd) {
+            return accept_and_transfer_fd(fd);
         } else {
             return read_query_from_client(c);
         }
-
     } else if (get_type() == IEventsCallback::TYPE::WORKER) {
-        LOG_DEBUG("worker io read!, fd: %d", e->fd);
-        return read_query_from_client(c);
+        if (fd == m_manager_data_fd) {
+            return read_transfer_fd(fd);
+        } else {
+            LOG_DEBUG("worker io read!, fd: %d", fd);
+            return read_query_from_client(c);
+        }
     } else {
-        LOG_ERROR("unknown work type io read!");
+        LOG_ERROR("unknown work type io read! exit!");
+        exit(EXIT_FAILURE);
     }
 
     return true;
@@ -323,10 +326,10 @@ bool Network::accept_server_conn(int fd) {
 
 void Network::accept_tcp_handler(int fd) {
     char cip[NET_IP_STR_LEN];
-    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
+    int cport, cfd, family, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
-        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
+        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK)
                 LOG_WARNING("accepting client connection: %s", m_err);
@@ -341,6 +344,7 @@ void Network::accept_tcp_handler(int fd) {
         anet_no_block(NULL, cfd);
         anet_keep_alive(NULL, cfd, 100);
         anet_set_tcp_no_delay(NULL, cfd, 1);
+
         if (!m_events->add_read_event(c)) {
             close_conn(c);
             LOG_ERROR("add read event failed! fd: %d", cfd);
@@ -350,32 +354,52 @@ void Network::accept_tcp_handler(int fd) {
     }
 }
 
+// manager accept fd and then transfer which to worker.
 bool Network::accept_and_transfer_fd(int fd) {
+    int cport, cfd, family;
     char cip[NET_IP_STR_LEN] = {0};
-    int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
 
-    while (max--) {
-        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport);
-        if (cfd == ANET_ERR) {
-            if (errno != EWOULDBLOCK) {
-                LOG_WARNING("accepting client connection: %s", m_err);
-            }
-            return false;
+    cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
+    if (cfd == ANET_ERR) {
+        if (errno != EWOULDBLOCK) {
+            LOG_WARNING("accepting client connection: %s", m_err);
         }
-
-        LOG_DEBUG("accepted: %s:%d", cip, cport);
-
-        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
-        if (chanel_fd != -1) {
-            // transfer.
-            close(cfd);
-            return true;
-        }
-        close(cfd);
         return false;
     }
 
+    LOG_DEBUG("accepted: %s:%d", cip, cport);
+
+    int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+    if (chanel_fd > 0) {
+        LOG_DEBUG("send new fd: %d to worker communication fd %d", cfd, chanel_fd);
+        channel_t ch = {cfd, family, 1};
+        int err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
+        if (err != 0) {
+            LOG_ERROR("write channel failed! errno: %d", err);
+            goto error;
+        }
+        close(cfd);
+        return true;
+    }
+
+error:
+    LOG_ERROR("write channel failed!");
+    close(cfd);
     return false;
+}
+
+// worker send fd which transfered from manager.
+bool Network::read_transfer_fd(int fd) {
+    channel_t ch;
+    int err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
+    if (err != 0) {
+        LOG_ERROR("read channel failed!");
+        return false;
+    }
+
+    LOG_DEBUG("read channel success! channel data: fd: %d, family: %d, codec: %d",
+              ch.fd, ch.family, ch.codec);
+    return true;
 }
 
 // delete event to stop callback, and then close fd.

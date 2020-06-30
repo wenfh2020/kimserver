@@ -159,14 +159,17 @@ static int anet_generic_accept(char *err, int s, struct sockaddr *sa,
     return fd;
 }
 
-int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port) {
+int anet_tcp_accept(char *err, int s, char *ip, size_t ip_len, int *port, int *family) {
     int fd;
     struct sockaddr_storage sa;
     socklen_t salen = sizeof(sa);
 
     fd = anet_generic_accept(err, s, (struct sockaddr *)&sa, &salen);
-    if (fd == -1)
+    if (fd == -1) {
         return ANET_ERR;
+    }
+
+    *family = sa.ss_family;
 
     if (sa.ss_family == AF_INET) {
         struct sockaddr_in *s = (struct sockaddr_in *)&sa;
@@ -233,4 +236,4 @@ int anet_set_tcp_no_delay(char *err, int fd, int val) {
     return ANET_OK;
 }
 
-}
+}  // namespace kim
