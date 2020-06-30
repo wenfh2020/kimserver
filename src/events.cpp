@@ -25,14 +25,10 @@ bool Events::create(IEventsCallback* e) {
     }
 
     m_ev_cb = e;
-
-    LOG_INFO("init events success!");
     return true;
 }
 
 void Events::destory() {
-    LOG_DEBUG("destory()");
-
     if (m_ev_loop != nullptr) {
         ev_loop_destroy(m_ev_loop);
         m_ev_loop = NULL;
@@ -53,20 +49,18 @@ void Events::end_ev_loop() {
 
 void Events::create_signal_event(int signum, ISignalCallBack* s) {
     LOG_DEBUG("create_signal_event, sig: %d", signum);
-
     if (m_ev_loop == nullptr) {
         return;
     }
 
     ev_signal* sig = new ev_signal();
     ev_signal_init(sig, on_signal_callback, signum);
-    sig->data = (void*)s;
+    sig->data = s;
     ev_signal_start(m_ev_loop, sig);
 }
 
 bool Events::setup_signal_events(ISignalCallBack* s) {
     LOG_DEBUG("setup_signal_events()");
-
     if (s == nullptr) {
         return false;
     }
@@ -79,7 +73,9 @@ bool Events::setup_signal_events(ISignalCallBack* s) {
 }
 
 void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
-    if (s == nullptr || s->data == nullptr) return;
+    if (s == nullptr || s->data == nullptr) {
+        return;
+    }
 
     ISignalCallBack* cb = static_cast<ISignalCallBack*>(s->data);
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
@@ -123,20 +119,16 @@ bool Events::add_read_event(Connection* c) {
 }
 
 bool Events::del_event(Connection* c) {
-    if (c == nullptr) {
+    if (c == nullptr || c->get_ev_io() == nullptr) {
         return false;
     }
 
     ev_io* e = c->get_ev_io();
-    if (e == nullptr) {
-        return false;
-    }
-
-    LOG_DEBUG("delete event, fd: %d, seq: %llu", c->get_fd(), c->get_id());
-
     ev_io_stop(m_ev_loop, e);
     e->data = NULL;
     SAFE_FREE(e);
+
+    LOG_DEBUG("delete event, fd: %d", c->get_fd());
     return true;
 }
 

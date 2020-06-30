@@ -31,18 +31,16 @@ Network::~Network() {
 }
 
 void Network::destory() {
-    LOG_DEBUG("destory()");
-
     close_conns();
     close_listen_sockets();
     SAFE_DELETE(m_events);
 }
 
-bool Network::create(const addr_info_t* addr_info,
-                     ISignalCallBack* s, WorkerDataMgr* m) {
-    if (addr_info == nullptr) return false;
-
+bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m) {
     int fd = -1;
+    if (addr_info == nullptr || s == nullptr || m == nullptr) {
+        return false;
+    }
 
     if (!addr_info->bind.empty()) {
         fd = listen_to_port(addr_info->bind.c_str(), addr_info->port);
@@ -81,33 +79,29 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
     }
 
     if (!m_events->create(this)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("create events failed!");
-        return false;
+        goto error;
     }
 
     m_events->create_signal_event(SIGINT, s);
 
     if (!add_conncted_read_event(ctrl_fd)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("add ctrl fd event failed, fd: %d", ctrl_fd);
-        return false;
+        goto error;
     }
-
-    LOG_DEBUG("add ctrl fd event done, fd: %d", ctrl_fd);
 
     if (!add_conncted_read_event(data_fd)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("add data fd read event failed, fd: %d", data_fd);
-        return false;
+        goto error;
     }
-
-    LOG_DEBUG("add data fd read event failed, fd: %d", data_fd);
 
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
-    LOG_DEBUG("manager ctrl fd: %d, data fd: %d", ctrl_fd, data_fd);
     return true;
+
+error:
+    SAFE_DELETE(m_events);
+    return false;
 }
 
 bool Network::create_events(ISignalCallBack* s) {
@@ -118,29 +112,27 @@ bool Network::create_events(ISignalCallBack* s) {
     }
 
     if (!m_events->create(this)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("create events failed!");
-        return false;
+        goto error;
     }
 
     m_events->setup_signal_events(s);
 
     if (!add_conncted_read_event(m_bind_fd)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("add bind read event failed, fd: %d", m_bind_fd);
-        return false;
+        goto error;
     }
-
-    LOG_DEBUG("add bind read event done, fd: %d", m_bind_fd);
 
     if (!add_conncted_read_event(m_gate_bind_fd)) {
-        SAFE_DELETE(m_events);
         LOG_ERROR("add gate bind read event failed, fd: %d", m_gate_bind_fd);
-        return false;
+        goto error;
     }
 
-    LOG_DEBUG("add gate bind read event failed, fd: %d", m_gate_bind_fd);
     return true;
+
+error:
+    SAFE_DELETE(m_events);
+    return false;
 }
 
 bool Network::add_conncted_read_event(int fd) {
@@ -176,13 +168,14 @@ Connection* Network::create_conn(int fd) {
     uint64_t seq = get_new_seq();
     Connection* c = new Connection(fd, seq);
     m_conns[fd] = c;
-
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
     return c;
 }
 
 void Network::run() {
-    if (m_events != nullptr) m_events->run();
+    if (m_events != nullptr) {
+        m_events->run();
+    }
 }
 
 int Network::listen_to_port(const char* bind, int port) {
@@ -227,8 +220,12 @@ void Network::close_listen_sockets() {
     LOG_DEBUG("close listen sockets, bind fd: %d, gate bind fd: %d",
               m_bind_fd, m_gate_bind_fd);
 
-    if (m_bind_fd != -1) close(m_bind_fd);
-    if (m_gate_bind_fd != -1) close(m_gate_bind_fd);
+    if (m_bind_fd != -1) {
+        close(m_bind_fd);
+    }
+    if (m_gate_bind_fd != -1) {
+        close(m_gate_bind_fd);
+    }
 }
 
 void Network::close_conns() {
@@ -276,17 +273,14 @@ bool Network::read_query_from_client(Connection* c) {
     fd = c->get_fd();
     auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
-        LOG_WARNING("find connection failed, fd: %d, seq: %d", c->get_id());
+        LOG_WARNING("find connection failed, fd: %d", fd);
         return false;
     }
-
-    LOG_DEBUG("read_query_from_client, fd: %d, seq: %d", c->get_fd(), c->get_id());
 
     // connection recv data.
     recv_len = c->read_data();
     if (recv_len == 0) {
-        LOG_DEBUG("connection closed, fd: %d, seq: %llu",
-                  c->get_fd(), c->get_id());
+        LOG_DEBUG("connection closed, fd: %d", fd);
         close_conn(c);
         return false;
     }
@@ -297,8 +291,7 @@ bool Network::read_query_from_client(Connection* c) {
             return false;
         }
 
-        LOG_DEBUG("client closed connection! fd: %d, seq: %llu",
-                  c->get_fd(), c->get_id());
+        LOG_DEBUG("client closed connection! fd: %d", fd);
         close_conn(c);
         return false;
     }
@@ -309,17 +302,14 @@ bool Network::read_query_from_client(Connection* c) {
 }
 
 bool Network::on_io_write(Connection* c, ev_io* e) {
-    LOG_DEBUG("io write fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }
 
 bool Network::on_io_error(Connection* c, ev_io* e) {
-    LOG_DEBUG("io error fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }
 
 bool Network::accept_server_conn(int fd) {
-    LOG_DEBUG("accept_server_conn()");
     accept_tcp_handler(fd);
     return true;
 }
@@ -336,7 +326,7 @@ void Network::accept_tcp_handler(int fd) {
             return;
         }
 
-        LOG_DEBUG("accepted %s:%d", cip, cport);
+        LOG_INFO("accepted %s:%d", cip, cport);
 
         Connection* c = create_conn(cfd);
         c->set_state(Connection::CONN_STATE::ACCEPTING);
@@ -367,7 +357,7 @@ bool Network::accept_and_transfer_fd(int fd) {
         return false;
     }
 
-    LOG_DEBUG("accepted: %s:%d", cip, cport);
+    LOG_INFO("accepted: %s:%d", cip, cport);
 
     int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd > 0) {
@@ -422,7 +412,7 @@ bool Network::close_conn(Connection* c) {
     }
     SAFE_DELETE(c);
 
-    LOG_DEBUG("close fd: %d", fd);
+    LOG_INFO("close fd: %d", fd);
     return true;
 }
 
