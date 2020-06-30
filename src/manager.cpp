@@ -153,7 +153,7 @@ bool Manager::create_network() {
     return true;
 }
 
-void Manager::on_terminated(struct ev_signal* s) {
+void Manager::on_terminated(ev_signal* s) {
     if (s == nullptr) return;
 
     LOG_WARNING("%s terminated by signal %d!",
@@ -163,7 +163,7 @@ void Manager::on_terminated(struct ev_signal* s) {
     exit(s->signum);
 }
 
-void Manager::on_child_terminated(struct ev_signal* watcher) {
+void Manager::on_child_terminated(ev_signal* s) {
 }
 
 void Manager::create_workers() {

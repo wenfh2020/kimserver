@@ -45,7 +45,7 @@ void Worker::run() {
     if (m_net != nullptr) m_net->run();
 }
 
-void Worker::on_terminated(struct ev_signal* s) {
+void Worker::on_terminated(ev_signal* s) {
     LOG_DEBUG("on_terminated()");
     if (s == nullptr) return;
 

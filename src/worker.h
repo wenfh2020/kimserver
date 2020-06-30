@@ -17,7 +17,7 @@ class Worker : public ISignalCallBack {
     bool init(const worker_info_t* info);
     void run();
 
-    void on_terminated(struct ev_signal* s) override;
+    void on_terminated(ev_signal* s) override;
 
    private:
     bool create_network();

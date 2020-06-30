@@ -31,9 +31,9 @@ class Network : public IEventsCallback {
     void close_chanel(int* fds);
 
     // for io events call back. IEventsCallback
-    bool on_io_read(Connection* c, struct ev_io* e) override;
-    bool on_io_write(Connection* c, struct ev_io* e) override;
-    bool on_io_error(Connection* c, struct ev_io* e) override;
+    bool on_io_read(Connection* c, ev_io* e) override;
+    bool on_io_write(Connection* c, ev_io* e) override;
+    bool on_io_error(Connection* c, ev_io* e) override;
 
    private:
     bool create_events(ISignalCallBack* s);

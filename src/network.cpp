@@ -239,7 +239,7 @@ void Network::close_conns() {
     }
 }
 
-bool Network::on_io_read(Connection* c, struct ev_io* e) {
+bool Network::on_io_read(Connection* c, ev_io* e) {
     LOG_DEBUG("on_io_read()");
 
     if (c == nullptr || e == nullptr) return false;
@@ -307,12 +307,12 @@ bool Network::read_query_from_client(Connection* c) {
     return true;
 }
 
-bool Network::on_io_write(Connection* c, struct ev_io* e) {
+bool Network::on_io_write(Connection* c, ev_io* e) {
     LOG_DEBUG("io write fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }
 
-bool Network::on_io_error(Connection* c, struct ev_io* e) {
+bool Network::on_io_error(Connection* c, ev_io* e) {
     LOG_DEBUG("io error fd: %d, seq: %d", c->get_fd(), c->get_id());
     return true;
 }

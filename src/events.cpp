@@ -72,7 +72,7 @@ bool Events::setup_signal_events(ISignalCallBack* s) {
     return true;
 }
 
-void Events::on_signal_callback(struct ev_loop* loop, struct ev_signal* s, int revents) {
+void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
     if (s == nullptr || s->data == nullptr) return;
 
     ISignalCallBack* cb = static_cast<ISignalCallBack*>(s->data);
@@ -130,7 +130,7 @@ bool Events::del_event(Connection* c) {
     return true;
 }
 
-void Events::on_event_callback(struct ev_loop* loop, struct ev_io* e, int events) {
+void Events::on_event_callback(struct ev_loop* loop, ev_io* e, int events) {
     if (e == nullptr) return;
 
     Connection* c = static_cast<Connection*>(e->data);

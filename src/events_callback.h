@@ -7,15 +7,25 @@
 
 namespace kim {
 
+typedef struct async_data_s {
+    async_data_s() : m_fd(-1), m_seq(0) {}
+    int m_fd;
+    uint64_t m_seq;
+} async_data_t;
+
+///////////////////////////////////////////////////////
+
 class ISignalCallBack {
    public:
     ISignalCallBack() {}
     virtual ~ISignalCallBack() {}
 
     // signal callback.
-    virtual void on_terminated(struct ev_signal* watcher) {}
-    virtual void on_child_terminated(struct ev_signal* watcher) {}
+    virtual void on_terminated(ev_signal* s) {}
+    virtual void on_child_terminated(ev_signal* s) {}
 };
+
+///////////////////////////////////////////////////////
 
 class IEventsCallback {
    public:
@@ -32,9 +42,9 @@ class IEventsCallback {
     void set_type(TYPE type) { m_type = type; }
 
     // socket's io event callback.
-    virtual bool on_io_read(Connection* c, struct ev_io* e) { return true; }
-    virtual bool on_io_write(Connection* c, struct ev_io* e) { return true; }
-    virtual bool on_io_error(Connection* c, struct ev_io* e) { return true; }
+    virtual bool on_io_read(Connection* c, ev_io* e) { return true; }
+    virtual bool on_io_write(Connection* c, ev_io* e) { return true; }
+    virtual bool on_io_error(Connection* c, ev_io* e) { return true; }
 
    private:
     TYPE m_type;
