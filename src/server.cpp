@@ -8,8 +8,6 @@
 
 #define DAEMONSIZE 1
 
-kim::Log logger;
-
 void init_server(int argc, char** argv) {
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
@@ -28,7 +26,7 @@ int main(int argc, char** argv) {
 
     init_server(argc, argv);
 
-    kim::Manager mgr(&logger);
+    kim::Manager mgr;
     if (!mgr.init(argv[1])) {
         std::cerr << "init manager failed!" << std::endl;
         exit(EXIT_FAIL);

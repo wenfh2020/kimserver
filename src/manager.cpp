@@ -14,7 +14,7 @@
 
 namespace kim {
 
-Manager::Manager(Log* logger) : m_logger(logger), m_net(nullptr) {
+Manager::Manager() : m_logger(NULL), m_net(nullptr) {
 }
 
 Manager::~Manager() {
@@ -72,6 +72,12 @@ bool Manager::init_logger() {
         return false;
     }
     fclose(f);
+
+    m_logger = new Log;
+    if (m_logger == nullptr) {
+        LOG_ERROR("new log failed!");
+        return false;
+    }
 
     m_logger->set_log_path(path);
     if (!m_logger->set_level(m_json_conf("log_level").c_str())) {
@@ -216,7 +222,7 @@ void Manager::create_workers() {
                      m_json_conf("server_name").c_str(), i);
 
             Worker worker(m_logger, name);
-            if (!worker.init(&info)) {
+            if (!worker.init(&info, m_json_conf)) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();

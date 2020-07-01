@@ -12,7 +12,7 @@ namespace kim {
 
 class Manager : public ISignalCallBack {
    public:
-    Manager(Log* logger);
+    Manager();
     virtual ~Manager();
 
     bool init(const char* conf_path);
