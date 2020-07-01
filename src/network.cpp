@@ -31,8 +31,8 @@ Network::~Network() {
 }
 
 void Network::destory() {
+    end_ev_loop();
     close_conns();
-    close_listen_sockets();
     SAFE_DELETE(m_events);
 }
 
@@ -61,6 +61,9 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDat
         }
         m_gate_bind_fd = fd;
     }
+
+    LOG_INFO("listen fds, bind fd: %d, gate bind fd: %d",
+             m_bind_fd, m_gate_bind_fd);
 
     if (!create_events(s)) {
         LOG_ERROR("create events failed!");
@@ -97,6 +100,7 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
 
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
+    LOG_INFO("create network done!");
     return true;
 
 error:
@@ -155,7 +159,6 @@ bool Network::add_chanel_event(int fd) {
 
     c->set_state(Connection::CONN_STATE::CONNECTED);
     m_events->add_read_event(c);
-    LOG_DEBUG("add chanel event success! fd: %d", fd);
     return true;
 }
 
@@ -216,22 +219,24 @@ void Network::close_chanel(int* fds) {
     }
 }
 
-void Network::close_listen_sockets() {
-    LOG_DEBUG("close listen sockets, bind fd: %d, gate bind fd: %d",
-              m_bind_fd, m_gate_bind_fd);
+void Network::close_conns() {
+    LOG_DEBUG("close_conns(), cnt: %d", m_conns.size());
 
-    if (m_bind_fd != -1) {
-        close(m_bind_fd);
-    }
-    if (m_gate_bind_fd != -1) {
-        close(m_gate_bind_fd);
+    auto it = m_conns.begin();
+    for (; it != m_conns.end(); it++) {
+        close_conn(it->second);
     }
 }
 
-void Network::close_conns() {
+void Network::close_fds() {
     auto it = m_conns.begin();
-    for (; it != m_conns.begin(); it++) {
-        close_conn(it->second);
+    for (; it != m_conns.end(); it++) {
+        Connection* c = static_cast<Connection*>(it->second);
+        int fd = c->get_fd();
+        if (fd != -1) {
+            close(fd);
+            c->set_fd(-1);
+        }
     }
 }
 

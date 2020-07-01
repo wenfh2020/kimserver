@@ -16,12 +16,14 @@ bool Worker::init(const worker_info_t* info) {
     m_worker_info.index = info->index;
     m_worker_info.pid = getpid();
 
+    LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
+             info->index, info->ctrl_fd, info->data_fd);
+
     if (!create_network()) {
         LOG_ERROR("create network failed!");
         return false;
     }
 
-    LOG_INFO("create network done!");
     return true;
 }
 

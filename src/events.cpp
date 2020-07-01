@@ -101,7 +101,7 @@ bool Events::add_read_event(Connection* c) {
         ev_io_init(e, on_event_callback, c->get_fd(), EV_READ);
         ev_io_start(m_ev_loop, e);
 
-        LOG_INFO("start ev io, fd: %d", c->get_fd());
+        LOG_DEBUG("start ev io, fd: %d", c->get_fd());
     } else {
         if (ev_is_active(e)) {
             ev_io_stop(m_ev_loop, e);
@@ -112,7 +112,7 @@ bool Events::add_read_event(Connection* c) {
             ev_io_start(m_ev_loop, e);
         }
 
-        LOG_INFO("restart ev io, fd: %d", c->get_fd());
+        LOG_DEBUG("restart ev io, fd: %d", c->get_fd());
     }
 
     return true;

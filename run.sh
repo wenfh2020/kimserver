@@ -25,17 +25,17 @@ kill_process $server
 
 [ $# -gt 0 ] && [ $1 == "kill" ] && exit 1
 
-[ -f $server_file ] && rm -f $server_file
-cd $work_path/src
-
 echo '------------'
 
+cd $work_path/src
 [ $# -gt 0 ] && [ $1 == "all" ] && make clean
 make
 
+res=$?
+
 echo '------------'
 
-if [ -f $server_file ]; then
+if [ $res -eq 0 ]; then
     cd $work_path/bin
     ./$server config.json
     cat_process $server

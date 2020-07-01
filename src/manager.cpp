@@ -23,18 +23,12 @@ Manager::~Manager() {
 
 void Manager::destory() {
     if (m_net != nullptr) {
-        m_net->end_ev_loop();
         SAFE_DELETE(m_net);
     }
 
     auto itr = m_pid_worker_info.begin();
     for (; itr != m_pid_worker_info.end(); itr++) {
-        worker_info_t* info = itr->second;
-        if (info != nullptr) {
-            if (info->ctrl_fd != -1) close(info->ctrl_fd);
-            if (info->data_fd != -1) close(info->data_fd);
-            SAFE_DELETE(info);
-        }
+        SAFE_DELETE(itr->second);
     }
 }
 
@@ -164,13 +158,33 @@ void Manager::on_terminated(ev_signal* s) {
 }
 
 void Manager::on_child_terminated(ev_signal* s) {
+    pid_t pid;
+    int status, res;
+
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        if (WIFEXITED(status)) {
+            res = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            res = WTERMSIG(status);
+        } else if (WIFSTOPPED(status)) {
+            res = WSTOPSIG(status);
+        }
+
+        LOG_CRIT("child terminated! pid: %d, signal %d, error %d:  res: %d!",
+                 pid, s->signum, status, res);
+
+        restart_worker(pid);
+    }
+}
+
+bool Manager::restart_worker(pid_t pid) {
+    LOG_DEBUG("restart worker, pid: %d", pid);
+    return true;
 }
 
 void Manager::create_workers() {
-    int pid = 0, sum = 0;
-
     for (int i = 0; i < m_node_info.worker_processes; i++) {
-        int data_fds[2], ctrl_fds[2];
+        int pid, data_fds[2], ctrl_fds[2];
 
         if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
             LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
@@ -183,9 +197,9 @@ void Manager::create_workers() {
             continue;
         }
 
-        if ((pid = fork()) == 0) {
-            // child
-            m_net->close_listen_sockets();
+        if ((pid = fork()) == 0) {  // child
+            m_net->end_ev_loop();
+            m_net->close_fds();
             close(ctrl_fds[0]);
             close(data_fds[0]);
             anet_no_block(NULL, ctrl_fds[1]);
@@ -206,27 +220,24 @@ void Manager::create_workers() {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
             worker.run();
-
-            LOG_INFO("child exit! pid: %d, index: %d", getpid(), i);
+            LOG_INFO("child exit! index: %d", i);
             exit(EXIT_CHILD);
-        } else if (pid > 0) {
-            sum++;
-            // parent
+        } else if (pid > 0) {  // parent
             close(ctrl_fds[1]);
             close(data_fds[1]);
             anet_no_block(NULL, ctrl_fds[0]);
             anet_no_block(NULL, data_fds[0]);
-
-            m_worker_data_mgr.add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
-
             m_net->add_chanel_event(ctrl_fds[0]);
             m_net->add_chanel_event(data_fds[0]);
+
+            m_worker_data_mgr.add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
+            LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
         } else {
+            m_net->close_chanel(data_fds);
+            m_net->close_chanel(ctrl_fds);
             LOG_ERROR("error: %d, %s", errno, strerror(errno));
         }
     }
-
-    LOG_INFO("fork process count: %d", sum);
 }
 
 }  // namespace kim
