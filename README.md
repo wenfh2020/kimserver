@@ -16,7 +16,7 @@ Kimserver is an async c++ multiple processes (one master process and one or more
 
 ## 2. work
 
-work on Linux / Macos
+work on Linux / MacOS
 
 ```shell
 ./run.sh
