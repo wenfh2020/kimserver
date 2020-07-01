@@ -21,7 +21,7 @@ bool Worker::init(const worker_info_t* info) {
         return false;
     }
 
-    LOG_INFO("init network done!");
+    LOG_INFO("create network done!");
     return true;
 }
 
@@ -37,21 +37,23 @@ bool Worker::create_network() {
         return false;
     }
 
-    LOG_INFO("create network done!");
     return true;
 }
 
 void Worker::run() {
-    if (m_net != nullptr) m_net->run();
+    if (m_net != nullptr) {
+        m_net->run();
+    }
 }
 
 void Worker::on_terminated(ev_signal* s) {
-    LOG_DEBUG("on_terminated()");
-    if (s == nullptr) return;
+    if (s == nullptr) {
+        return;
+    }
 
     int signum = s->signum;
-    LOG_CRIT("worker terminated by signal: %d", signum);
     SAFE_DELETE(s);
+    LOG_CRIT("worker terminated by signal: %d", signum);
     exit(signum);
     return;
 }
