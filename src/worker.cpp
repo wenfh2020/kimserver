@@ -4,8 +4,8 @@
 
 namespace kim {
 
-Worker::Worker(Log* logger, const std::string& name) : m_logger(logger),
-                                                       m_net(nullptr) {
+Worker::Worker(const std::string& name) : m_logger(nullptr),
+                                          m_net(nullptr) {
     set_proc_title("%s", name.c_str());
 }
 

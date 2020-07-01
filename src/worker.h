@@ -10,7 +10,7 @@ namespace kim {
 
 class Worker : public ISignalCallBack {
    public:
-    Worker(Log* logger, const std::string& name);
+    Worker(const std::string& name);
     virtual ~Worker() {}
 
     bool init(const worker_info_t* info, const CJsonObject& conf);

@@ -221,7 +221,7 @@ void Manager::create_workers() {
             snprintf(name, sizeof(name), "%s_w_%d",
                      m_json_conf("server_name").c_str(), i);
 
-            Worker worker(m_logger, name);
+            Worker worker(name);
             if (!worker.init(&info, m_json_conf)) {
                 exit(EXIT_CHILD_INIT_FAIL);
             }
