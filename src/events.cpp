@@ -96,9 +96,9 @@ bool Events::add_read_event(Connection* c) {
         }
 
         c->set_ev_io(e);
-        c->set_private_data(m_ev_cb);
-        e->data = c;
-        ev_io_init(e, on_event_callback, c->get_fd(), EV_READ);
+        // c->set_private_data(m_ev_cb);
+        e->data = m_ev_cb;
+        ev_io_init(e, on_io_callback, c->get_fd(), EV_READ);
         ev_io_start(m_ev_loop, e);
 
         LOG_DEBUG("start ev io, fd: %d", c->get_fd());
@@ -108,7 +108,7 @@ bool Events::add_read_event(Connection* c) {
             ev_io_set(e, e->fd, e->events | EV_READ);
             ev_io_start(m_ev_loop, e);
         } else {
-            ev_io_init(e, on_event_callback, c->get_fd(), EV_READ);
+            ev_io_init(e, on_io_callback, c->get_fd(), EV_READ);
             ev_io_start(m_ev_loop, e);
         }
 
@@ -132,28 +132,24 @@ bool Events::del_event(Connection* c) {
     return true;
 }
 
-void Events::on_event_callback(struct ev_loop* loop, ev_io* e, int events) {
+void Events::on_io_callback(struct ev_loop* loop, ev_io* e, int events) {
     if (e == nullptr || e->data == nullptr) {
         return;
     }
 
-    Connection* c = static_cast<Connection*>(e->data);
-    IEventsCallback* cb = static_cast<IEventsCallback*>(c->get_private_data());
-    if (cb == nullptr) {
-        return;
-    }
+    int fd = e->fd;
+    IEventsCallback* cb = static_cast<IEventsCallback*>(e->data);
 
     if (events & EV_READ) {
-        cb->on_io_read(c, e);
+        cb->on_io_read(fd);
     }
 
-    if ((events & EV_WRITE) &&
-        (c->get_state() != Connection::CONN_STATE::CLOSED)) {
-        cb->on_io_write(c, e);
+    if (events & EV_WRITE) {
+        cb->on_io_write(fd);
     }
 
     if (events & EV_ERROR) {
-        cb->on_io_error(c, e);
+        cb->on_io_error(fd);
     }
 }
 

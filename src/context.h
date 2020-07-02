@@ -34,6 +34,8 @@ class Connection {
 
     void set_state(CONN_STATE state) { m_state = state; }
     CONN_STATE get_state() { return m_state; }
+    bool is_active() { return m_state == CONN_STATE::CONNECTED; }
+    bool is_closed() { return m_state == CONN_STATE::CLOSED; }
 
     void set_errno(int err) { m_errno = err; }
 

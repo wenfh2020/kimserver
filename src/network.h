@@ -31,9 +31,9 @@ class Network : public IEventsCallback {
     bool close_conn(int fd);
 
     // for io events call back. IEventsCallback
-    bool on_io_read(Connection* c, ev_io* e) override;
-    bool on_io_write(Connection* c, ev_io* e) override;
-    bool on_io_error(Connection* c, ev_io* e) override;
+    void on_io_read(int fd) override;
+    void on_io_write(int fd) override;
+    void on_io_error(int fd) override;
 
    private:
     bool create_events(ISignalCallBack* s);
@@ -49,7 +49,7 @@ class Network : public IEventsCallback {
     Connection* create_conn(int fd);
     bool close_conn(Connection* c);
     void close_conns();
-    bool read_query_from_client(Connection* c);
+    bool read_query_from_client(int fd);
 
     // events
 

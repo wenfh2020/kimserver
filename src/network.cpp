@@ -36,6 +36,12 @@ void Network::destory() {
     SAFE_DELETE(m_events);
 }
 
+void Network::run() {
+    if (m_events != nullptr) {
+        m_events->run();
+    }
+}
+
 bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m) {
     int fd = -1;
     if (addr_info == nullptr || s == nullptr || m == nullptr) {
@@ -178,10 +184,35 @@ Connection* Network::create_conn(int fd) {
     return c;
 }
 
-void Network::run() {
-    if (m_events != nullptr) {
-        m_events->run();
+bool Network::close_conn(int fd) {
+    auto it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        LOG_WARNING("delele conn failed! fd: %d", fd);
+        return false;
     }
+
+    Connection* c = it->second;
+    if (c != nullptr) {
+        m_events->del_event(c);
+        SAFE_DELETE(c);
+    }
+    m_conns.erase(it);
+
+    if (fd != -1) {
+        close(fd);
+        LOG_DEBUG("close fd: %d", fd);
+    }
+
+    return true;
+}
+
+// delete event to stop callback, and then close fd.
+bool Network::close_conn(Connection* c) {
+    if (c == nullptr) {
+        return false;
+    }
+
+    return close_conn(c->get_fd());
 }
 
 int Network::listen_to_port(const char* bind, int port) {
@@ -243,59 +274,58 @@ void Network::close_fds() {
     }
 }
 
-bool Network::on_io_read(Connection* c, ev_io* e) {
-    if (c == nullptr || e == nullptr) return false;
-
-    int fd = e->fd;
-
+void Network::on_io_read(int fd) {
     if (get_type() == IEventsCallback::TYPE::MANAGER) {
         if (fd == m_bind_fd) {
-            return accept_server_conn(fd);
+            accept_server_conn(fd);
         } else if (fd == m_gate_bind_fd) {
-            return accept_and_transfer_fd(fd);
+            accept_and_transfer_fd(fd);
         } else {
-            return read_query_from_client(c);
+            read_query_from_client(fd);
         }
     } else if (get_type() == IEventsCallback::TYPE::WORKER) {
         if (fd == m_manager_data_fd) {
-            return read_transfer_fd(fd);
+            read_transfer_fd(fd);
         } else {
             LOG_DEBUG("worker io read!, fd: %d", fd);
-            return read_query_from_client(c);
+            read_query_from_client(fd);
         }
     } else {
-        LOG_ERROR("unknown work type io read! exit!");
+        LOG_CRIT("unknown work type io read! exit!");
         exit(EXIT_FAILURE);
     }
-
-    return true;
 }
 
-bool Network::read_query_from_client(Connection* c) {
-    if (c == nullptr) {
-        return false;
-    }
+void Network::on_io_write(int fd) {
+}
 
-    int fd = -1, recv_len = 0;
+void Network::on_io_error(int fd) {
+}
 
-    fd = c->get_fd();
+bool Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
         LOG_WARNING("find connection failed, fd: %d", fd);
         return false;
     }
 
-    // connection recv data.
-    recv_len = c->read_data();
-    if (recv_len == 0) {
+    Connection* c = it->second;
+    if (c == nullptr) {
+        LOG_ERROR("connection is null! fd: %d", fd);
+        return false;
+    }
+
+    // connection read data.
+    int read_len = c->read_data();
+    if (read_len == 0) {
         LOG_DEBUG("connection closed, fd: %d", fd);
         close_conn(c);
         return false;
     }
 
-    if (recv_len < 0) {
-        if ((recv_len == -1) &&
-            (c->get_state() == Connection::CONN_STATE::CONNECTED)) {
+    if (read_len < 0) {
+        if ((read_len == -1) && (c->is_active())) {
+            // EAGAIN
             return false;
         }
 
@@ -306,14 +336,6 @@ bool Network::read_query_from_client(Connection* c) {
 
     // analysis data.
     LOG_DEBUG("recv data: %s", c->get_query_data());
-    return true;
-}
-
-bool Network::on_io_write(Connection* c, ev_io* e) {
-    return true;
-}
-
-bool Network::on_io_error(Connection* c, ev_io* e) {
     return true;
 }
 
@@ -414,37 +436,6 @@ bool Network::read_transfer_fd(int fd) {
     }
 
     return true;
-}
-
-bool Network::close_conn(int fd) {
-    auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
-        LOG_WARNING("delele conn failed! fd: %d", fd);
-        return false;
-    }
-
-    m_conns.erase(it);
-    if (fd != -1) {
-        close(fd);
-        LOG_DEBUG("close fd: %d", fd);
-    }
-
-    Connection* c = it->second;
-    if (c != nullptr) {
-        m_events->del_event(c);
-        SAFE_DELETE(c);
-    }
-
-    return true;
-}
-
-// delete event to stop callback, and then close fd.
-bool Network::close_conn(Connection* c) {
-    if (c == nullptr) {
-        return false;
-    }
-
-    return close_conn(c->get_fd());
 }
 
 void Network::end_ev_loop() {

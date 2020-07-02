@@ -28,7 +28,7 @@ class Events {
     void create_signal_event(int signum, ISignalCallBack* s);
 
    private:
-    static void on_event_callback(struct ev_loop* loop, ev_io* e, int events);
+    static void on_io_callback(struct ev_loop* loop, ev_io* e, int events);
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
 
    private:

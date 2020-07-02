@@ -42,9 +42,9 @@ class IEventsCallback {
     void set_type(TYPE type) { m_type = type; }
 
     // socket's io event callback.
-    virtual bool on_io_read(Connection* c, ev_io* e) { return true; }
-    virtual bool on_io_write(Connection* c, ev_io* e) { return true; }
-    virtual bool on_io_error(Connection* c, ev_io* e) { return true; }
+    virtual void on_io_read(int fd) {}
+    virtual void on_io_write(int fd) {}
+    virtual void on_io_error(int fd) {}
 
    private:
     TYPE m_type;
