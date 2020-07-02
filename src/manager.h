@@ -29,6 +29,7 @@ class Manager : public ISignalCallBack {
     bool load_config(const char* path);
 
     void create_workers();
+    bool create_worker(int worker_index);
     bool restart_worker(pid_t pid);
 
    private:
@@ -37,7 +38,6 @@ class Manager : public ISignalCallBack {
     CJsonObject m_old_json_conf;  // old config
     node_info_t m_node_info;      // cluster node.
     Network* m_net;
-    std::map<int, worker_info_t*> m_pid_worker_info;
     WorkerDataMgr m_worker_data_mgr;
 };
 

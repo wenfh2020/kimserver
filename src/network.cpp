@@ -397,28 +397,33 @@ bool Network::read_transfer_fd(int fd) {
     return true;
 }
 
-// delete event to stop callback, and then close fd.
-bool Network::close_conn(Connection* c) {
-    if (c == nullptr) {
+bool Network::close_conn(int fd) {
+    auto it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        LOG_WARNING("delele conn failed! fd: %d", fd);
         return false;
     }
 
-    int fd = c->get_fd();
-    auto it = m_conns.find(fd);
-    if (it != m_conns.end()) {
-        m_conns.erase(it);
-    } else {
-        LOG_WARNING("delele conn failed! fd: %d", fd);
-    }
+    Connection* c = it->second;
 
     m_events->del_event(c);
     if (fd != -1) {
         close(fd);
     }
     SAFE_DELETE(c);
+    m_conns.erase(it);
 
     LOG_INFO("close fd: %d", fd);
     return true;
+}
+
+// delete event to stop callback, and then close fd.
+bool Network::close_conn(Connection* c) {
+    if (c == nullptr) {
+        return false;
+    }
+
+    return close_conn(c->get_fd());
 }
 
 void Network::end_ev_loop() {

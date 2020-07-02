@@ -28,6 +28,7 @@ class Network : public IEventsCallback {
     bool add_chanel_event(int fd);
     void close_chanel(int* fds);
     void close_fds();
+    bool close_conn(int fd);
 
     // for io events call back. IEventsCallback
     bool on_io_read(Connection* c, ev_io* e) override;

@@ -1,6 +1,7 @@
 #include "manager.h"
 
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 #include <fstream>
 #include <iosfwd>
@@ -24,11 +25,6 @@ Manager::~Manager() {
 void Manager::destory() {
     if (m_net != nullptr) {
         SAFE_DELETE(m_net);
-    }
-
-    auto itr = m_pid_worker_info.begin();
-    for (; itr != m_pid_worker_info.end(); itr++) {
-        SAFE_DELETE(itr->second);
     }
 }
 
@@ -164,8 +160,7 @@ void Manager::on_terminated(ev_signal* s) {
 }
 
 void Manager::on_child_terminated(ev_signal* s) {
-    pid_t pid;
-    int status, res;
+    int pid, status, res;
 
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         if (WIFEXITED(status)) {
@@ -178,70 +173,104 @@ void Manager::on_child_terminated(ev_signal* s) {
 
         LOG_CRIT("child terminated! pid: %d, signal %d, error %d:  res: %d!",
                  pid, s->signum, status, res);
-
         restart_worker(pid);
     }
 }
 
 bool Manager::restart_worker(pid_t pid) {
     LOG_DEBUG("restart worker, pid: %d", pid);
-    return true;
+
+    // close conntact chanel.
+    int chs[2];
+    if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
+        m_net->close_conn(chs[0]);
+        m_net->close_conn(chs[1]);
+    }
+
+    int worker_index;
+    if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
+        LOG_ERROR("can not find pid: %d work info.");
+        return false;
+    }
+
+    // clear worker data.
+    m_worker_data_mgr.remove_worker_info(pid);
+
+    // fork new process.
+    bool res = create_worker(worker_index);
+    if (res) {
+        LOG_INFO("restart worker success! index: %d", worker_index);
+    } else {
+        LOG_ERROR("create worker failed! index: %d", worker_index);
+    }
+    return res;
+}
+
+bool Manager::create_worker(int worker_index) {
+    int pid, data_fds[2], ctrl_fds[2];
+
+    if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
+        LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
+        return false;
+    }
+
+    if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
+        LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
+        m_net->close_chanel(ctrl_fds);
+        return false;
+    }
+
+    if ((pid = fork()) == 0) {  // child
+        m_net->end_ev_loop();
+        m_net->close_fds();
+
+        close(ctrl_fds[0]);
+        close(data_fds[0]);
+        anet_no_block(NULL, ctrl_fds[1]);
+        anet_no_block(NULL, data_fds[1]);
+
+        worker_info_t info;
+        info.work_path = m_node_info.work_path;
+        info.ctrl_fd = ctrl_fds[1];
+        info.data_fd = data_fds[1];
+        info.index = worker_index;
+
+        char name[64] = {0};
+        snprintf(name, sizeof(name), "%s_w_%d",
+                 m_json_conf("server_name").c_str(), worker_index);
+
+        Worker worker(name);
+        if (!worker.init(&info, m_json_conf)) {
+            exit(EXIT_CHILD_INIT_FAIL);
+        }
+        worker.run();
+
+        LOG_INFO("child exit! index: %d", worker_index);
+        exit(EXIT_CHILD);
+    } else if (pid > 0) {  // parent
+        close(ctrl_fds[1]);
+        close(data_fds[1]);
+        anet_no_block(NULL, ctrl_fds[0]);
+        anet_no_block(NULL, data_fds[0]);
+        m_net->add_chanel_event(ctrl_fds[0]);
+        m_net->add_chanel_event(data_fds[0]);
+
+        m_worker_data_mgr.add_worker_info(worker_index, pid, ctrl_fds[0], data_fds[0]);
+        LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
+        return true;
+    } else {
+        m_net->close_chanel(data_fds);
+        m_net->close_chanel(ctrl_fds);
+        LOG_ERROR("error: %d, %s", errno, strerror(errno));
+    }
+
+    return false;
 }
 
 void Manager::create_workers() {
     for (int i = 0; i < m_node_info.worker_processes; i++) {
-        int pid, data_fds[2], ctrl_fds[2];
-
-        if (socketpair(PF_UNIX, SOCK_STREAM, 0, ctrl_fds) < 0) {
-            LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
-            continue;
-        }
-
-        if (socketpair(PF_UNIX, SOCK_STREAM, 0, data_fds) < 0) {
-            LOG_ERROR("create socket pair failed! %d: %s", errno, strerror(errno));
-            m_net->close_chanel(ctrl_fds);
-            continue;
-        }
-
-        if ((pid = fork()) == 0) {  // child
-            m_net->end_ev_loop();
-            m_net->close_fds();
-            close(ctrl_fds[0]);
-            close(data_fds[0]);
-            anet_no_block(NULL, ctrl_fds[1]);
-            anet_no_block(NULL, data_fds[1]);
-
-            worker_info_t info;
-            info.work_path = m_node_info.work_path;
-            info.ctrl_fd = ctrl_fds[1];
-            info.data_fd = data_fds[1];
-            info.index = i;
-
-            char name[64] = {0};
-            snprintf(name, sizeof(name), "%s_w_%d",
-                     m_json_conf("server_name").c_str(), i);
-
-            Worker worker(name);
-            if (!worker.init(&info, m_json_conf)) {
-                exit(EXIT_CHILD_INIT_FAIL);
-            }
-            worker.run();
-            LOG_INFO("child exit! index: %d", i);
-            exit(EXIT_CHILD);
-        } else if (pid > 0) {  // parent
-            close(ctrl_fds[1]);
-            close(data_fds[1]);
-            anet_no_block(NULL, ctrl_fds[0]);
-            anet_no_block(NULL, data_fds[0]);
-            m_net->add_chanel_event(ctrl_fds[0]);
-            m_net->add_chanel_event(data_fds[0]);
-
-            m_worker_data_mgr.add_worker_info(i, pid, ctrl_fds[0], data_fds[0]);
-            LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
-        } else {
-            m_net->close_chanel(data_fds);
-            m_net->close_chanel(ctrl_fds);
-            LOG_ERROR("error: %d, %s", errno, strerror(errno));
+        if (!create_worker(i)) {
+            LOG_ERROR("create worker failed! index: %d", i);
         }
     }
 }

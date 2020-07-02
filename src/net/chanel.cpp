@@ -2,6 +2,7 @@
 
 #include "chanel.h"
 
+#include <string.h>
 #include <sys/socket.h>
 
 namespace kim {

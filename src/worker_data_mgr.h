@@ -7,14 +7,18 @@
 
 namespace kim {
 
-class WorkerDataMgr {
+class
+    WorkerDataMgr {
    public:
     WorkerDataMgr();
     virtual ~WorkerDataMgr();
 
    public:
     void add_worker_info(int index, int pid, int ctrl_fd, int data_fd);
+    bool remove_worker_info(int pid);
     int get_next_worker_data_fd();
+    bool get_worker_chanel(int pid, int* chs);
+    bool get_worker_index(int pid, int& index);
 
    private:
     std::map<int, worker_info_t*> m_worker_info;                // key: pid, value: worker info.
