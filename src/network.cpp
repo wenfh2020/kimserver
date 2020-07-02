@@ -158,8 +158,7 @@ bool Network::add_chanel_event(int fd) {
     }
 
     c->set_state(Connection::CONN_STATE::CONNECTED);
-    m_events->add_read_event(c);
-    return true;
+    return m_events->add_read_event(c);
 }
 
 Connection* Network::create_conn(int fd) {
@@ -170,6 +169,10 @@ Connection* Network::create_conn(int fd) {
 
     uint64_t seq = get_new_seq();
     Connection* c = new Connection(fd, seq);
+    if (c == nullptr) {
+        LOG_ERROR("new connection failed! fd: %d", fd);
+        return nullptr;
+    }
     m_conns[fd] = c;
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
     return c;
@@ -386,14 +389,30 @@ error:
 // worker send fd which transfered from manager.
 bool Network::read_transfer_fd(int fd) {
     channel_t ch;
-    int err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
-    if (err != 0) {
-        LOG_ERROR("read channel failed!");
-        return false;
+    int err, max = MAX_ACCEPTS_PER_CALL;
+
+    while (max--) {
+        // recv fd from manager.
+        err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
+        if (err != 0) {
+            if (err != EAGAIN) {
+                destory();
+                LOG_ERROR("read channel failed!, exit!");
+                exit(EXIT_FD_TRANSFER);
+            }
+            return false;
+        }
+
+        if (!add_conncted_read_event(ch.fd)) {
+            LOG_ERROR("add data fd read event failed, fd: %d", ch.fd);
+            close_conn(fd);
+            return false;
+        }
+
+        LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
+                  ch.fd, ch.family, ch.codec);
     }
 
-    LOG_DEBUG("read channel success! channel data: fd: %d, family: %d, codec: %d",
-              ch.fd, ch.family, ch.codec);
     return true;
 }
 
@@ -404,16 +423,18 @@ bool Network::close_conn(int fd) {
         return false;
     }
 
-    Connection* c = it->second;
-
-    m_events->del_event(c);
+    m_conns.erase(it);
     if (fd != -1) {
         close(fd);
+        LOG_DEBUG("close fd: %d", fd);
     }
-    SAFE_DELETE(c);
-    m_conns.erase(it);
 
-    LOG_INFO("close fd: %d", fd);
+    Connection* c = it->second;
+    if (c != nullptr) {
+        m_events->del_event(c);
+        SAFE_DELETE(c);
+    }
+
     return true;
 }
 

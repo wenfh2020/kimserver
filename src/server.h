@@ -11,11 +11,12 @@ namespace kim {
 #define EXIT_FAIL -1
 #define EXIT_CHILD -2
 #define EXIT_CHILD_INIT_FAIL -3
+#define EXIT_FD_TRANSFER -4
 
 #define SAFE_FREE(x)               \
     {                              \
         if (x != nullptr) free(x); \
-        x = nullptr;                  \
+        x = nullptr;               \
     }
 
 #define SAFE_DELETE(x)              \

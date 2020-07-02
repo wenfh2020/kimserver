@@ -161,7 +161,6 @@ void Manager::on_terminated(ev_signal* s) {
 
 void Manager::on_child_terminated(ev_signal* s) {
     int pid, status, res;
-
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         if (WIFEXITED(status)) {
             res = WEXITSTATUS(status);
@@ -170,7 +169,6 @@ void Manager::on_child_terminated(ev_signal* s) {
         } else if (WIFSTOPPED(status)) {
             res = WSTOPSIG(status);
         }
-
         LOG_CRIT("child terminated! pid: %d, signal %d, error %d:  res: %d!",
                  pid, s->signum, status, res);
         restart_worker(pid);

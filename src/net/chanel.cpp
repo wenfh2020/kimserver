@@ -98,11 +98,11 @@ int read_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     n = recvmsg(fd, &msg, 0);
 
     if (n == -1) {
-        LOG_ERROR("recvmsg() failed!");
         err = errno;
         if (err == EAGAIN) {
             return err;
         }
+        LOG_ERROR("recvmsg() failed!");
         return -1;
     }
 
