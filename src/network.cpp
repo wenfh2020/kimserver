@@ -297,9 +297,14 @@ void Network::on_io_read(int fd) {
 }
 
 void Network::on_io_write(int fd) {
+    auto it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        return;
+    }
 }
 
 void Network::on_io_error(int fd) {
+    close_conn(fd);
 }
 
 bool Network::read_query_from_client(int fd) {

@@ -140,16 +140,16 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* e, int events) {
     int fd = e->fd;
     IEventsCallback* cb = static_cast<IEventsCallback*>(e->data);
 
-    if (events & EV_READ) {
-        cb->on_io_read(fd);
-    }
-
-    if (events & EV_WRITE) {
-        cb->on_io_write(fd);
-    }
-
     if (events & EV_ERROR) {
         cb->on_io_error(fd);
+    } else {
+        if (events & EV_READ) {
+            cb->on_io_read(fd);
+        }
+
+        if (events & EV_WRITE) {
+            cb->on_io_write(fd);
+        }
     }
 }
 
