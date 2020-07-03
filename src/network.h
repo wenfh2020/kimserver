@@ -43,16 +43,15 @@ class Network : public IEventsCallback {
 
     // socket
     int listen_to_port(const char* bind, int port);
-    bool accept_server_conn(int fd);
-    void accept_tcp_handler(int fd);
-    bool accept_and_transfer_fd(int fd);
-    bool read_transfer_fd(int fd);
+    void accept_server_conn(int fd);
+    void accept_and_transfer_fd(int fd);
+    void read_transfer_fd(int fd);
 
     // connection
     Connection* create_conn(int fd);
     bool close_conn(Connection* c);
     void close_conns();
-    bool read_query_from_client(int fd);
+    void read_query_from_client(int fd);
 
     int get_new_seq() { return ++m_seq; }
 

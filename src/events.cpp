@@ -122,23 +122,25 @@ bool Events::del_event(ev_io* w) {
 }
 
 void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
-    if (w == nullptr || w->data == nullptr) {
+    if (w->data == nullptr) {
         return;
     }
 
     int fd = w->fd;
     IEventsCallback* cb = static_cast<IEventsCallback*>(w->data);
 
+    if (events & EV_READ) {
+        cb->on_io_read(fd);
+    }
+
+    if (events & EV_WRITE) {
+        cb->on_io_write(fd);
+    }
+
+    /* when error happen (read / write),
+     * handle EV_READ / EV_WRITE events will be ok. */
     if (events & EV_ERROR) {
         cb->on_io_error(fd);
-    } else {
-        if (events & EV_READ) {
-            cb->on_io_read(fd);
-        }
-
-        if (events & EV_WRITE) {
-            cb->on_io_write(fd);
-        }
     }
 }
 

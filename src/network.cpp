@@ -305,17 +305,17 @@ void Network::on_io_error(int fd) {
     close_conn(fd);
 }
 
-bool Network::read_query_from_client(int fd) {
+void Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
         LOG_WARNING("find connection failed, fd: %d", fd);
-        return false;
+        return;
     }
 
     Connection* c = it->second;
     if (c == nullptr) {
         LOG_ERROR("connection is null! fd: %d", fd);
-        return false;
+        return;
     }
 
     // connection read data.
@@ -323,31 +323,24 @@ bool Network::read_query_from_client(int fd) {
     if (read_len == 0) {
         LOG_DEBUG("connection closed, fd: %d", fd);
         close_conn(c);
-        return false;
+        return;
     }
 
     if (read_len < 0) {
-        if ((read_len == -1) && (c->is_active())) {
-            // EAGAIN
-            return false;
+        if ((read_len == -1) && (c->is_active())) {  // EAGAIN
+            return;
         }
 
         LOG_DEBUG("client closed connection! fd: %d", fd);
         close_conn(c);
-        return false;
+        return;
     }
 
     // analysis data.
     LOG_DEBUG("recv data: %s", c->get_query_data());
-    return true;
 }
 
-bool Network::accept_server_conn(int fd) {
-    accept_tcp_handler(fd);
-    return true;
-}
-
-void Network::accept_tcp_handler(int fd) {
+void Network::accept_server_conn(int fd) {
     char cip[NET_IP_STR_LEN];
     int cport, cfd, family, max = MAX_ACCEPTS_PER_CALL;
 
@@ -387,8 +380,8 @@ void Network::accept_tcp_handler(int fd) {
     }
 }
 
-// manager accept fd and then transfer which to worker.
-bool Network::accept_and_transfer_fd(int fd) {
+// manager accept new fd and then transfer it to worker.
+void Network::accept_and_transfer_fd(int fd) {
     int cport, cfd, family;
     char cip[NET_IP_STR_LEN] = {0};
 
@@ -397,7 +390,7 @@ bool Network::accept_and_transfer_fd(int fd) {
         if (errno != EWOULDBLOCK) {
             LOG_WARNING("accepting client connection: %s", m_err);
         }
-        return false;
+        return;
     }
 
     LOG_INFO("accepted: %s:%d", cip, cport);
@@ -412,17 +405,16 @@ bool Network::accept_and_transfer_fd(int fd) {
             goto error;
         }
         close(cfd);
-        return true;
+        return;
     }
 
 error:
     LOG_ERROR("write channel failed!");
     close(cfd);
-    return false;
 }
 
 // worker send fd which transfered from manager.
-bool Network::read_transfer_fd(int fd) {
+void Network::read_transfer_fd(int fd) {
     channel_t ch;
     int err, max = MAX_ACCEPTS_PER_CALL;
 
@@ -435,20 +427,18 @@ bool Network::read_transfer_fd(int fd) {
                 LOG_ERROR("read channel failed!, exit!");
                 exit(EXIT_FD_TRANSFER);
             }
-            return false;
+            return;
         }
 
         if (!add_conncted_read_event(ch.fd)) {
             LOG_ERROR("add data fd read event failed, fd: %d", ch.fd);
             close_conn(fd);
-            return false;
+            return;
         }
 
         LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
                   ch.fd, ch.family, ch.codec);
     }
-
-    return true;
 }
 
 void Network::end_ev_loop() {

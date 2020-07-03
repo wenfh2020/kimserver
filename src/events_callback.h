@@ -7,12 +7,6 @@
 
 namespace kim {
 
-typedef struct async_data_s {
-    async_data_s() : m_fd(-1), m_seq(0) {}
-    int m_fd;
-    uint64_t m_seq;
-} async_data_t;
-
 ///////////////////////////////////////////////////////
 
 class ISignalCallBack {
