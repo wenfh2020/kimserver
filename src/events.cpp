@@ -9,22 +9,20 @@
 namespace kim {
 
 Events::Events(Log* logger) : m_logger(logger),
-                              m_ev_loop(nullptr),
-                              m_ev_cb(nullptr) {
+                              m_ev_loop(nullptr) {
 }
 
 Events::~Events() {
     destory();
 }
 
-bool Events::create(IEventsCallback* e) {
+bool Events::create() {
     m_ev_loop = ev_loop_new(EVFLAG_FORKCHECK | EVFLAG_SIGNALFD);
     if (m_ev_loop == nullptr) {
         LOG_ERROR("new libev loop failed!");
         return false;
     }
 
-    m_ev_cb = e;
     return true;
 }
 
@@ -81,64 +79,55 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
-bool Events::add_read_event(Connection* c) {
-    if (c == nullptr) {
-        LOG_ERROR("invalid connection!");
-        return false;
-    }
-
-    ev_io* e = c->get_ev_io();
-    if (e == nullptr) {
-        e = (ev_io*)malloc(sizeof(ev_io));
-        if (e == nullptr) {
+bool Events::add_read_event(int fd, ev_io** w, IEventsCallback* cb) {
+    if (*w == nullptr) {
+        *w = (ev_io*)malloc(sizeof(ev_io));
+        if (w == nullptr) {
             LOG_ERROR("new ev_io failed!");
             return false;
         }
 
-        c->set_ev_io(e);
-        // c->set_private_data(m_ev_cb);
-        e->data = m_ev_cb;
-        ev_io_init(e, on_io_callback, c->get_fd(), EV_READ);
-        ev_io_start(m_ev_loop, e);
+        ev_io_init(*w, on_io_callback, fd, EV_READ);
+        ev_io_start(m_ev_loop, *w);
 
-        LOG_DEBUG("start ev io, fd: %d", c->get_fd());
+        LOG_DEBUG("start ev io, fd: %d", fd);
     } else {
-        if (ev_is_active(e)) {
-            ev_io_stop(m_ev_loop, e);
-            ev_io_set(e, e->fd, e->events | EV_READ);
-            ev_io_start(m_ev_loop, e);
+        if (ev_is_active(*w)) {
+            ev_io_stop(m_ev_loop, *w);
+            ev_io_set(*w, (*w)->fd, (*w)->events | EV_READ);
+            ev_io_start(m_ev_loop, *w);
         } else {
-            ev_io_init(e, on_io_callback, c->get_fd(), EV_READ);
-            ev_io_start(m_ev_loop, e);
+            ev_io_init(*w, on_io_callback, fd, EV_READ);
+            ev_io_start(m_ev_loop, *w);
         }
 
-        LOG_DEBUG("restart ev io, fd: %d", c->get_fd());
+        LOG_DEBUG("restart ev io, fd: %d", fd);
     }
 
+    (*w)->data = cb;
     return true;
 }
 
-bool Events::del_event(Connection* c) {
-    if (c == nullptr || c->get_ev_io() == nullptr) {
+bool Events::del_event(ev_io* w) {
+    if (w == nullptr) {
         return false;
     }
 
-    ev_io* e = c->get_ev_io();
-    ev_io_stop(m_ev_loop, e);
-    e->data = NULL;
-    SAFE_FREE(e);
+    LOG_DEBUG("delete event, fd: %d", w->fd);
 
-    LOG_DEBUG("delete event, fd: %d", c->get_fd());
+    ev_io_stop(m_ev_loop, w);
+    w->data = NULL;
+    SAFE_FREE(w);
     return true;
 }
 
-void Events::on_io_callback(struct ev_loop* loop, ev_io* e, int events) {
-    if (e == nullptr || e->data == nullptr) {
+void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
+    if (w == nullptr || w->data == nullptr) {
         return;
     }
 
-    int fd = e->fd;
-    IEventsCallback* cb = static_cast<IEventsCallback*>(e->data);
+    int fd = w->fd;
+    IEventsCallback* cb = static_cast<IEventsCallback*>(w->data);
 
     if (events & EV_ERROR) {
         cb->on_io_error(fd);

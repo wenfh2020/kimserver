@@ -62,8 +62,8 @@ int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     n = sendmsg(fd, &msg, 0);
 
     if (n == -1) {
-        LOG_ERROR("sendmsg() failed!");
-
+        LOG_ERROR("sendmsg() failed! err: %d, error: %s",
+                  errno, strerror(errno));
         err = errno;
         if (err == EAGAIN) {
             return err;
@@ -107,32 +107,39 @@ int read_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     }
 
     if (n == 0) {
-        LOG_ERROR("rrecvmsg() returned zero!");
+        LOG_ERROR("rrecvmsg() returned zero! err: %d, error: %s",
+                  errno, strerror(errno));
         return -1;
     }
 
     if ((size_t)n < sizeof(channel_t)) {
-        LOG_ERROR("recvmsg() returned not enough data : %z", n);
+        LOG_ERROR(
+            "recvmsg() returned not enough data : %z, err: %d, error: %s",
+            n, errno, strerror(errno));
         return -1;
     }
 
     if (cmsg.cm.cmsg_len < (socklen_t)CMSG_LEN(sizeof(int))) {
-        LOG_ERROR("recvmsg() returned too small ancillary data");
+        LOG_ERROR(
+            "recvmsg() returned too small ancillary data. err: %d, error: %s",
+            errno, strerror(errno));
         return -1;
     }
 
     if (cmsg.cm.cmsg_level != SOL_SOCKET || cmsg.cm.cmsg_type != SCM_RIGHTS) {
         LOG_ERROR(
             "recvmsg() returned invalid ancillary data "
-            "level %d or type %d",
-            cmsg.cm.cmsg_level, cmsg.cm.cmsg_type);
+            "level %d or type %d, err: %d, error: %s",
+            cmsg.cm.cmsg_level, cmsg.cm.cmsg_type,
+            errno, strerror(errno));
         return -1;
     }
 
     ch->fd = *(int*)CMSG_DATA(&cmsg.cm);
 
     if (msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) {
-        LOG_ERROR("recvmsg() truncated data");
+        LOG_ERROR("recvmsg() truncated data, err: %d, error: %s",
+                  errno, strerror(errno));
         return -1;
     }
 

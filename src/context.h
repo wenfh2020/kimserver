@@ -39,7 +39,7 @@ class Connection {
 
     void set_errno(int err) { m_errno = err; }
 
-    void set_ev_io(ev_io* e) { m_ev_io = e; }
+    void set_ev_io(ev_io* w) { m_ev_io = w; }
     ev_io* get_ev_io() { return m_ev_io; }
 
     int read_data();

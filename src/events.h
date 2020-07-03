@@ -17,24 +17,23 @@ class Events {
     Events(Log* logger);
     virtual ~Events();
 
-    bool create(IEventsCallback* e);
+    bool create();
     void destory();
     void run();
     void end_ev_loop();
 
-    bool add_read_event(Connection* c);
-    bool del_event(Connection* c);
-    bool setup_signal_events(ISignalCallBack* s);
-    void create_signal_event(int signum, ISignalCallBack* s);
+    bool add_read_event(int fd, ev_io** w, IEventsCallback* cb);
+    bool del_event(ev_io* w);
+    bool setup_signal_events(ISignalCallBack* cb);
+    void create_signal_event(int signum, ISignalCallBack* cb);
 
    private:
-    static void on_io_callback(struct ev_loop* loop, ev_io* e, int events);
+    static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
 
    private:
     Log* m_logger;
     struct ev_loop* m_ev_loop;
-    IEventsCallback* m_ev_cb;
 };
 
 }  // namespace kim

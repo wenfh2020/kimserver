@@ -250,8 +250,8 @@ bool Manager::create_worker(int worker_index) {
         close(data_fds[1]);
         anet_no_block(NULL, ctrl_fds[0]);
         anet_no_block(NULL, data_fds[0]);
-        m_net->add_chanel_event(ctrl_fds[0]);
-        m_net->add_chanel_event(data_fds[0]);
+        m_net->add_conncted_read_event(ctrl_fds[0]);
+        m_net->add_conncted_read_event(data_fds[0]);
 
         m_worker_data_mgr.add_worker_info(worker_index, pid, ctrl_fds[0], data_fds[0]);
         LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);

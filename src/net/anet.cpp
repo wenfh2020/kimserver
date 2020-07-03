@@ -14,10 +14,6 @@
 
 namespace kim {
 
-#define ANET_OK 0
-#define ANET_ERR -1
-#define ANET_ERR_LEN 256
-
 static void anet_set_error(char *err, const char *fmt, ...) {
     va_list ap;
 

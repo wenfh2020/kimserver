@@ -22,10 +22,13 @@ class Network : public IEventsCallback {
     bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
     void run();
-    void end_ev_loop();
     void destory();
 
-    bool add_chanel_event(int fd);
+    // events.
+    void end_ev_loop();
+    bool add_conncted_read_event(int fd);
+
+    // socket.
     void close_chanel(int* fds);
     void close_fds();
     bool close_conn(int fd);
@@ -50,10 +53,6 @@ class Network : public IEventsCallback {
     bool close_conn(Connection* c);
     void close_conns();
     bool read_query_from_client(int fd);
-
-    // events
-
-    bool add_conncted_read_event(int fd);
 
     int get_new_seq() { return ++m_seq; }
 
