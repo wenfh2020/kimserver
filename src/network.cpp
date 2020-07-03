@@ -94,12 +94,12 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
 
     m_events->create_signal_event(SIGINT, s);
 
-    if (!add_conncted_read_event(ctrl_fd)) {
+    if (!add_conncted_read_event(ctrl_fd, true)) {
         LOG_ERROR("add ctrl fd event failed, fd: %d", ctrl_fd);
         goto error;
     }
 
-    if (!add_conncted_read_event(data_fd)) {
+    if (!add_conncted_read_event(data_fd, true)) {
         LOG_ERROR("add data fd read event failed, fd: %d", data_fd);
         goto error;
     }
@@ -145,13 +145,33 @@ error:
     return false;
 }
 
-bool Network::add_conncted_read_event(int fd) {
+bool Network::add_conncted_read_event(int fd, bool is_chanel) {
+    if (anet_no_block(m_err, fd) != ANET_OK) {
+        close(fd);
+        LOG_ERROR("set socket no block failed! fd: %d", fd);
+        return false;
+    }
+
+    if (!is_chanel) {
+        if (anet_keep_alive(m_err, fd, 100) != ANET_OK) {
+            close(fd);
+            LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
+            return false;
+        }
+
+        if (anet_set_tcp_no_delay(m_err, fd, 1) != ANET_OK) {
+            close(fd);
+            LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
+            return false;
+        }
+    }
+
     Connection* c = create_conn(fd);
     if (c == nullptr) {
         LOG_ERROR("add chanel event failed! fd: %d", fd);
         return false;
     }
-
+    c->set_active_time(m_events->get_now_time());
     c->set_state(Connection::CONN_STATE::CONNECTED);
 
     ev_io* w = c->get_ev_io();
@@ -183,10 +203,18 @@ Connection* Network::create_conn(int fd) {
     return c;
 }
 
+// delete event to stop callback, and then close fd.
+bool Network::close_conn(Connection* c) {
+    if (c == nullptr) {
+        return false;
+    }
+    return close_conn(c->get_fd());
+}
+
 bool Network::close_conn(int fd) {
-    if (fd != -1) {
-        close(fd);
-        LOG_DEBUG("close fd: %d", fd);
+    if (fd == -1) {
+        LOG_ERROR("invalid fd: %d", fd);
+        return false;
     }
 
     auto it = m_conns.find(fd);
@@ -201,16 +229,10 @@ bool Network::close_conn(int fd) {
         SAFE_DELETE(c);
     }
     m_conns.erase(it);
+    close(fd);
+
+    LOG_DEBUG("close fd: %d", fd);
     return true;
-}
-
-// delete event to stop callback, and then close fd.
-bool Network::close_conn(Connection* c) {
-    if (c == nullptr) {
-        return false;
-    }
-
-    return close_conn(c->get_fd());
 }
 
 int Network::listen_to_port(const char* bind, int port) {
@@ -299,10 +321,14 @@ void Network::on_io_write(int fd) {
     if (it == m_conns.end()) {
         return;
     }
+
+    Connection* c = it->second;
+    if (c == nullptr || !c->is_active()) {
+        return;
+    }
 }
 
 void Network::on_io_error(int fd) {
-    close_conn(fd);
 }
 
 void Network::read_query_from_client(int fd) {
@@ -321,8 +347,8 @@ void Network::read_query_from_client(int fd) {
     // connection read data.
     int read_len = c->read_data();
     if (read_len == 0) {
-        LOG_DEBUG("connection closed, fd: %d", fd);
         close_conn(c);
+        LOG_DEBUG("connection closed, fd: %d", fd);
         return;
     }
 
@@ -330,11 +356,12 @@ void Network::read_query_from_client(int fd) {
         if ((read_len == -1) && (c->is_active())) {  // EAGAIN
             return;
         }
-
-        LOG_DEBUG("client closed connection! fd: %d", fd);
         close_conn(c);
+        LOG_DEBUG("client closed connection! fd: %d", fd);
         return;
     }
+
+    c->set_active_time(m_events->get_now_time());
 
     // analysis data.
     LOG_DEBUG("recv data: %s", c->get_query_data());
@@ -348,33 +375,16 @@ void Network::accept_server_conn(int fd) {
         cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK)
-                LOG_ERROR("accepting client connection: %s", m_err);
+                LOG_ERROR("accepting client connection failed: fd: %d, error %s",
+                          fd, m_err);
             return;
         }
 
         LOG_DEBUG("accepted %s:%d", cip, cport);
 
-        if (anet_no_block(m_err, cfd) != ANET_OK) {
-            close(cfd);
-            LOG_ERROR("set socket no block failed! fd: %d", fd);
-            return;
-        }
-
-        if (anet_keep_alive(m_err, cfd, 100) != ANET_OK) {
-            close(cfd);
-            LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
-            return;
-        }
-
-        if (anet_set_tcp_no_delay(m_err, cfd, 1) != ANET_OK) {
-            close(cfd);
-            LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
-            return;
-        }
-
         if (!add_conncted_read_event(cfd)) {
-            LOG_ERROR("add data fd read event failed, fd: %d", cfd);
             close_conn(cfd);
+            LOG_ERROR("add data fd read event failed, fd: %d", cfd);
             return;
         }
     }

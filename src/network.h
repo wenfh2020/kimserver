@@ -2,7 +2,6 @@
 #define __NETWORK_H__
 
 #include <iostream>
-#include <list>
 #include <unordered_map>
 
 #include "context.h"
@@ -26,7 +25,7 @@ class Network : public IEventsCallback {
 
     // events.
     void end_ev_loop();
-    bool add_conncted_read_event(int fd);
+    bool add_conncted_read_event(int fd, bool is_chanel = false);
 
     // socket.
     void close_chanel(int* fds);
@@ -63,8 +62,8 @@ class Network : public IEventsCallback {
     int m_gate_bind_fd;                            // gate bind fd for client.
     Events* m_events;                              // libev's events manager.
     std::unordered_map<int, Connection*> m_conns;  // key:fd, value: connection
-    int m_manager_ctrl_fd;
-    int m_manager_data_fd;
+    int m_manager_ctrl_fd;                         // chanel fd use for worker.
+    int m_manager_data_fd;                         // chanel fd use for worker.
     WorkerDataMgr* m_woker_data_mgr;
 };
 

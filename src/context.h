@@ -42,6 +42,9 @@ class Connection {
     void set_ev_io(ev_io* w) { m_ev_io = w; }
     ev_io* get_ev_io() { return m_ev_io; }
 
+    void set_active_time(ev_tstamp t) { m_active_time = t; }
+    ev_tstamp get_active_time() { return m_active_time; }
+
     int read_data();
     const char* get_query_data() { return m_query_buf; }
 
@@ -56,6 +59,7 @@ class Connection {
     int m_errno;
     std::string m_error;
     ev_io* m_ev_io;
+    ev_tstamp m_active_time;
 
     size_t m_qb_pos;
     sds m_query_buf;

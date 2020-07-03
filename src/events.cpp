@@ -121,6 +121,14 @@ bool Events::del_event(ev_io* w) {
     return true;
 }
 
+bool Events::stop_event(ev_io* w) {
+    if (w == nullptr) {
+        return false;
+    }
+    ev_io_stop(m_ev_loop, w);
+    return true;
+}
+
 void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     if (w->data == nullptr) {
         return;

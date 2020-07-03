@@ -181,8 +181,7 @@ bool Manager::restart_worker(pid_t pid) {
     // close conntact chanel.
     int chs[2];
     if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
-        m_net->close_conn(chs[0]);
-        m_net->close_conn(chs[1]);
+        m_net->close_chanel(chs);
     }
 
     int worker_index;
@@ -224,8 +223,6 @@ bool Manager::create_worker(int worker_index) {
 
         close(ctrl_fds[0]);
         close(data_fds[0]);
-        anet_no_block(NULL, ctrl_fds[1]);
-        anet_no_block(NULL, data_fds[1]);
 
         worker_info_t info;
         info.work_path = m_node_info.work_path;
@@ -248,10 +245,8 @@ bool Manager::create_worker(int worker_index) {
     } else if (pid > 0) {  // parent
         close(ctrl_fds[1]);
         close(data_fds[1]);
-        anet_no_block(NULL, ctrl_fds[0]);
-        anet_no_block(NULL, data_fds[0]);
-        m_net->add_conncted_read_event(ctrl_fds[0]);
-        m_net->add_conncted_read_event(data_fds[0]);
+        m_net->add_conncted_read_event(ctrl_fds[0], true);
+        m_net->add_conncted_read_event(data_fds[0], true);
 
         m_worker_data_mgr.add_worker_info(worker_index, pid, ctrl_fds[0], data_fds[0]);
         LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
