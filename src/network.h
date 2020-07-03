@@ -15,15 +15,23 @@ namespace kim {
 
 class Network : public IEventsCallback {
    public:
-    Network(Log* logger, IEventsCallback::TYPE type);
+    enum class TYPE {
+        UNKNOWN = 0,
+        MANAGER,
+        WORKER,
+    };
+
+    Network(Log* logger, TYPE type);
     virtual ~Network();
 
+    // for manager.
     bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
+    // for worker.
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
-    void run();
     void destory();
 
     // events.
+    void run();
     void end_ev_loop();
     bool add_conncted_read_event(int fd, bool is_chanel = false);
 
@@ -32,13 +40,20 @@ class Network : public IEventsCallback {
     void close_fds();
     bool close_conn(int fd);
 
+    // type
+    TYPE get_type() { return m_type; }
+    void set_type(TYPE type) { m_type = type; }
+
+    bool is_worker() { return m_type == TYPE::WORKER; }
+    bool is_manager() { return m_type == TYPE::MANAGER; }
+
     // for io events call back. IEventsCallback
     void on_io_read(int fd) override;
     void on_io_write(int fd) override;
     void on_io_error(int fd) override;
 
    private:
-    bool create_events(ISignalCallBack* s);
+    bool create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker);
 
     // socket
     int listen_to_port(const char* bind, int port);
@@ -65,6 +80,7 @@ class Network : public IEventsCallback {
     int m_manager_ctrl_fd;                         // chanel fd use for worker.
     int m_manager_data_fd;                         // chanel fd use for worker.
     WorkerDataMgr* m_woker_data_mgr;
+    TYPE m_type;
 };
 
 }  // namespace kim

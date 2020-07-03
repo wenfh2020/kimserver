@@ -134,7 +134,7 @@ bool Manager::load_config(const char* path) {
 }
 
 bool Manager::create_network() {
-    m_net = new Network(m_logger, IEventsCallback::TYPE::MANAGER);
+    m_net = new Network(m_logger, Network::TYPE::MANAGER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;

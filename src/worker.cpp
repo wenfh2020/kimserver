@@ -62,7 +62,7 @@ bool Worker::init_logger() {
 }
 
 bool Worker::create_network() {
-    m_net = new Network(m_logger, IEventsCallback::TYPE::WORKER);
+    m_net = new Network(m_logger, Network::TYPE::WORKER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;

@@ -14,7 +14,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger, IEventsCallback::TYPE type)
+Network::Network(Log* logger, TYPE type)
     : m_logger(logger),
       m_seq(0),
       m_bind_fd(0),
@@ -22,7 +22,8 @@ Network::Network(Log* logger, IEventsCallback::TYPE type)
       m_events(nullptr),
       m_manager_ctrl_fd(-1),
       m_manager_data_fd(-1),
-      m_woker_data_mgr(nullptr) {
+      m_woker_data_mgr(nullptr),
+      m_type(TYPE::UNKNOWN) {
     set_type(type);
 }
 
@@ -71,7 +72,7 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDat
     LOG_INFO("listen fds, bind fd: %d, gate bind fd: %d",
              m_bind_fd, m_gate_bind_fd);
 
-    if (!create_events(s)) {
+    if (!create_events(s, m_bind_fd, m_gate_bind_fd, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -81,40 +82,18 @@ bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDat
 }
 
 bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
-    m_events = new Events(m_logger);
-    if (m_events == nullptr) {
-        LOG_ERROR("new events failed!");
-        return false;
-    }
-
-    if (!m_events->create()) {
+    if (!create_events(s, ctrl_fd, data_fd, true)) {
         LOG_ERROR("create events failed!");
-        goto error;
-    }
-
-    m_events->create_signal_event(SIGINT, s);
-
-    if (!add_conncted_read_event(ctrl_fd, true)) {
-        LOG_ERROR("add ctrl fd event failed, fd: %d", ctrl_fd);
-        goto error;
-    }
-
-    if (!add_conncted_read_event(data_fd, true)) {
-        LOG_ERROR("add data fd read event failed, fd: %d", data_fd);
-        goto error;
+        return false;
     }
 
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
     LOG_INFO("create network done!");
     return true;
-
-error:
-    SAFE_DELETE(m_events);
-    return false;
 }
 
-bool Network::create_events(ISignalCallBack* s) {
+bool Network::create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -126,16 +105,20 @@ bool Network::create_events(ISignalCallBack* s) {
         goto error;
     }
 
-    m_events->setup_signal_events(s);
-
-    if (!add_conncted_read_event(m_bind_fd)) {
-        LOG_ERROR("add bind read event failed, fd: %d", m_bind_fd);
+    if (!add_conncted_read_event(fd1, is_worker)) {
+        LOG_ERROR("add read event failed, fd: %d", fd1);
         goto error;
     }
 
-    if (!add_conncted_read_event(m_gate_bind_fd)) {
-        LOG_ERROR("add gate bind read event failed, fd: %d", m_gate_bind_fd);
+    if (!add_conncted_read_event(fd2, is_worker)) {
+        LOG_ERROR("add read event failed, fd: %d", fd2);
         goto error;
+    }
+
+    if (is_worker) {
+        m_events->create_signal_event(SIGINT, s);
+    } else {
+        m_events->setup_signal_events(s);
     }
 
     return true;
@@ -295,7 +278,7 @@ void Network::close_fds() {
 }
 
 void Network::on_io_read(int fd) {
-    if (get_type() == IEventsCallback::TYPE::MANAGER) {
+    if (is_manager()) {
         if (fd == m_bind_fd) {
             accept_server_conn(fd);
         } else if (fd == m_gate_bind_fd) {
@@ -303,7 +286,7 @@ void Network::on_io_read(int fd) {
         } else {
             read_query_from_client(fd);
         }
-    } else if (get_type() == IEventsCallback::TYPE::WORKER) {
+    } else if (is_worker()) {
         if (fd == m_manager_data_fd) {
             read_transfer_fd(fd);
         } else {

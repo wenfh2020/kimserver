@@ -23,25 +23,13 @@ class ISignalCallBack {
 
 class IEventsCallback {
    public:
-    enum class TYPE {
-        UNKNOWN = 0,
-        MANAGER,
-        WORKER,
-    };
-
-    IEventsCallback() : m_type(TYPE::UNKNOWN) {}
+    IEventsCallback() {}
     virtual ~IEventsCallback() {}
-
-    TYPE get_type() { return m_type; }
-    void set_type(TYPE type) { m_type = type; }
 
     // socket's io event callback.
     virtual void on_io_read(int fd) {}
     virtual void on_io_write(int fd) {}
     virtual void on_io_error(int fd) {}
-
-   private:
-    TYPE m_type;
 };
 
 }  // namespace kim
