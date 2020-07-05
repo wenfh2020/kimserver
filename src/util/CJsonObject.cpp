@@ -1,5 +1,8 @@
 #include "CJsonObject.hpp"
 
+#include <fstream>
+#include <sstream>
+
 namespace kim {
 
 CJsonObject::CJsonObject()
@@ -293,6 +296,22 @@ bool CJsonObject::Parse(const std::string& strJson) {
         return (false);
     }
     return (true);
+}
+
+bool CJsonObject::Load(const std::string& strPath) {
+    std::ifstream is(strPath);
+    if (!is.good()) {
+        return false;
+    }
+
+    std::stringstream content;
+    content << is.rdbuf();
+    if (!Parse(content.str())) {
+        is.close();
+        return false;
+    }
+    is.close();
+    return true;
 }
 
 void CJsonObject::Clear() {

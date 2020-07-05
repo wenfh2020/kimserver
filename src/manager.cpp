@@ -33,12 +33,15 @@ void Manager::run() {
 }
 
 bool Manager::init(const char* conf_path) {
+    if (!load_work_path()) {
+        LOG_ERROR("load work path failed!");
+        return false;
+    }
+
     if (!load_config(conf_path)) {
         LOG_ERROR("load config failed! %s", conf_path);
         return false;
     }
-
-    set_proc_title("%s", m_json_conf("server_name").c_str());
 
     if (!init_logger()) {
         LOG_ERROR("init log failed!");
@@ -51,7 +54,7 @@ bool Manager::init(const char* conf_path) {
     }
 
     create_workers();
-
+    set_proc_title("%s", m_json_conf("server_name").c_str());
     LOG_INFO("init manager success!");
     return true;
 }
@@ -83,12 +86,7 @@ bool Manager::init_logger() {
     return true;
 }
 
-bool Manager::load_config(const char* path) {
-    if (access(path, R_OK) == -1) {
-        LOG_ERROR("cant not access config file!");
-        return false;
-    }
-
+bool Manager::load_work_path() {
     if (m_node_info.work_path.empty()) {
         char work_path[MAX_PATH] = {0};
         if (!getcwd(work_path, sizeof(work_path))) {
@@ -97,26 +95,19 @@ bool Manager::load_config(const char* path) {
         }
         m_node_info.work_path = work_path;
     }
+    return true;
+}
 
-    std::ifstream fin(path);
-    if (!fin.good()) {
-        LOG_ERROR("load config file failed! %s", path);
+bool Manager::load_config(const char* path) {
+    CJsonObject conf;
+    if (!conf.Load(path)) {
+        LOG_ERROR("load json config failed! %s", path);
         return false;
     }
-
-    CJsonObject json_conf;
-    std::stringstream content;
-    content << fin.rdbuf();
-    if (!json_conf.Parse(content.str())) {
-        fin.close();
-        LOG_ERROR("parse json config failed! %s", path);
-        return false;
-    }
-    fin.close();
 
     m_node_info.conf_path = path;
     m_old_json_conf = m_json_conf;
-    m_json_conf = json_conf;
+    m_json_conf = conf;
 
     if (m_old_json_conf.ToString() != m_json_conf.ToString()) {
         if (m_old_json_conf.ToString().empty()) {

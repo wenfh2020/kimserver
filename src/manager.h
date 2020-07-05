@@ -26,6 +26,7 @@ class Manager : public ISignalCallBack {
    private:
     bool init_logger();
     bool create_network();
+    bool load_work_path();
     bool load_config(const char* path);
 
     void create_workers();

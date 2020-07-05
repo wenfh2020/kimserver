@@ -37,10 +37,10 @@ class Network : public IEventsCallback {
 
     // socket.
     void close_chanel(int* fds);
-    void close_fds();
+    void close_fds();  // for child to close the parent's fds when fork.
     bool close_conn(int fd);
 
-    // type
+    // owner type
     TYPE get_type() { return m_type; }
     void set_type(TYPE type) { m_type = type; }
 

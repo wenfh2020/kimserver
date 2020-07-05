@@ -38,6 +38,7 @@ class CJsonObject {
     CJsonObject& operator=(const CJsonObject& oJsonObject);
     bool operator==(const CJsonObject& oJsonObject) const;
     bool Parse(const std::string& strJson);
+    bool Load(const std::string& strPath);
     void Clear();
     bool IsEmpty() const;
     bool IsArray() const;
