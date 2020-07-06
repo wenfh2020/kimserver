@@ -23,10 +23,10 @@ class Worker : public ISignalCallBack {
     bool load_network();
 
    private:
-    std::shared_ptr<Log> m_logger = nullptr;
-    Network* m_net = nullptr;
-    CJsonObject m_json_conf;  // current config.
-    worker_info_t m_worker_info;
+    std::shared_ptr<Log> m_logger = nullptr;  //logger.
+    Network* m_net = nullptr;                 // net work.
+    CJsonObject m_json_conf;                  // current config.
+    worker_info_t m_worker_info;              // current worker info.
 };
 
 }  // namespace kim

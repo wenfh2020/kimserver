@@ -21,9 +21,6 @@ bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
 
     m_json_conf = conf;
 
-    LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
-             info->index, info->ctrl_fd, info->data_fd);
-
     if (!load_logger()) {
         LOG_ERROR("init log failed!");
         return false;
@@ -33,6 +30,9 @@ bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
         LOG_ERROR("create network failed!");
         return false;
     }
+
+    LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
+             info->index, info->ctrl_fd, info->data_fd);
 
     return true;
 }
