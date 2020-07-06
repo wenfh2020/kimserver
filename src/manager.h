@@ -24,22 +24,21 @@ class Manager : public ISignalCallBack {
     void on_child_terminated(ev_signal* s) override;
 
    private:
-    bool init_logger();
-    bool create_network();
-    bool load_work_path();
+    bool load_logger();
+    bool load_network();
     bool load_config(const char* path);
 
-    void create_workers();
-    bool create_worker(int worker_index);
-    bool restart_worker(pid_t pid);
+    void create_workers();                 // fork processes.
+    bool create_worker(int worker_index);  // for one process.
+    bool restart_worker(pid_t pid);        // fork a new process, when old terminated!
 
    private:
-    Log* m_logger;                // logger
-    CJsonObject m_json_conf;      // current config.
-    CJsonObject m_old_json_conf;  // old config
-    node_info_t m_node_info;      // cluster node.
-    Network* m_net;
-    WorkerDataMgr m_worker_data_mgr;
+    std::shared_ptr<Log> m_logger = nullptr;
+    Network* m_net = nullptr;         // net work.
+    CJsonObject m_json_conf;          // current config.
+    CJsonObject m_old_json_conf;      // old config
+    node_info_t m_node_info;          // cluster node.
+    WorkerDataMgr m_worker_data_mgr;  // worker node data manager.
 };
 
 }  // namespace kim

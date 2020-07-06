@@ -14,16 +14,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger, TYPE type)
-    : m_logger(logger),
-      m_seq(0),
-      m_bind_fd(0),
-      m_gate_bind_fd(0),
-      m_events(nullptr),
-      m_manager_ctrl_fd(-1),
-      m_manager_data_fd(-1),
-      m_woker_data_mgr(nullptr),
-      m_type(TYPE::UNKNOWN) {
+Network::Network(std::shared_ptr<Log> logger, TYPE type) {
     set_type(type);
 }
 

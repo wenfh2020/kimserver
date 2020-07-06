@@ -21,7 +21,7 @@ class Network : public IEventsCallback {
         WORKER,
     };
 
-    Network(Log* logger, TYPE type);
+    Network(std::shared_ptr<Log> logger, TYPE type);
     virtual ~Network();
 
     // for manager.
@@ -43,7 +43,6 @@ class Network : public IEventsCallback {
     // owner type
     TYPE get_type() { return m_type; }
     void set_type(TYPE type) { m_type = type; }
-
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
@@ -60,27 +59,27 @@ class Network : public IEventsCallback {
     void accept_server_conn(int fd);
     void accept_and_transfer_fd(int fd);
     void read_transfer_fd(int fd);
+    void read_query_from_client(int fd);
 
     // connection
     Connection* create_conn(int fd);
     bool close_conn(Connection* c);
     void close_conns();
-    void read_query_from_client(int fd);
 
     int get_new_seq() { return ++m_seq; }
 
    private:
-    Log* m_logger;                                 // log manager.
-    uint64_t m_seq;                                // sequence.
+    std::shared_ptr<Log> m_logger = nullptr;       // log manager.
+    Events* m_events = nullptr;                    // libev's events manager.
+    uint64_t m_seq = 0;                            // sequence.
     char m_err[ANET_ERR_LEN];                      // error string.
-    int m_bind_fd;                                 // inner servers contact each other.
-    int m_gate_bind_fd;                            // gate bind fd for client.
-    Events* m_events;                              // libev's events manager.
+    int m_bind_fd = -1;                            // inner servers contact each other.
+    int m_gate_bind_fd = -1;                       // gate bind fd for client.
     std::unordered_map<int, Connection*> m_conns;  // key:fd, value: connection
-    int m_manager_ctrl_fd;                         // chanel fd use for worker.
-    int m_manager_data_fd;                         // chanel fd use for worker.
-    WorkerDataMgr* m_woker_data_mgr;
-    TYPE m_type;
+    int m_manager_ctrl_fd = -1;                    // chanel fd use for worker.
+    int m_manager_data_fd = -1;                    // chanel fd use for worker.
+    WorkerDataMgr* m_woker_data_mgr = nullptr;
+    TYPE m_type = TYPE::UNKNOWN;
 };
 
 }  // namespace kim

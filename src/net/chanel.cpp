@@ -9,9 +9,9 @@ namespace kim {
 
 #define LOG_FORMAT(level, args...) \
     logger->log_data(__FILE__, __LINE__, __FUNCTION__, level, ##args);
-#define LOG_ERROR(args...) LOG_FORMAT((kim::Log::LL_ERR), ##args)
+#define LOG_ERROR(args...) LOG_FORMAT((Log::LL_ERR), ##args)
 
-int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
+int write_channel(int fd, channel_t* ch, size_t size, std::shared_ptr<Log> logger) {
     ssize_t n;
     struct iovec iov[1];
     struct msghdr msg;
@@ -73,7 +73,7 @@ int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     return 0;
 }
 
-int read_channel(int fd, channel_t* ch, size_t size, Log* logger) {
+int read_channel(int fd, channel_t* ch, size_t size, std::shared_ptr<Log> logger) {
     ssize_t n;
     int err = 0;
     struct iovec iov[1];

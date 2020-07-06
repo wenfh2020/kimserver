@@ -28,7 +28,7 @@ class Log {
    public:
     bool set_level(int level);
     bool set_level(const char* level);
-    void set_log_path(const char* path);
+    bool set_log_path(const char* path);
     bool log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...);
 
    private:

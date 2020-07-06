@@ -15,7 +15,7 @@
 
 namespace kim {
 
-Manager::Manager() : m_logger(NULL), m_net(nullptr) {
+Manager::Manager() {
 }
 
 Manager::~Manager() {
@@ -33,22 +33,23 @@ void Manager::run() {
 }
 
 bool Manager::init(const char* conf_path) {
-    if (!load_work_path()) {
-        LOG_ERROR("load work path failed!");
+    char work_path[MAX_PATH] = {0};
+    if (!getcwd(work_path, sizeof(work_path))) {
         return false;
     }
+    m_node_info.work_path = work_path;
 
     if (!load_config(conf_path)) {
         LOG_ERROR("load config failed! %s", conf_path);
         return false;
     }
 
-    if (!init_logger()) {
+    if (!load_logger()) {
         LOG_ERROR("init log failed!");
         return false;
     }
 
-    if (!create_network()) {
+    if (!load_network()) {
         LOG_ERROR("create network failed!");
         return false;
     }
@@ -59,42 +60,29 @@ bool Manager::init(const char* conf_path) {
     return true;
 }
 
-bool Manager::init_logger() {
-    char path[MAX_PATH] = {0};
-    snprintf(path, sizeof(path), "%s/%s",
-             m_node_info.work_path.c_str(), m_json_conf("log_path").c_str());
-
-    FILE* f;
-    f = fopen(path, "a");
-    if (f == nullptr) {
-        LOG_ERROR("cant not open log file: %s", path);
-        return false;
-    }
-    fclose(f);
-
-    m_logger = new Log;
+bool Manager::load_logger() {
     if (m_logger == nullptr) {
-        LOG_ERROR("new log failed!");
-        return false;
+        char path[MAX_PATH] = {0};
+        snprintf(path, sizeof(path), "%s/%s",
+                 m_node_info.work_path.c_str(), m_json_conf("log_path").c_str());
+
+        m_logger = std::make_shared<Log>();
+        if (m_logger == nullptr) {
+            LOG_ERROR("new log failed!");
+            return false;
+        }
+
+        if (!m_logger->set_log_path(path)) {
+            LOG_ERROR("set log path failed! path: %s", path);
+            return false;
+        }
     }
 
-    m_logger->set_log_path(path);
     if (!m_logger->set_level(m_json_conf("log_level").c_str())) {
         LOG_ERROR("invalid log level!");
         return false;
     }
-    return true;
-}
 
-bool Manager::load_work_path() {
-    if (m_node_info.work_path.empty()) {
-        char work_path[MAX_PATH] = {0};
-        if (!getcwd(work_path, sizeof(work_path))) {
-            LOG_ERROR("get work path failed!");
-            return false;
-        }
-        m_node_info.work_path = work_path;
-    }
     return true;
 }
 
@@ -124,7 +112,7 @@ bool Manager::load_config(const char* path) {
     return true;
 }
 
-bool Manager::create_network() {
+bool Manager::load_network() {
     m_net = new Network(m_logger, Network::TYPE::MANAGER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");

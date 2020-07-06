@@ -15,8 +15,8 @@ typedef struct channel_s {
     int codec;
 } channel_t;
 
-int write_channel(int fd, channel_t* ch, size_t size, Log* logger);
-int read_channel(int fd, channel_t* ch, size_t size, Log* logger);
+int write_channel(int fd, channel_t* ch, size_t size, std::shared_ptr<Log> logger);
+int read_channel(int fd, channel_t* ch, size_t size, std::shared_ptr<Log> logger);
 
 }  // namespace kim
 

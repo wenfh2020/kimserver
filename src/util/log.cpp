@@ -12,8 +12,20 @@ namespace kim {
 Log::Log() : m_cur_level(LL_DEBUG) {
 }
 
-void Log::set_log_path(const char* path) {
-    if (path != nullptr) m_path = path;
+bool Log::set_log_path(const char* path) {
+    if (path == nullptr) {
+        return false;
+    }
+
+    FILE* f;
+    f = fopen(path, "a");
+    if (f == nullptr) {
+        return false;
+    }
+    fclose(f);
+
+    m_path = path;
+    return true;
 }
 
 bool Log::set_level(int level) {

@@ -8,8 +8,7 @@
 
 namespace kim {
 
-Events::Events(Log* logger) : m_logger(logger),
-                              m_ev_loop(nullptr) {
+Events::Events(std::shared_ptr<Log> logger) : m_logger(logger) {
 }
 
 Events::~Events() {

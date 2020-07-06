@@ -11,7 +11,7 @@ namespace kim {
 class Worker : public ISignalCallBack {
    public:
     Worker(const std::string& name);
-    virtual ~Worker() {}
+    virtual ~Worker();
 
     bool init(const worker_info_t* info, const CJsonObject& conf);
     void run();
@@ -19,14 +19,14 @@ class Worker : public ISignalCallBack {
     void on_terminated(ev_signal* s) override;
 
    private:
-    bool init_logger();
-    bool create_network();
+    bool load_logger();
+    bool load_network();
 
    private:
-    Log* m_logger;
+    std::shared_ptr<Log> m_logger = nullptr;
+    Network* m_net = nullptr;
     CJsonObject m_json_conf;  // current config.
     worker_info_t m_worker_info;
-    Network* m_net;
 };
 
 }  // namespace kim
