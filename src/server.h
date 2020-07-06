@@ -1,7 +1,13 @@
 #ifndef __SERVER__
 #define __SERVER__
 
+#include <sys/socket.h>
+#include <sys/wait.h>
+
+#include <fstream>
+#include <iosfwd>
 #include <iostream>
+#include <sstream>
 
 namespace kim {
 

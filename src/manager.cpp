@@ -1,12 +1,5 @@
 #include "manager.h"
 
-#include <sys/socket.h>
-#include <sys/wait.h>
-
-#include <fstream>
-#include <iosfwd>
-#include <sstream>
-
 #include "context.h"
 #include "net/anet.h"
 #include "server.h"
@@ -62,20 +55,20 @@ bool Manager::init(const char* conf_path) {
 
 bool Manager::load_logger() {
     if (m_logger == nullptr) {
-        char path[MAX_PATH] = {0};
-        snprintf(path, sizeof(path), "%s/%s",
-                 m_node_info.work_path.c_str(), m_conf("log_path").c_str());
-
         m_logger = std::make_shared<Log>();
         if (m_logger == nullptr) {
             LOG_ERROR("new log failed!");
             return false;
         }
+    }
 
-        if (!m_logger->set_log_path(path)) {
-            LOG_ERROR("set log path failed! path: %s", path);
-            return false;
-        }
+    char path[MAX_PATH] = {0};
+    snprintf(path, sizeof(path), "%s/%s",
+             m_node_info.work_path.c_str(), m_conf("log_path").c_str());
+
+    if (!m_logger->set_log_path(path)) {
+        LOG_ERROR("set log path failed! path: %s", path);
+        return false;
     }
 
     if (!m_logger->set_level(m_conf("log_level").c_str())) {
@@ -209,11 +202,7 @@ bool Manager::create_worker(int worker_index) {
         info.data_fd = data_fds[1];
         info.index = worker_index;
 
-        char name[64] = {0};
-        snprintf(name, sizeof(name), "%s_w_%d",
-                 m_conf("server_name").c_str(), worker_index);
-
-        Worker worker(name);
+        Worker worker(get_worker_name(worker_index));
         if (!worker.init(&info, m_conf)) {
             exit(EXIT_CHILD_INIT_FAIL);
         }
@@ -245,6 +234,13 @@ void Manager::create_workers() {
             LOG_ERROR("create worker failed! index: %d", i);
         }
     }
+}
+
+std::string Manager::get_worker_name(int index) {
+    char name[64] = {0};
+    snprintf(name, sizeof(name), "%s_w_%d",
+             m_conf("server_name").c_str(), index);
+    return std::string(name);
 }
 
 }  // namespace kim

@@ -296,12 +296,10 @@ void Network::on_io_read(int fd) {
         if (fd == m_manager_data_fd) {
             read_transfer_fd(fd);
         } else {
-            LOG_DEBUG("worker io read!, fd: %d", fd);
             read_query_from_client(fd);
         }
     } else {
-        LOG_CRIT("unknown work type io read! exit!");
-        exit(EXIT_FAILURE);
+        return read_query_from_client(fd);
     }
 }
 

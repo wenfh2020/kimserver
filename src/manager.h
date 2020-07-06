@@ -32,11 +32,12 @@ class Manager : public ISignalCallBack {
     bool create_worker(int worker_index);  // for one process.
     bool restart_worker(pid_t pid);        // fork a new process, when old terminated!
 
+    std::string get_worker_name(int index);
+
    private:
     std::shared_ptr<Log> m_logger = nullptr;  // logger.
     Network* m_net = nullptr;                 // net work.
-    CJsonObject m_conf;                       // current config.
-    CJsonObject m_old_conf;                   // old config
+    CJsonObject m_conf, m_old_conf;           // config.
     NodeInfo m_node_info;                     // cluster node.
     WorkerDataMgr m_worker_data_mgr;          // worker node data manager.
 };
