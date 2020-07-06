@@ -34,7 +34,7 @@ void Network::run() {
     }
 }
 
-bool Network::create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m) {
+bool Network::create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMgr* m) {
     int fd = -1;
     if (addr_info == nullptr || s == nullptr || m == nullptr) {
         return false;
@@ -268,6 +268,21 @@ void Network::close_fds() {
     }
 }
 
+void Network::on_io_write(int fd) {
+    auto it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        return;
+    }
+
+    Connection* c = it->second;
+    if (c == nullptr || !c->is_active()) {
+        return;
+    }
+}
+
+void Network::on_io_error(int fd) {
+}
+
 void Network::on_io_read(int fd) {
     if (is_manager()) {
         if (fd == m_bind_fd) {
@@ -288,21 +303,6 @@ void Network::on_io_read(int fd) {
         LOG_CRIT("unknown work type io read! exit!");
         exit(EXIT_FAILURE);
     }
-}
-
-void Network::on_io_write(int fd) {
-    auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
-        return;
-    }
-
-    Connection* c = it->second;
-    if (c == nullptr || !c->is_active()) {
-        return;
-    }
-}
-
-void Network::on_io_error(int fd) {
 }
 
 void Network::read_query_from_client(int fd) {

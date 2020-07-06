@@ -35,9 +35,9 @@ class Manager : public ISignalCallBack {
    private:
     std::shared_ptr<Log> m_logger = nullptr;  // logger.
     Network* m_net = nullptr;                 // net work.
-    CJsonObject m_json_conf;                  // current config.
-    CJsonObject m_old_json_conf;              // old config
-    node_info_t m_node_info;                  // cluster node.
+    CJsonObject m_conf;                       // current config.
+    CJsonObject m_old_conf;                   // old config
+    NodeInfo m_node_info;                     // cluster node.
     WorkerDataMgr m_worker_data_mgr;          // worker node data manager.
 };
 

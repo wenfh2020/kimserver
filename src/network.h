@@ -25,7 +25,7 @@ class Network : public IEventsCallback {
     virtual ~Network();
 
     // for manager.
-    bool create(const addr_info_t* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
+    bool create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
     // for worker.
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
     void destory();

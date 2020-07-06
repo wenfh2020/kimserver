@@ -1,6 +1,8 @@
 #ifndef __CHANNEL_H__
 #define __CHANNEL_H__
 
+#include <memory>
+
 #include "util/log.h"
 
 #ifdef __cplusplus

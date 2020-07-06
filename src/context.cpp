@@ -7,11 +7,7 @@ namespace kim {
 #define PROTO_IOBUF_LEN (1024 * 16) /* Generic I/O buffer size */
 
 Connection::Connection(int fd, uint64_t id) : m_fd(fd),
-                                              m_id(id),
-                                              m_private_data(nullptr),
-                                              m_ev_io(nullptr),
-                                              m_active_time(0.0),
-                                              m_qb_pos(0) {
+                                              m_id(id) {
     m_query_buf = sdsempty();
     m_qb_pos = 0;
 }

@@ -5,6 +5,7 @@
 
 #include <iostream>
 
+#include "codec/codec.h"
 #include "util/sds.h"
 
 namespace kim {
@@ -48,20 +49,23 @@ class Connection {
     int read_data();
     const char* get_query_data() { return m_query_buf; }
 
+    Codec& get_codec() { return m_codec; }
+
    private:
     int conn_read(void* buf, size_t buf_len);
 
    private:
-    int m_fd;
-    uint64_t m_id;
-    void* m_private_data;
-    CONN_STATE m_state;
-    int m_errno;
+    int m_fd = -1;
+    uint64_t m_id = 0;
+    void* m_private_data = nullptr;
+    CONN_STATE m_state = CONN_STATE::NONE;
+    int m_errno = 0;
     std::string m_error;
-    ev_io* m_ev_io;
-    ev_tstamp m_active_time;
+    ev_io* m_ev_io = nullptr;
+    ev_tstamp m_active_time = 0.0;
+    Codec m_codec;
 
-    size_t m_qb_pos;
+    size_t m_qb_pos = 0;
     sds m_query_buf;
 };
 

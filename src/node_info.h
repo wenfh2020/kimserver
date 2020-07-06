@@ -5,43 +5,44 @@
 
 namespace kim {
 
-typedef struct addr_info_s {
-    addr_info_s() {
-        port = 0;
-        gate_port = 0;
-    }
+class AddrInfo {
+   public:
+    AddrInfo() {}
+    virtual ~AddrInfo() {}
+
     std::string bind;       // bind host for inner server.
-    int port;               // port for inner server.
+    int port = 0;           // port for inner server.
     std::string gate_bind;  // bind host for user client.
-    int gate_port;          // port for user client.
-} addr_info_t;
+    int gate_port = 0;      // port for user client.
+};
 
-typedef struct node_info_s {
-    node_info_s() {
-        worker_processes = 0;
-    }
+////////////////////////////////////
 
-    addr_info_t addr_info;  // network addr info.
-    std::string node_type;  // node type in cluster.
-    std::string conf_path;  // config path.
+class NodeInfo {
+   public:
+    NodeInfo() {}
+    virtual ~NodeInfo() {}
+
+    AddrInfo addr_info;        // network addr info.
+    std::string node_type;     // node type in cluster.
+    std::string conf_path;     // config path.
+    std::string work_path;     // process work path.
+    int worker_processes = 1;  // number of worker's processes.
+};
+
+////////////////////////////////////
+
+class WorkInfo {
+   public:
+    WorkInfo() {}
+    virtual ~WorkInfo() {}
+
+    int pid = 0;            // worker's process id.
+    int index = -1;         // worker's index which assiged by master process.
+    int ctrl_fd = -1;       // socketpair for parent and child contact.
+    int data_fd = -1;       // socketpair for parent and child contact.
     std::string work_path;  // process work path.
-    int worker_processes;   // number of worker's processes.
-} node_info_t;
-
-typedef struct worker_info_s {
-    worker_info_s() {
-        pid = 0;
-        index = 0;
-        ctrl_fd = -1;
-        data_fd = -1;
-    }
-
-    int pid;                // worker's process id.
-    int index;              // worker's index which assiged by master process.
-    int ctrl_fd;            // socketpair for parent and child contact.
-    int data_fd;            // socketpair for parent and child contact.
-    std::string work_path;  // process work path.
-} worker_info_t;
+};
 
 }  // namespace kim
 

@@ -55,7 +55,7 @@ bool Manager::init(const char* conf_path) {
     }
 
     create_workers();
-    set_proc_title("%s", m_json_conf("server_name").c_str());
+    set_proc_title("%s", m_conf("server_name").c_str());
     LOG_INFO("init manager success!");
     return true;
 }
@@ -64,7 +64,7 @@ bool Manager::load_logger() {
     if (m_logger == nullptr) {
         char path[MAX_PATH] = {0};
         snprintf(path, sizeof(path), "%s/%s",
-                 m_node_info.work_path.c_str(), m_json_conf("log_path").c_str());
+                 m_node_info.work_path.c_str(), m_conf("log_path").c_str());
 
         m_logger = std::make_shared<Log>();
         if (m_logger == nullptr) {
@@ -78,7 +78,7 @@ bool Manager::load_logger() {
         }
     }
 
-    if (!m_logger->set_level(m_json_conf("log_level").c_str())) {
+    if (!m_logger->set_level(m_conf("log_level").c_str())) {
         LOG_ERROR("invalid log level!");
         return false;
     }
@@ -94,18 +94,18 @@ bool Manager::load_config(const char* path) {
     }
 
     m_node_info.conf_path = path;
-    m_old_json_conf = m_json_conf;
-    m_json_conf = conf;
+    m_old_conf = m_conf;
+    m_conf = conf;
 
-    if (m_old_json_conf.ToString() != m_json_conf.ToString()) {
-        if (m_old_json_conf.ToString().empty()) {
-            m_json_conf.Get("worker_processes", m_node_info.worker_processes);
-            m_json_conf.Get("node_type", m_node_info.node_type);
-            m_json_conf.Get("bind", m_node_info.addr_info.bind);
-            m_json_conf.Get("port", m_node_info.addr_info.port);
-            m_json_conf.Get("gate_bind", m_node_info.addr_info.gate_bind);
-            m_json_conf.Get("gate_port", m_node_info.addr_info.gate_port);
-            // LOG_DEBUG("worker processes: %d", m_node_info.worker_processes);
+    if (m_old_conf.ToString() != m_conf.ToString()) {
+        if (m_old_conf.ToString().empty()) {
+            m_conf.Get("worker_processes", m_node_info.worker_processes);
+            m_conf.Get("node_type", m_node_info.node_type);
+            m_conf.Get("bind", m_node_info.addr_info.bind);
+            m_conf.Get("port", m_node_info.addr_info.port);
+            m_conf.Get("gate_bind", m_node_info.addr_info.gate_bind);
+            m_conf.Get("gate_port", m_node_info.addr_info.gate_port);
+            LOG_DEBUG("worker processes: %d", m_node_info.worker_processes);
         }
     }
 
@@ -132,7 +132,7 @@ void Manager::on_terminated(ev_signal* s) {
     if (s == nullptr) return;
 
     LOG_WARNING("%s terminated by signal %d!",
-                m_json_conf("server_name").c_str(), s->signum);
+                m_conf("server_name").c_str(), s->signum);
     SAFE_DELETE(s);
     destory();
     exit(s->signum);
@@ -203,7 +203,7 @@ bool Manager::create_worker(int worker_index) {
         close(ctrl_fds[0]);
         close(data_fds[0]);
 
-        worker_info_t info;
+        WorkInfo info;
         info.work_path = m_node_info.work_path;
         info.ctrl_fd = ctrl_fds[1];
         info.data_fd = data_fds[1];
@@ -211,10 +211,10 @@ bool Manager::create_worker(int worker_index) {
 
         char name[64] = {0};
         snprintf(name, sizeof(name), "%s_w_%d",
-                 m_json_conf("server_name").c_str(), worker_index);
+                 m_conf("server_name").c_str(), worker_index);
 
         Worker worker(name);
-        if (!worker.init(&info, m_json_conf)) {
+        if (!worker.init(&info, m_conf)) {
             exit(EXIT_CHILD_INIT_FAIL);
         }
         worker.run();

@@ -21,9 +21,9 @@ class
     bool get_worker_index(int pid, int& index);
 
    private:
-    std::map<int, worker_info_t*> m_worker_info;                // key: pid, value: worker info.
-    std::map<int, worker_info_t*>::iterator m_itr_worker_info;  // iterator
-    std::map<int, int> m_fd_pid;                                // key: chanel, value: worker's pid.
+    std::map<int, WorkInfo*> m_worker_info;                // key: pid, value: worker info.
+    std::map<int, WorkInfo*>::iterator m_itr_worker_info;  // iterator
+    std::map<int, int> m_fd_pid;                           // key: chanel, value: worker's pid.
 };
 
 }  // namespace kim

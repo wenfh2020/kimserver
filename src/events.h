@@ -4,6 +4,7 @@
 #include <ev.h>
 
 #include <map>
+#include <memory>
 
 #include "context.h"
 #include "events_callback.h"

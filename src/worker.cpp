@@ -12,14 +12,14 @@ Worker::~Worker() {
     SAFE_DELETE(m_net);
 }
 
-bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
+bool Worker::init(const WorkInfo* info, const CJsonObject& conf) {
     m_worker_info.work_path = info->work_path;
     m_worker_info.ctrl_fd = info->ctrl_fd;
     m_worker_info.data_fd = info->data_fd;
     m_worker_info.index = info->index;
     m_worker_info.pid = getpid();
 
-    m_json_conf = conf;
+    m_conf = conf;
 
     if (!load_logger()) {
         LOG_ERROR("init log failed!");
@@ -33,7 +33,6 @@ bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
 
     LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
              info->index, info->ctrl_fd, info->data_fd);
-
     return true;
 }
 
@@ -41,7 +40,7 @@ bool Worker::load_logger() {
     if (m_logger == nullptr) {
         char path[MAX_PATH] = {0};
         snprintf(path, sizeof(path), "%s/%s", m_worker_info.work_path.c_str(),
-                 m_json_conf("log_path").c_str());
+                 m_conf("log_path").c_str());
 
         m_logger = std::make_shared<Log>();
         if (m_logger == nullptr) {
@@ -55,7 +54,7 @@ bool Worker::load_logger() {
         }
     }
 
-    if (!m_logger->set_level(m_json_conf("log_level").c_str())) {
+    if (!m_logger->set_level(m_conf("log_level").c_str())) {
         LOG_ERROR("invalid log level!");
         return false;
     }
