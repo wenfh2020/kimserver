@@ -16,9 +16,8 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    if (m_net != nullptr) {
-        SAFE_DELETE(m_net);
-    }
+    SAFE_DELETE(m_net);
+    SAFE_DELETE(m_logger);
 }
 
 void Manager::run() {
@@ -55,7 +54,7 @@ bool Manager::init(const char* conf_path) {
 
 bool Manager::load_logger() {
     if (m_logger == nullptr) {
-        m_logger = std::make_shared<Log>();
+        m_logger = new Log;
         if (m_logger == nullptr) {
             LOG_ERROR("new log failed!");
             return false;

@@ -35,11 +35,11 @@ class Manager : public ISignalCallBack {
     std::string get_worker_name(int index);
 
    private:
-    std::shared_ptr<Log> m_logger = nullptr;  // logger.
-    Network* m_net = nullptr;                 // net work.
-    CJsonObject m_conf, m_old_conf;           // config.
-    NodeInfo m_node_info;                     // cluster node.
-    WorkerDataMgr m_worker_data_mgr;          // worker node data manager.
+    Log* m_logger = nullptr;          // logger.
+    Network* m_net = nullptr;         // net work.
+    CJsonObject m_conf, m_old_conf;   // config.
+    NodeInfo m_node_info;             // cluster node.
+    WorkerDataMgr m_worker_data_mgr;  // worker node data manager.
 };
 
 }  // namespace kim

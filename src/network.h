@@ -21,7 +21,7 @@ class Network : public IEventsCallback {
         WORKER,
     };
 
-    Network(std::shared_ptr<Log> logger, TYPE type);
+    Network(Log* logger, TYPE type);
     virtual ~Network();
 
     // for manager.
@@ -69,7 +69,7 @@ class Network : public IEventsCallback {
     int get_new_seq() { return ++m_seq; }
 
    private:
-    std::shared_ptr<Log> m_logger = nullptr;       // log manager.
+    Log* m_logger = nullptr;                       // log manager.
     Events* m_events = nullptr;                    // libev's events manager.
     uint64_t m_seq = 0;                            // sequence.
     char m_err[ANET_ERR_LEN];                      // error string.

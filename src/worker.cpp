@@ -10,6 +10,7 @@ Worker::Worker(const std::string& name) {
 
 Worker::~Worker() {
     SAFE_DELETE(m_net);
+    SAFE_DELETE(m_logger);
 }
 
 bool Worker::init(const WorkInfo* info, const CJsonObject& conf) {
@@ -42,7 +43,7 @@ bool Worker::load_logger() {
         snprintf(path, sizeof(path), "%s/%s", m_worker_info.work_path.c_str(),
                  m_conf("log_path").c_str());
 
-        m_logger = std::make_shared<Log>();
+        m_logger = new Log;
         if (m_logger == nullptr) {
             LOG_ERROR("new log failed!");
             return false;

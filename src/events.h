@@ -15,7 +15,7 @@ namespace kim {
 
 class Events {
    public:
-    Events(std::shared_ptr<Log> logger);
+    Events(Log* logger);
     virtual ~Events();
 
     bool create();
@@ -36,7 +36,7 @@ class Events {
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
 
    private:
-    std::shared_ptr<Log> m_logger = nullptr;
+    Log* m_logger = nullptr;
     struct ev_loop* m_ev_loop = nullptr;
 };
 

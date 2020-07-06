@@ -2,7 +2,7 @@
 
 Kimserver is an async c++ multiple processes (one master process and one or more worker processes) high performance server.
 
-> which learn from: [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [nginx](https://github.com/nginx/nginx).
+> **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [nginx](https://github.com/nginx/nginx).
 
 ---
 
