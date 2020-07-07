@@ -1,7 +1,7 @@
 #ifndef __WORKER_DATA_MGR_H__
 #define __WORKER_DATA_MGR_H__
 
-#include <map>
+#include <unordered_map>
 
 #include "node_info.h"
 
@@ -21,9 +21,9 @@ class
     bool get_worker_index(int pid, int& index);
 
    private:
-    std::map<int, WorkInfo*> m_worker_info;                // key: pid, value: worker info.
-    std::map<int, WorkInfo*>::iterator m_itr_worker_info;  // iterator
-    std::map<int, int> m_fd_pid;                           // key: chanel, value: worker's pid.
+    std::unordered_map<int, WorkerInfo*> m_worker_info;                // key: pid, value: worker info.
+    std::unordered_map<int, WorkerInfo*>::iterator m_itr_worker_info;  // iterator
+    std::unordered_map<int, int> m_fd_pid;                             // key: chanel, value: worker's pid.
 };
 
 }  // namespace kim

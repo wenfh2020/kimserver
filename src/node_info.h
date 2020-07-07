@@ -32,10 +32,10 @@ class NodeInfo {
 
 ////////////////////////////////////
 
-class WorkInfo {
+class WorkerInfo {
    public:
-    WorkInfo() {}
-    virtual ~WorkInfo() {}
+    WorkerInfo() {}
+    virtual ~WorkerInfo() {}
 
     int pid = 0;            // worker's process id.
     int index = -1;         // worker's index which assiged by master process.

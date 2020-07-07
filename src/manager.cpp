@@ -21,7 +21,9 @@ void Manager::destory() {
 }
 
 void Manager::run() {
-    if (m_net != nullptr) m_net->run();
+    if (m_net != nullptr) {
+        m_net->run();
+    }
 }
 
 bool Manager::init(const char* conf_path) {
@@ -121,8 +123,9 @@ bool Manager::load_network() {
 }
 
 void Manager::on_terminated(ev_signal* s) {
-    if (s == nullptr) return;
-
+    if (s == nullptr) {
+        return;
+    }
     LOG_WARNING("%s terminated by signal %d!",
                 m_conf("server_name").c_str(), s->signum);
     SAFE_DELETE(s);
@@ -195,7 +198,7 @@ bool Manager::create_worker(int worker_index) {
         close(ctrl_fds[0]);
         close(data_fds[0]);
 
-        WorkInfo info;
+        WorkerInfo info;
         info.work_path = m_node_info.work_path;
         info.ctrl_fd = ctrl_fds[1];
         info.data_fd = data_fds[1];
@@ -212,10 +215,17 @@ bool Manager::create_worker(int worker_index) {
     } else if (pid > 0) {  // parent
         close(ctrl_fds[1]);
         close(data_fds[1]);
-        m_net->add_conncted_read_event(ctrl_fds[0], true);
-        m_net->add_conncted_read_event(data_fds[0], true);
 
-        m_worker_data_mgr.add_worker_info(worker_index, pid, ctrl_fds[0], data_fds[0]);
+        if (!m_net->add_conncted_read_event(ctrl_fds[0], true) ||
+            !m_net->add_conncted_read_event(data_fds[0], true)) {
+            m_net->close_conn(ctrl_fds[0]);
+            m_net->close_conn(data_fds[0]);
+            LOG_CRIT("chanel fd add event failed! kill child: %d", pid);
+            kill(pid, SIGKILL);
+        }
+
+        m_worker_data_mgr.add_worker_info(
+            worker_index, pid, ctrl_fds[0], data_fds[0]);
         LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
         return true;
     } else {

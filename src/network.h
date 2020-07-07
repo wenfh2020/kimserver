@@ -28,6 +28,7 @@ class Network : public IEventsCallback {
     bool create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
     // for worker.
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
+
     void destory();
 
     // events.
@@ -41,8 +42,6 @@ class Network : public IEventsCallback {
     bool close_conn(int fd);
 
     // owner type
-    TYPE get_type() { return m_type; }
-    void set_type(TYPE type) { m_type = type; }
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
@@ -69,17 +68,19 @@ class Network : public IEventsCallback {
     int get_new_seq() { return ++m_seq; }
 
    private:
-    Log* m_logger = nullptr;                       // log manager.
-    Events* m_events = nullptr;                    // libev's events manager.
-    uint64_t m_seq = 0;                            // sequence.
-    char m_err[ANET_ERR_LEN];                      // error string.
-    int m_bind_fd = -1;                            // inner servers contact each other.
-    int m_gate_bind_fd = -1;                       // gate bind fd for client.
-    std::unordered_map<int, Connection*> m_conns;  // key:fd, value: connection
-    int m_manager_ctrl_fd = -1;                    // chanel fd use for worker.
-    int m_manager_data_fd = -1;                    // chanel fd use for worker.
-    WorkerDataMgr* m_woker_data_mgr = nullptr;
-    TYPE m_type = TYPE::UNKNOWN;
+    Log* m_logger = nullptr;     // log manager.
+    Events* m_events = nullptr;  // libev's events manager.
+    uint64_t m_seq = 0;          // sequence.
+    char m_err[ANET_ERR_LEN];    // error string.
+
+    int m_bind_fd = -1;          // inner servers contact each other.
+    int m_gate_bind_fd = -1;     // gate bind fd for client.
+    int m_manager_ctrl_fd = -1;  // chanel fd use for worker.
+    int m_manager_data_fd = -1;  // chanel fd use for worker.
+
+    TYPE m_type = TYPE::UNKNOWN;                   // owner type
+    WorkerDataMgr* m_woker_data_mgr = nullptr;     // manager handle worker data.
+    std::unordered_map<int, Connection*> m_conns;  // key: fd, value: connection.
 };
 
 }  // namespace kim

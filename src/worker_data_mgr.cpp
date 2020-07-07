@@ -20,7 +20,7 @@ WorkerDataMgr::~WorkerDataMgr() {
 }
 
 void WorkerDataMgr::add_worker_info(int index, int pid, int ctrl_fd, int data_fd) {
-    WorkInfo* info = new WorkInfo;
+    WorkerInfo* info = new WorkerInfo;
     info->pid = pid;
     info->index = index;
     info->ctrl_fd = ctrl_fd;
@@ -49,7 +49,7 @@ bool WorkerDataMgr::remove_worker_info(int pid) {
         return false;
     }
 
-    WorkInfo* info = it->second;
+    WorkerInfo* info = it->second;
     if (info == nullptr) {
         m_worker_info.erase(it);
         return false;
@@ -81,7 +81,7 @@ bool WorkerDataMgr::get_worker_chanel(int pid, int* chs) {
         return false;
     }
 
-    WorkInfo* info = it->second;
+    WorkerInfo* info = it->second;
     chs[0] = info->ctrl_fd;
     chs[1] = info->data_fd;
     return true;

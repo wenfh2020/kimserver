@@ -14,8 +14,8 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 
-Network::Network(Log* logger, TYPE type) : m_logger(logger) {
-    set_type(type);
+Network::Network(Log* logger, TYPE type)
+    : m_logger(logger), m_type(type) {
 }
 
 Network::~Network() {
@@ -77,7 +77,6 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
         LOG_ERROR("create events failed!");
         return false;
     }
-
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
     LOG_INFO("create network done!");
@@ -97,11 +96,13 @@ bool Network::create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker
     }
 
     if (!add_conncted_read_event(fd1, is_worker)) {
+        close_conn(fd1);
         LOG_ERROR("add read event failed, fd: %d", fd1);
         goto error;
     }
 
     if (!add_conncted_read_event(fd2, is_worker)) {
+        close_conn(fd2);
         LOG_ERROR("add read event failed, fd: %d", fd2);
         goto error;
     }
@@ -121,20 +122,17 @@ error:
 
 bool Network::add_conncted_read_event(int fd, bool is_chanel) {
     if (anet_no_block(m_err, fd) != ANET_OK) {
-        close(fd);
         LOG_ERROR("set socket no block failed! fd: %d", fd);
         return false;
     }
 
     if (!is_chanel) {
         if (anet_keep_alive(m_err, fd, 100) != ANET_OK) {
-            close(fd);
             LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
             return false;
         }
 
         if (anet_set_tcp_no_delay(m_err, fd, 1) != ANET_OK) {
-            close(fd);
             LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
             return false;
         }
@@ -150,7 +148,6 @@ bool Network::add_conncted_read_event(int fd, bool is_chanel) {
 
     ev_io* w = c->get_ev_io();
     if (!m_events->add_read_event(fd, &w, this)) {
-        close_conn(c);
         LOG_ERROR("add read event failed! fd: %d", fd);
         return false;
     }
@@ -192,19 +189,16 @@ bool Network::close_conn(int fd) {
     }
 
     auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
-        LOG_WARNING("delele conn failed! fd: %d", fd);
-        return false;
+    if (it != m_conns.end()) {
+        Connection* c = it->second;
+        if (c != nullptr) {
+            m_events->del_event(c->get_ev_io());
+            SAFE_DELETE(c);
+        }
+        m_conns.erase(it);
     }
 
-    Connection* c = it->second;
-    if (c != nullptr) {
-        m_events->del_event(c->get_ev_io());
-        SAFE_DELETE(c);
-    }
-    m_conns.erase(it);
     close(fd);
-
     LOG_DEBUG("close fd: %d", fd);
     return true;
 }
@@ -231,7 +225,7 @@ int Network::listen_to_port(const char* bind, int port) {
         anet_no_block(NULL, fd);
     }
 
-    LOG_INFO("listen_to_port, %s:%d", bind, port);
+    LOG_INFO("listen to port, %s:%d", bind, port);
     return fd;
 }
 
@@ -346,9 +340,10 @@ void Network::accept_server_conn(int fd) {
     while (max--) {
         cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
         if (cfd == ANET_ERR) {
-            if (errno != EWOULDBLOCK)
+            if (errno != EWOULDBLOCK) {
                 LOG_ERROR("accepting client connection failed: fd: %d, error %s",
                           fd, m_err);
+            }
             return;
         }
 

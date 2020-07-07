@@ -55,18 +55,19 @@ class Connection {
     int conn_read(void* buf, size_t buf_len);
 
    private:
-    int m_fd = -1;
-    uint64_t m_id = 0;
-    void* m_private_data = nullptr;
-    CONN_STATE m_state = CONN_STATE::NONE;
-    int m_errno = 0;
-    std::string m_error;
-    ev_io* m_ev_io = nullptr;
-    ev_tstamp m_active_time = 0.0;
-    Codec m_codec;
+    int m_fd = -1;                          // socket fd.
+    uint64_t m_id = 0;                      // sequence.
+    void* m_private_data = nullptr;         // private data.
+    CONN_STATE m_state = CONN_STATE::NONE;  // connection status.
+    int m_errno = 0;                        // error number.
+    std::string m_error;                    // error string.
 
-    size_t m_qb_pos = 0;
-    sds m_query_buf;
+    ev_io* m_ev_io = nullptr;       // libev io event obj.
+    ev_tstamp m_active_time = 0.0;  // connection last active (read/write) time.
+
+    Codec m_codec;        // proto codec.
+    size_t m_qb_pos = 0;  // query buf position.
+    sds m_query_buf;      // query buf.
 };
 
 }  // namespace kim
