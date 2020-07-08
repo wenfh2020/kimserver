@@ -21,7 +21,7 @@ class Connection {
         ERROR
     };
 
-    Connection(int fd = -1, uint64_t id = 0);
+    Connection(int fd, uint64_t id);
     virtual ~Connection();
 
     void set_fd(int fd) { m_fd = fd; }

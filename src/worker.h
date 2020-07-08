@@ -3,7 +3,7 @@
 
 #include "network.h"
 #include "node_info.h"
-#include "util/CJsonObject.hpp"
+#include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
 
 namespace kim {

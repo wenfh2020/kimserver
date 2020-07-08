@@ -4,6 +4,7 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "codec/codec.h"
 #include "context.h"
 #include "events.h"
 #include "events_callback.h"
@@ -50,6 +51,8 @@ class Network : public IEventsCallback {
     void on_io_write(int fd) override;
     void on_io_error(int fd) override;
 
+    bool set_gate_codec_type(Codec::CODEC_TYPE type);
+
    private:
     bool create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker);
 
@@ -81,6 +84,8 @@ class Network : public IEventsCallback {
     TYPE m_type = TYPE::UNKNOWN;                   // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;     // manager handle worker data.
     std::unordered_map<int, Connection*> m_conns;  // key: fd, value: connection.
+
+    Codec::CODEC_TYPE m_gate_codec_type = Codec::CODEC_TYPE::PROTOBUF;
 };
 
 }  // namespace kim

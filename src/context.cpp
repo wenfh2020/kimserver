@@ -24,13 +24,12 @@ int Connection::conn_read(void *buf, size_t buf_len) {
         m_errno = errno;
         m_state = CONN_STATE::ERROR;
     }
-
     return ret;
 }
 
 int Connection::read_data() {
-    int nread, readlen;
     size_t qblen;
+    int nread, readlen;
 
     readlen = PROTO_IOBUF_LEN;
     qblen = sdslen(m_query_buf);

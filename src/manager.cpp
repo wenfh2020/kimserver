@@ -50,6 +50,7 @@ bool Manager::init(const char* conf_path) {
 
     create_workers();
     set_proc_title("%s", m_conf("server_name").c_str());
+
     LOG_INFO("init manager success!");
     return true;
 }
@@ -114,11 +115,17 @@ bool Manager::load_network() {
     }
 
     if (!m_net->create(&m_node_info.addr_info, this, &m_worker_data_mgr)) {
+        SAFE_DELETE(m_net);
         LOG_ERROR("init network fail!");
         return false;
     }
 
-    LOG_INFO("init network done!");
+    int codec = 0;
+    if (m_conf.Get("gate_codec", codec)) {
+        m_net->set_gate_codec_type(static_cast<Codec::CODEC_TYPE>(codec));
+    }
+    LOG_DEBUG("gate codec: %d", codec);
+
     return true;
 }
 

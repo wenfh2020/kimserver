@@ -1,8 +1,8 @@
 # kimserver
 
-Kimserver is an async c++ multiple processes (one master process and one or more worker processes) high performance server.
+Kimserver is an async tcp multiple processes (one master process and one or more worker processes) high performance server.
 
-> **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [nginx](https://github.com/nginx/nginx).
+> **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [nginx](https://github.com/nginx/nginx) / [http-parser](https://github.com/nodejs/http-parser).
 
 ---
 
@@ -35,6 +35,7 @@ work on Linux / MacOS
     "port": 3344,
     "gate_bind": "127.0.0.1",
     "gate_port": 3355,
+    "gate_codec": 1,
     "log_path": "kimserver.log",
     "log_level": "debug"
 }
@@ -49,5 +50,6 @@ work on Linux / MacOS
 | port             | bind port.                                                                                        |
 | gate_bind        | host for user's client contact.                                                                   |
 | gate_port        | gate_bind's port.                                                                                 |
+| gate_codec       | protobuf:1, http: 2, private: 3.                                                                  |
 | log_path         | log file path.                                                                                    |
 | log_level        | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |

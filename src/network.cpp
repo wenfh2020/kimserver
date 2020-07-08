@@ -192,6 +192,7 @@ bool Network::close_conn(int fd) {
     if (it != m_conns.end()) {
         Connection* c = it->second;
         if (c != nullptr) {
+            c->set_state(Connection::CONN_STATE::CLOSED);
             m_events->del_event(c->get_ev_io());
             SAFE_DELETE(c);
         }
@@ -310,6 +311,11 @@ void Network::read_query_from_client(int fd) {
         return;
     }
 
+    if (c->get_codec().get_codec_type() == Codec::CODEC_TYPE::HTTP) {
+    } else {
+        // protobuf.
+    }
+
     // connection read data.
     int read_len = c->read_data();
     if (read_len == 0) {
@@ -357,7 +363,7 @@ void Network::accept_server_conn(int fd) {
     }
 }
 
-// manager accept new fd and then transfer it to worker.
+// manager accept new fd and transfer which to worker through chanel.
 void Network::accept_and_transfer_fd(int fd) {
     int cport, cfd, family;
     char cip[NET_IP_STR_LEN] = {0};
@@ -370,23 +376,20 @@ void Network::accept_and_transfer_fd(int fd) {
         return;
     }
 
-    LOG_INFO("accepted: %s:%d", cip, cport);
+    LOG_DEBUG("accepted: %s:%d", cip, cport);
 
     int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd > 0) {
-        LOG_DEBUG("send new fd: %d to worker communication fd %d", cfd, chanel_fd);
-        channel_t ch = {cfd, family, 1};
+        LOG_DEBUG("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
+        channel_t ch = {cfd, family, static_cast<int>(m_gate_codec_type)};
         int err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
             LOG_ERROR("write channel failed! errno: %d", err);
-            goto error;
         }
-        close(cfd);
-        return;
+    } else {
+        LOG_ERROR("find next worker chanel failed!");
     }
 
-error:
-    LOG_ERROR("write channel failed!");
     close(cfd);
 }
 
@@ -396,7 +399,7 @@ void Network::read_transfer_fd(int fd) {
     int err, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
-        // recv fd from manager.
+        // read fd from manager.
         err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
             if (err != EAGAIN) {
@@ -422,6 +425,15 @@ void Network::end_ev_loop() {
     if (m_events != nullptr) {
         m_events->end_ev_loop();
     }
+}
+
+bool Network::set_gate_codec_type(Codec::CODEC_TYPE type) {
+    if (type < Codec::CODEC_TYPE::UNKNOWN ||
+        type >= Codec::CODEC_TYPE::COUNT) {
+        return false;
+    }
+    m_gate_codec_type = type;
+    return true;
 }
 
 }  // namespace kim

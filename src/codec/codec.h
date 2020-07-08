@@ -10,6 +10,7 @@ class Codec {
         PROTOBUF,
         HTTP,
         PRIVATE,
+        COUNT,
     };
 
     enum class CODEC_STATUS {
@@ -21,7 +22,7 @@ class Codec {
     Codec() {}
     virtual ~Codec() {}
 
-    void set_codec_type(CODEC_TYPE type) { m_codec_type = type; }
+    bool set_codec_type(CODEC_TYPE type);
     CODEC_TYPE get_codec_type() { return m_codec_type; }
 
    private:
