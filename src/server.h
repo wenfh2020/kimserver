@@ -47,7 +47,7 @@ namespace kim {
 #define LOG_ALERT(args...) LOG_FORMAT((Log::LL_ALERT), ##args)
 #define LOG_CRIT(args...) LOG_FORMAT((Log::LL_CRIT), ##args)
 #define LOG_ERROR(args...) LOG_FORMAT((Log::LL_ERR), ##args)
-#define LOG_WARNING(args...) LOG_FORMAT((Log::LL_WARNING), ##args)
+#define LOG_WARN(args...) LOG_FORMAT((Log::LL_WARNING), ##args)
 #define LOG_NOTICE(args...) LOG_FORMAT((Log::LL_NOTICE), ##args)
 #define LOG_INFO(args...) LOG_FORMAT((Log::LL_INFO), ##args)
 #define LOG_DEBUG(args...) LOG_FORMAT((Log::LL_DEBUG), ##args)

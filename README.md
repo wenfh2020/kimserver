@@ -8,9 +8,8 @@ Kimserver is an async tcp multiple processes (one master process and one or more
 
 ## 1. environment
 
-* install g++.
-* install `libev`.
 * enable c++11.
+* install g++ / libev / protobuf / cryptopp.
 
 ---
 

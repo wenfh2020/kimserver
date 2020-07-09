@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void daemonize();
+const char* to_lower(const char* s, int len);
 
 #ifdef __cplusplus
 }

@@ -234,11 +234,11 @@ void Network::close_chanel(int* fds) {
     LOG_DEBUG("close chanel, fd0: %d, fd1: %d", fds[0], fds[1]);
 
     if (close(fds[0]) == -1) {
-        LOG_WARNING("close channel failed, fd: %d.", fds[0]);
+        LOG_WARN("close channel failed, fd: %d.", fds[0]);
     }
 
     if (close(fds[1]) == -1) {
-        LOG_WARNING("close channel failed, fd: %d.", fds[1]);
+        LOG_WARN("close channel failed, fd: %d.", fds[1]);
     }
 }
 
@@ -301,7 +301,7 @@ void Network::on_io_read(int fd) {
 void Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
-        LOG_WARNING("find connection failed, fd: %d", fd);
+        LOG_WARN("find connection failed, fd: %d", fd);
         return;
     }
 
@@ -311,10 +311,10 @@ void Network::read_query_from_client(int fd) {
         return;
     }
 
-    if (c->get_codec().get_codec_type() == Codec::CODEC_TYPE::HTTP) {
-    } else {
-        // protobuf.
-    }
+    // if (c->get_codec().get_codec_type() == Codec::TYPE::HTTP) {
+    // } else {
+    //     // protobuf.
+    // }
 
     // connection read data.
     int read_len = c->read_data();
@@ -371,7 +371,7 @@ void Network::accept_and_transfer_fd(int fd) {
     cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
     if (cfd == ANET_ERR) {
         if (errno != EWOULDBLOCK) {
-            LOG_WARNING("accepting client connection: %s", m_err);
+            LOG_WARN("accepting client connection: %s", m_err);
         }
         return;
     }
@@ -427,9 +427,9 @@ void Network::end_ev_loop() {
     }
 }
 
-bool Network::set_gate_codec_type(Codec::CODEC_TYPE type) {
-    if (type < Codec::CODEC_TYPE::UNKNOWN ||
-        type >= Codec::CODEC_TYPE::COUNT) {
+bool Network::set_gate_codec_type(Codec::TYPE type) {
+    if (type < Codec::TYPE::UNKNOWN ||
+        type >= Codec::TYPE::COUNT) {
         return false;
     }
     m_gate_codec_type = type;

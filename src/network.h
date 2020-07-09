@@ -51,7 +51,7 @@ class Network : public IEventsCallback {
     void on_io_write(int fd) override;
     void on_io_error(int fd) override;
 
-    bool set_gate_codec_type(Codec::CODEC_TYPE type);
+    bool set_gate_codec_type(Codec::TYPE type);
 
    private:
     bool create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker);
@@ -71,7 +71,7 @@ class Network : public IEventsCallback {
     int get_new_seq() { return ++m_seq; }
 
    private:
-    Log* m_logger = nullptr;     // log manager.
+    Log* m_logger = nullptr;     // logger.
     Events* m_events = nullptr;  // libev's events manager.
     uint64_t m_seq = 0;          // sequence.
     char m_err[ANET_ERR_LEN];    // error string.
@@ -85,7 +85,7 @@ class Network : public IEventsCallback {
     WorkerDataMgr* m_woker_data_mgr = nullptr;     // manager handle worker data.
     std::unordered_map<int, Connection*> m_conns;  // key: fd, value: connection.
 
-    Codec::CODEC_TYPE m_gate_codec_type = Codec::CODEC_TYPE::PROTOBUF;
+    Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
 };
 
 }  // namespace kim

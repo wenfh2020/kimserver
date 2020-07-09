@@ -25,17 +25,14 @@ kill_process $server
 
 [ $# -gt 0 ] && [ $1 == "kill" ] && exit 1
 
-echo '------------'
-
 cd $work_path/src
 [ $# -gt 0 ] && [ $1 == "all" ] && make clean
 make
-
 res=$?
-
-echo '------------'
+[ $# -gt 0 ] && [ $1 == "build" ] && exit 1
 
 if [ $res -eq 0 ]; then
+    echo '------------'
     cd $work_path/bin
     ./$server config.json
     cat_process $server

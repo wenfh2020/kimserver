@@ -49,7 +49,7 @@ class Connection {
     int read_data();
     const char* get_query_data() { return m_query_buf; }
 
-    Codec& get_codec() { return m_codec; }
+    // Codec& get_codec() { return m_codec; }
 
    private:
     int conn_read(void* buf, size_t buf_len);
@@ -65,7 +65,7 @@ class Connection {
     ev_io* m_ev_io = nullptr;       // libev io event obj.
     ev_tstamp m_active_time = 0.0;  // connection last active (read/write) time.
 
-    Codec m_codec;        // proto codec.
+    // Codec m_codec;        // proto codec.
     size_t m_qb_pos = 0;  // query buf position.
     sds m_query_buf;      // query buf.
 };

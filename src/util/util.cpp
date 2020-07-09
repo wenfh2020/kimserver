@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,4 +19,11 @@ void daemonize(void) {
         dup2(fd, STDERR_FILENO);
         if (fd > STDERR_FILENO) close(fd);
     }
+}
+
+const char* to_lower(char* s, int len) {
+    for (size_t j = 0; j < len; j++) {
+        s[j] = tolower(s[j]);
+    }
+    return s;
 }

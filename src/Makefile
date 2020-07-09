@@ -9,12 +9,13 @@ SUB_DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
 DIRS := $(SUB_DIRS)
 
 
+
 INC := $(INC) \
        -I . \
        -I ./util
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
-          -lev \
+          -lev -lprotobuf -lcryptopp\
 
 CPP_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))
@@ -45,7 +46,7 @@ $(SERVER_NAME): $(OBJS)
 %.o:%.cpp
 	$(SERVER_CPP) $(INC) -c -o $@ $< 
 %.o:%.cc
-	$(SERVER_CC) $(INC) -c -o $@ $<
+	$(SERVER_CPP) $(INC) -c -o $@ $<
 %.o:%.c
 	$(SERVER_CC) $(INC)  -c -o $@ $<
 clean:

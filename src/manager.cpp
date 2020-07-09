@@ -122,7 +122,7 @@ bool Manager::load_network() {
 
     int codec = 0;
     if (m_conf.Get("gate_codec", codec)) {
-        m_net->set_gate_codec_type(static_cast<Codec::CODEC_TYPE>(codec));
+        m_net->set_gate_codec_type(static_cast<Codec::TYPE>(codec));
     }
     LOG_DEBUG("gate codec: %d", codec);
 
@@ -133,8 +133,8 @@ void Manager::on_terminated(ev_signal* s) {
     if (s == nullptr) {
         return;
     }
-    LOG_WARNING("%s terminated by signal %d!",
-                m_conf("server_name").c_str(), s->signum);
+    LOG_WARN("%s terminated by signal %d!",
+             m_conf("server_name").c_str(), s->signum);
     SAFE_DELETE(s);
     destory();
     exit(s->signum);
