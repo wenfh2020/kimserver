@@ -2,6 +2,10 @@
 
 #include <cryptopp/gzip.h>
 
+#if defined(CRYPTOPP_NO_GLOBAL_BYTE)
+using CryptoPP::byte;
+#endif
+
 namespace kim {
 
 bool Codec::set_codec_type(Codec::TYPE type) {
@@ -25,13 +29,13 @@ Codec::STATUS Codec::decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBo
 bool Codec::gzip(const std::string& src, std::string& dst) {
     try {
         CryptoPP::Gzip zip;
-        zip.Put((CryptoPP::byte*)src.c_str(), src.size());
+        zip.Put((byte*)src.c_str(), src.size());
         zip.MessageEnd();
 
         CryptoPP::word64 avail = zip.MaxRetrievable();
         if (avail) {
             dst.resize(avail);
-            zip.Get((CryptoPP::byte*)&dst[0], dst.size());
+            zip.Get((byte*)&dst[0], dst.size());
         }
     } catch (CryptoPP::InvalidDataFormat& e) {
         LOG_ERROR("%s", e.GetWhat().c_str());
@@ -43,12 +47,12 @@ bool Codec::gzip(const std::string& src, std::string& dst) {
 bool Codec::ungzip(const std::string& src, std::string& dst) {
     try {
         CryptoPP::Gunzip zip;
-        zip.Put((CryptoPP::byte*)src.c_str(), src.size());
+        zip.Put((byte*)src.c_str(), src.size());
         zip.MessageEnd();
         CryptoPP::word64 avail = zip.MaxRetrievable();
         if (avail) {
             dst.resize(avail);
-            zip.Get((CryptoPP::byte*)&dst[0], dst.size());
+            zip.Get((byte*)&dst[0], dst.size());
         }
     } catch (CryptoPP::InvalidDataFormat& e) {
         LOG_ERROR("%s", e.GetWhat().c_str());

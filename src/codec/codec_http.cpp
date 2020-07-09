@@ -65,9 +65,10 @@ static const char* status_string(int code) {
 
 namespace kim {
 
-#define CHECK_WRITE(x) \
-    if ((x) < 0) {     \
-        goto error;    \
+#define CHECK_WRITE(x)             \
+    if ((x) < 0) {                 \
+        LOG_ERROR("write error!"); \
+        goto error;                \
     }
 
 CodecHttp::CodecHttp(Log* logger, Codec::TYPE type, double keep_alive)
@@ -132,7 +133,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
         }
 
         schema = msg.url().substr(0, msg.url().find_first_of(':'));
-        if (strcasecmp(schema.c_str(), "https") == 0) {
+        if (schema == "https") {
             port = 443;
         }
 
@@ -172,8 +173,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     }
 
     for (auto itr = msg.headers().begin(); itr != msg.headers().end(); itr++) {
-        if (!strcasecmp("Host", itr->first.c_str()) ||
-            !strcasecmp("Content-Length", itr->first.c_str())) {
+        if (itr->first == "Host" || itr->first == "Content-Length") {
             continue;
         }
         if (m_http_headers.find(itr->first) != m_http_headers.end()) {
@@ -185,13 +185,11 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
         CHECK_WRITE(size = sbuf->_printf("%s: %s\r\n", itr->first.c_str(), itr->second.c_str()));
         writed_len += size;
 
-        if (!strcasecmp("Content-Encoding", itr->first.c_str()) &&
-            !strcasecmp("gzip", itr->second.c_str())) {
+        if (itr->first == "Content-Encoding" && itr->second == "gzip") {
             is_gzip = true;
         }
 
-        if (!strcasecmp("Transfer-Encoding", itr->first.c_str()) &&
-            !strcasecmp("chunked", itr->second.c_str())) {
+        if (itr->first == "Transfer-Encoding" && itr->second == "chunked") {
             is_chunked = true;
         }
     }
@@ -386,7 +384,7 @@ int CodecHttp::on_header_value(http_parser* parser, const char* at, size_t len) 
         msg->set_keep_alive(atof(value.c_str()));
     } else if (header == "Connection") {
         if (value == "keep-alive") {
-            msg->set_keep_alive(-1);
+            msg->set_keep_alive(-1);  // timer logic will close it.
         } else if (value == "close") {
             msg->set_keep_alive(0.0);
         }
@@ -479,7 +477,7 @@ void CodecHttp::decode_params(const std::string& s,
     bool is_value = false;
     std::string key, value;
 
-    for (int i = 0; i < s.size(); i++) {
+    for (size_t i = 0; i < s.size(); i++) {
         if (s[i] == '&') {
             if (key.size() > 0) {
                 params[key] = value;
