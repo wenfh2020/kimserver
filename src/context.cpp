@@ -19,10 +19,10 @@ Connection::~Connection() {
 int Connection::conn_read(void *buf, size_t buf_len) {
     int ret = read(m_fd, buf, buf_len);
     if (!ret) {
-        m_state = CONN_STATE::CLOSED;
+        m_state = STATE::CLOSED;
     } else if (ret < 0 && errno != EAGAIN) {
         m_errno = errno;
-        m_state = CONN_STATE::ERROR;
+        m_state = STATE::ERROR;
     }
     return ret;
 }

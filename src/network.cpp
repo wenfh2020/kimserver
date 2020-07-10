@@ -144,7 +144,7 @@ bool Network::add_conncted_read_event(int fd, bool is_chanel) {
         return false;
     }
     c->set_active_time(m_events->get_now_time());
-    c->set_state(Connection::CONN_STATE::CONNECTED);
+    c->set_state(Connection::STATE::CONNECTED);
 
     ev_io* w = c->get_ev_io();
     if (!m_events->add_read_event(fd, &w, this)) {
@@ -192,7 +192,7 @@ bool Network::close_conn(int fd) {
     if (it != m_conns.end()) {
         Connection* c = it->second;
         if (c != nullptr) {
-            c->set_state(Connection::CONN_STATE::CLOSED);
+            c->set_state(Connection::STATE::CLOSED);
             m_events->del_event(c->get_ev_io());
             SAFE_DELETE(c);
         }
