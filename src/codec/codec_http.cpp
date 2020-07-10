@@ -88,8 +88,8 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, const MsgHead& head, const M
 
 Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     LOG_DEBUG("readable len: %d, read index: %d, write index: %d",
-              sbuf->get_readable_len(), sbuf->get_read_index(),
-              sbuf->get_write_index());
+              sbuf->get_readable_len(), sbuf->get_read_index(), sbuf->get_write_index());
+
     if (++m_encode_cnt > m_decode_cnt) {
         m_is_client = true;
     }
@@ -158,10 +158,9 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
             goto error;
         }
 
-        size = sbuf->_printf(
-            "HTTP/%u.%u %u %s\r\n",
-            m_http_major, m_http_minor,
-            msg.status_code(), status_string(msg.status_code()));
+        size = sbuf->_printf("HTTP/%u.%u %u %s\r\n",
+                             m_http_major, m_http_minor,
+                             msg.status_code(), status_string(msg.status_code()));
         CHECK_WRITE(size);
         writed_len += size;
 

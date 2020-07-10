@@ -22,7 +22,7 @@ void daemonize(void) {
 }
 
 const char* to_lower(char* s, int len) {
-    for (size_t j = 0; j < len; j++) {
+    for (int j = 0; j < len; j++) {
         s[j] = tolower(s[j]);
     }
     return s;
