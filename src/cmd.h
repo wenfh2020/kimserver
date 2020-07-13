@@ -8,19 +8,23 @@ namespace kim {
 class Cmd {
    public:
     enum class STATUS {
-        OK = 0,
-        RUNNING = 1,
-        COMPLETED = 2,
-        ERROR = 3,
+        UNKOWN = 0,
+        OK = 1,
+        RUNNING = 2,
+        COMPLETED = 3,
+        ERROR = 4,
     };
 
-    Cmd(Request* req, uint64_t id);
+    Cmd();
+    Cmd(Request* req, uint64_t id, const std::string& name);
     Cmd(const Cmd&) = delete;
     Cmd& operator=(const Cmd&) = delete;
     virtual ~Cmd();
 
+    void init(Request* req, uint64_t id, const std::string& name);
+
     virtual Cmd::STATUS time_out() { return Cmd::STATUS::OK; }
-    virtual Cmd::STATUS call_back(Request* req) { return Cmd::STATUS::OK; }
+    virtual Cmd::STATUS call_back(const Request* req) { return Cmd::STATUS::OK; }
 
     uint64_t get_id() { return m_id; }
     Request* get_req() { return m_req; }
@@ -29,8 +33,8 @@ class Cmd {
     std::string get_cmd_name() { return m_cmd_name; }
 
    private:
-    uint64_t m_id;
-    Request* m_req;
+    uint64_t m_id = 0;
+    Request* m_req = nullptr;
     std::string m_cmd_name;
 };
 

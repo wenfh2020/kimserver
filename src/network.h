@@ -26,7 +26,8 @@ class Network : public IEventsCallback {
     virtual ~Network();
 
     // for manager.
-    bool create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMgr* m);
+    bool create(const AddrInfo* addr_info,
+                Codec::TYPE code_type, ISignalCallBack* s, WorkerDataMgr* m);
     // for worker.
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
 
@@ -35,7 +36,7 @@ class Network : public IEventsCallback {
     // events.
     void run();
     void end_ev_loop();
-    bool add_conncted_read_event(int fd, bool is_chanel = false);
+    bool add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel = false);
 
     // socket.
     void close_chanel(int* fds);
@@ -54,7 +55,8 @@ class Network : public IEventsCallback {
     bool set_gate_codec_type(Codec::TYPE type);
 
    private:
-    bool create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker);
+    bool create_events(ISignalCallBack* s, int fd1, int fd2,
+                       Codec::TYPE codec_type, bool is_worker);
 
     // socket
     int listen_to_port(const char* bind, int port);

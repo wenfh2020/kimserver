@@ -4,9 +4,11 @@
 #include <unistd.h>
 
 #include "context.h"
+#include "module.h"
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "server.h"
+#include "util/util.h"
 
 namespace kim {
 
@@ -34,7 +36,8 @@ void Network::run() {
     }
 }
 
-bool Network::create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMgr* m) {
+bool Network::create(const AddrInfo* addr_info,
+                     Codec::TYPE code_type, ISignalCallBack* s, WorkerDataMgr* m) {
     int fd = -1;
     if (addr_info == nullptr || s == nullptr || m == nullptr) {
         return false;
@@ -63,7 +66,7 @@ bool Network::create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMg
     LOG_INFO("listen fds, bind fd: %d, gate bind fd: %d",
              m_bind_fd, m_gate_bind_fd);
 
-    if (!create_events(s, m_bind_fd, m_gate_bind_fd, false)) {
+    if (!create_events(s, m_bind_fd, m_gate_bind_fd, code_type, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -73,7 +76,7 @@ bool Network::create(const AddrInfo* addr_info, ISignalCallBack* s, WorkerDataMg
 }
 
 bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
-    if (!create_events(s, ctrl_fd, data_fd, true)) {
+    if (!create_events(s, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -83,7 +86,8 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
     return true;
 }
 
-bool Network::create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker) {
+bool Network::create_events(ISignalCallBack* s, int fd1, int fd2,
+                            Codec::TYPE codec_type, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -95,15 +99,10 @@ bool Network::create_events(ISignalCallBack* s, int fd1, int fd2, bool is_worker
         goto error;
     }
 
-    if (!add_conncted_read_event(fd1, is_worker)) {
+    if (!add_read_event(fd1, codec_type, is_worker) ||
+        !add_read_event(fd2, codec_type, is_worker)) {
         close_conn(fd1);
-        LOG_ERROR("add read event failed, fd: %d", fd1);
-        goto error;
-    }
-
-    if (!add_conncted_read_event(fd2, is_worker)) {
-        close_conn(fd2);
-        LOG_ERROR("add read event failed, fd: %d", fd2);
+        LOG_ERROR("add read event failed, fd1: %d, fd2: %d", fd1, fd2);
         goto error;
     }
 
@@ -120,7 +119,7 @@ error:
     return false;
 }
 
-bool Network::add_conncted_read_event(int fd, bool is_chanel) {
+bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     if (anet_no_block(m_err, fd) != ANET_OK) {
         LOG_ERROR("set socket no block failed! fd: %d", fd);
         return false;
@@ -131,7 +130,6 @@ bool Network::add_conncted_read_event(int fd, bool is_chanel) {
             LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
             return false;
         }
-
         if (anet_set_tcp_no_delay(m_err, fd, 1) != ANET_OK) {
             LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
             return false;
@@ -143,7 +141,8 @@ bool Network::add_conncted_read_event(int fd, bool is_chanel) {
         LOG_ERROR("add chanel event failed! fd: %d", fd);
         return false;
     }
-    c->set_active_time(m_events->get_now_time());
+    c->init(codec_type);
+    c->set_active_time(mstime());
     c->set_state(Connection::STATE::CONNECTED);
 
     ev_io* w = c->get_ev_io();
@@ -164,7 +163,7 @@ Connection* Network::create_conn(int fd) {
     }
 
     uint64_t seq = get_new_seq();
-    Connection* c = new Connection(fd, seq);
+    Connection* c = new Connection(m_logger, fd, seq);
     if (c == nullptr) {
         LOG_ERROR("new connection failed! fd: %d", fd);
         return nullptr;
@@ -245,16 +244,14 @@ void Network::close_chanel(int* fds) {
 void Network::close_conns() {
     LOG_DEBUG("close_conns(), cnt: %d", m_conns.size());
 
-    auto it = m_conns.begin();
-    for (; it != m_conns.end(); it++) {
-        close_conn(it->second);
+    for (const auto& it : m_conns) {
+        close_conn(it.second);
     }
 }
 
 void Network::close_fds() {
-    auto it = m_conns.begin();
-    for (; it != m_conns.end(); it++) {
-        Connection* c = static_cast<Connection*>(it->second);
+    for (const auto& it : m_conns) {
+        Connection* c = static_cast<Connection*>(it.second);
         int fd = c->get_fd();
         if (fd != -1) {
             close(fd);
@@ -300,40 +297,68 @@ void Network::on_io_read(int fd) {
 
 void Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
+    if (it == m_conns.end() || it->second == nullptr) {
         LOG_WARN("find connection failed, fd: %d", fd);
         return;
     }
 
     Connection* c = it->second;
-    if (c == nullptr) {
-        LOG_ERROR("connection is null! fd: %d", fd);
+    if (!c->is_active()) {
         return;
     }
 
-    // if (c->get_codec().get_codec_type() == Codec::TYPE::HTTP) {
-    // } else {
-    //     // protobuf.
-    // }
+    int read_len = 0;
+    Codec::STATUS status;
 
-    // connection read data.
-    int read_len = c->read_data();
-    if (read_len == 0) {
-        close_conn(c);
-        LOG_DEBUG("connection closed, fd: %d", fd);
-        return;
-    }
-
-    if (read_len < 0) {
-        if ((read_len == -1) && (c->is_active())) {  // EAGAIN
+    if (c->is_http_codec()) {
+        // recv
+        read_len = c->conn_read();
+        if (read_len == 0) {
+            LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
+                      c->get_fd(), errno, strerror(errno));
+            c->set_state(Connection::STATE::CLOSED);
+            close_conn(c);
             return;
         }
-        close_conn(c);
-        LOG_DEBUG("client closed connection! fd: %d", fd);
-        return;
+
+        if (read_len < 0 && errno != EAGAIN) {
+            LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
+                      c->get_fd(), errno, strerror(errno));
+            c->set_state(Connection::STATE::ERROR);
+            close_conn(c);
+            return;
+        }
+
+        // process_input_buffer
+
+        HttpMsg msg;
+        status = c->decode(&msg);
+        if (status == Codec::STATUS::OK) {
+        }
+
+        LOG_DEBUG("connection is http codec type");
+    } else {
+        LOG_DEBUG("connection is not http codec type");
     }
 
-    c->set_active_time(m_events->get_now_time());
+    // connection read data.
+    // int read_len = c->read_data();
+    // if (read_len == 0) {
+    //     close_conn(c);
+    //     LOG_DEBUG("connection closed, fd: %d", fd);
+    //     return;
+    // }
+
+    // if (read_len < 0) {
+    //     if ((read_len == -1) && (c->is_active())) {  // EAGAIN
+    //         return;
+    //     }
+    //     close_conn(c);
+    //     LOG_DEBUG("client closed connection! fd: %d", fd);
+    //     return;
+    // }
+
+    c->set_active_time(mstime());
 
     // analysis data.
     LOG_DEBUG("recv data: %s", c->get_query_data());
@@ -355,7 +380,7 @@ void Network::accept_server_conn(int fd) {
 
         LOG_DEBUG("accepted %s:%d", cip, cport);
 
-        if (!add_conncted_read_event(cfd)) {
+        if (!add_read_event(cfd, Codec::TYPE::PROTOBUF)) {
             close_conn(cfd);
             LOG_ERROR("add data fd read event failed, fd: %d", cfd);
             return;
@@ -410,7 +435,7 @@ void Network::read_transfer_fd(int fd) {
             return;
         }
 
-        if (!add_conncted_read_event(ch.fd)) {
+        if (!add_read_event(ch.fd, static_cast<Codec::TYPE>(ch.codec))) {
             LOG_ERROR("add data fd read event failed, fd: %d", ch.fd);
             close_conn(fd);
             return;

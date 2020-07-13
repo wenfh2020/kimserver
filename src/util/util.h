@@ -7,6 +7,8 @@ extern "C" {
 
 void daemonize();
 const char* to_lower(const char* s, int len);
+long long mstime();  // millisecond
+long long ustime();  // microseconds
 
 #ifdef __cplusplus
 }

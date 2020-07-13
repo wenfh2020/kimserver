@@ -114,17 +114,21 @@ bool Manager::load_network() {
         return false;
     }
 
-    if (!m_net->create(&m_node_info.addr_info, this, &m_worker_data_mgr)) {
+    int codec = 0;
+    if (m_conf.Get("gate_codec", codec)) {
+        if (!m_net->set_gate_codec_type(static_cast<Codec::TYPE>(codec))) {
+            LOG_ERROR("invalid codec: %d", codec);
+            return false;
+        }
+    }
+    LOG_DEBUG("gate codec: %d", codec);
+
+    if (!m_net->create(&m_node_info.addr_info,
+                       static_cast<Codec::TYPE>(codec), this, &m_worker_data_mgr)) {
         SAFE_DELETE(m_net);
         LOG_ERROR("init network fail!");
         return false;
     }
-
-    int codec = 0;
-    if (m_conf.Get("gate_codec", codec)) {
-        m_net->set_gate_codec_type(static_cast<Codec::TYPE>(codec));
-    }
-    LOG_DEBUG("gate codec: %d", codec);
 
     return true;
 }
@@ -223,8 +227,8 @@ bool Manager::create_worker(int worker_index) {
         close(ctrl_fds[1]);
         close(data_fds[1]);
 
-        if (!m_net->add_conncted_read_event(ctrl_fds[0], true) ||
-            !m_net->add_conncted_read_event(data_fds[0], true)) {
+        if (!m_net->add_read_event(ctrl_fds[0], Codec::TYPE::PROTOBUF, true) ||
+            !m_net->add_read_event(data_fds[0], Codec::TYPE::PROTOBUF, true)) {
             m_net->close_conn(ctrl_fds[0]);
             m_net->close_conn(data_fds[0]);
             LOG_CRIT("chanel fd add event failed! kill child: %d", pid);

@@ -94,7 +94,8 @@ bool Log::log_raw(const char* file_name, int file_line, const char* func_name, i
     gettimeofday(&tv, NULL);
     off = strftime(buf, sizeof(buf), "[%Y-%m-%d %H:%M:%S.", tm);
     snprintf(buf + off, sizeof(buf) - off, "%03d]", (int)tv.tv_usec / 1000);
-    fprintf(fp, "[%s][%d]%s[%s:%s:%d] %s\n", levels[level], (int)getpid(), buf, file_name, func_name, file_line, msg);
+    fprintf(fp, "[%s][%d]%s[%s:%s:%d] %s\n",
+            levels[level], (int)getpid(), buf, file_name, func_name, file_line, msg);
 
     fflush(fp);
     if (!m_path.empty()) fclose(fp);

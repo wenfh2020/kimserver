@@ -9,9 +9,8 @@ WorkerDataMgr::WorkerDataMgr() {
 }
 
 WorkerDataMgr::~WorkerDataMgr() {
-    auto it = m_worker_info.begin();
-    for (; it != m_worker_info.end(); it++) {
-        SAFE_DELETE(it->second);
+    for (auto& it : m_worker_info) {
+        SAFE_DELETE(it.second);
     }
 
     m_worker_info.clear();

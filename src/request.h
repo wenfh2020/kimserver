@@ -22,7 +22,7 @@ class Request {
     MsgBody* get_msg_body() { return m_msg_body; }
 
     void set_http_msg(HttpMsg* msg) { m_http_msg = msg; }
-    HttpMsg* get_http_msg() { return m_http_msg; }
+    const HttpMsg* get_http_msg() const { return m_http_msg; }
 
     void set_conn(Connection* c) { m_conn = c; }
     Connection* get_conn() { return m_conn; }

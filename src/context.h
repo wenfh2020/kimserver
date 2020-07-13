@@ -5,8 +5,11 @@
 
 #include <iostream>
 
-#include "codec/codec.h"
+#include "codec/codec_http.h"
+#include "proto/http.pb.h"
+#include "util/log.h"
 #include "util/sds.h"
+#include "util/socket_buffer.h"
 
 namespace kim {
 
@@ -21,53 +24,61 @@ class Connection {
         ERROR
     };
 
-    Connection(int fd, uint64_t id);
+    Connection(Log* logger, int fd, uint64_t id);
     virtual ~Connection();
 
-    void set_fd(int fd) { m_fd = fd; }
-    int get_fd() { return m_fd; }
+    bool init(Codec::TYPE code_type);
 
-    uint64_t get_id() { return m_id; }
+    void set_fd(int fd) { m_fd = fd; }
+    int get_fd() const { return m_fd; }
+
+    uint64_t get_id() const { return m_id; }
 
     void set_private_data(void* data) { m_private_data = data; }
-    void* get_private_data() { return m_private_data; }
+    void* get_private_data() const { return m_private_data; }
 
     void set_state(STATE state) { m_state = state; }
-    STATE get_state() { return m_state; }
+    STATE get_state() const { return m_state; }
     bool is_active() { return m_state == STATE::CONNECTED; }
     bool is_closed() { return m_state == STATE::CLOSED; }
 
     void set_errno(int err) { m_errno = err; }
-    void set_error(const std::string& error) { m_error = error; }
+    int get_errno() const { return m_errno; }
 
     void set_ev_io(ev_io* w) { m_ev_io = w; }
-    ev_io* get_ev_io() { return m_ev_io; }
+    ev_io* get_ev_io() const { return m_ev_io; }
 
-    void set_active_time(ev_tstamp t) { m_active_time = t; }
-    ev_tstamp get_active_time() { return m_active_time; }
+    void set_active_time(long long t) { m_active_time = t; }
+    long long get_active_time() const { return m_active_time; }
 
     int read_data();
-    const char* get_query_data() { return m_query_buf; }
+    const char* get_query_data() const { return m_query_buf; }
 
-    // Codec& get_codec() { return m_codec; }
+    bool is_http_codec();
+
+    int conn_read();
+    Codec::STATUS decode(HttpMsg* msg);
 
    private:
-    int conn_read(void* buf, size_t buf_len);
-
-   private:
-    int m_fd = -1;                   // socket fd.
     uint64_t m_id = 0;               // sequence.
+    Log* m_logger = nullptr;         // logger.
     void* m_private_data = nullptr;  // private data.
-    STATE m_state = STATE::NONE;     // connection status.
-    int m_errno = 0;                 // error number.
-    std::string m_error;             // error string.
 
-    ev_io* m_ev_io = nullptr;       // libev io event obj.
-    ev_tstamp m_active_time = 0.0;  // connection last active (read/write) time.
+    int m_fd = -1;                // socket fd.
+    STATE m_state = STATE::NONE;  // connection status.
+    int m_errno = 0;              // error number.
+
+    ev_io* m_ev_io = nullptr;     // libev io event obj.
+    long long m_active_time = 0;  // connection last active (read/write) time.
 
     // Codec m_codec;        // proto codec.
     size_t m_qb_pos = 0;  // query buf position.
     sds m_query_buf;      // query buf.
+
+    SocketBuffer* m_recv_buf;
+    SocketBuffer* m_send_buf;
+    SocketBuffer* m_wait_send_buf;
+    Codec* m_codec = nullptr;
 };
 
 }  // namespace kim

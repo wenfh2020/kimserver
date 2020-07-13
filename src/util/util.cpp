@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 void daemonize(void) {
@@ -26,4 +27,24 @@ const char* to_lower(char* s, int len) {
         s[j] = tolower(s[j]);
     }
     return s;
+}
+
+long long mstime() {
+    struct timeval tv;
+    long long mst;
+
+    gettimeofday(&tv, NULL);
+    mst = ((long long)tv.tv_sec) * 1000;
+    mst += tv.tv_usec / 1000;
+    return mst;
+}
+
+long long ustime() {
+    struct timeval tv;
+    long long ust;
+
+    gettimeofday(&tv, NULL);
+    ust = ((long)tv.tv_sec) * 1000000;
+    ust += tv.tv_usec;
+    return ust;
 }

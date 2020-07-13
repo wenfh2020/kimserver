@@ -171,24 +171,24 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
         m_http_headers["Server"] = "KimHttp";
     }
 
-    for (auto itr = msg.headers().begin(); itr != msg.headers().end(); itr++) {
-        if (itr->first == "Host" || itr->first == "Content-Length") {
+    for (const auto& it : msg.headers()) {
+        if (it.first == "Host" || it.first == "Content-Length") {
             continue;
         }
-        if (m_http_headers.find(itr->first) != m_http_headers.end()) {
-            m_http_headers[itr->first] = itr->second;
+        if (m_http_headers.find(it.first) != m_http_headers.end()) {
+            m_http_headers[it.first] = it.second;
         }
     }
 
-    for (auto itr = m_http_headers.begin(); itr != m_http_headers.end(); itr++) {
-        CHECK_WRITE(size = sbuf->_printf("%s: %s\r\n", itr->first.c_str(), itr->second.c_str()));
+    for (const auto& it : m_http_headers) {
+        CHECK_WRITE(size = sbuf->_printf("%s: %s\r\n", it.first.c_str(), it.second.c_str()));
         writed_len += size;
 
-        if (itr->first == "Content-Encoding" && itr->second == "gzip") {
+        if (it.first == "Content-Encoding" && it.second == "gzip") {
             is_gzip = true;
         }
 
-        if (itr->first == "Transfer-Encoding" && itr->second == "chunked") {
+        if (it.first == "Transfer-Encoding" && it.second == "chunked") {
             is_chunked = true;
         }
     }
@@ -454,10 +454,10 @@ std::string CodecHttp::to_string(const HttpMsg& msg) {
         }
     }
 
-    for (auto it = msg.headers().begin(); it != msg.headers().end(); it++) {
-        data += it->first;
+    for (const auto& it : msg.headers()) {
+        data += it.first;
         data += ":";
-        data += it->second;
+        data += it.second;
         data += "\r\n";
     }
     data += "\r\n";
