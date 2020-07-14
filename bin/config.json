@@ -6,7 +6,7 @@
     "port": 3344,
     "gate_bind": "127.0.0.1",
     "gate_port": 3355,
-    "gate_codec": 1,
+    "gate_codec": 2,
     "log_path": "kimserver.log",
     "log_level": "debug"
 }

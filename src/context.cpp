@@ -16,6 +16,9 @@ Connection::Connection(Log* logger, int fd, uint64_t id)
 
 Connection::~Connection() {
     sdsfree(m_query_buf);
+    SAFE_DELETE(m_recv_buf);
+    SAFE_DELETE(m_send_buf);
+    SAFE_DELETE(m_wait_send_buf);
 }
 
 bool Connection::init(Codec::TYPE code_type) {
@@ -90,6 +93,7 @@ int Connection::conn_read() {
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
               m_fd, ret, m_recv_buf->get_readable_len());
     if (ret > 0) {
+        // recovery socket buffer.
         if (m_recv_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
             m_recv_buf->get_readable_len() < m_recv_buf->capacity() / 2) {
             m_recv_buf->compact(m_recv_buf->get_readable_len() * 2);

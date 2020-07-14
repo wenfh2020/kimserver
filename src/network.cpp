@@ -5,6 +5,7 @@
 
 #include "context.h"
 #include "module.h"
+#include "module/module_core.h"
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "server.h"
@@ -15,6 +16,7 @@ namespace kim {
 #define TCP_BACK_LOG 511
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
+#define CORE_MODULE "core-module"
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -83,6 +85,12 @@ bool Network::create(ISignalCallBack* s, int ctrl_fd, int data_fd) {
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
     LOG_INFO("create network done!");
+
+    if (!load_modules()) {
+        LOG_ERROR("load module failed!");
+        return false;
+    }
+
     return true;
 }
 
@@ -291,54 +299,68 @@ void Network::on_io_read(int fd) {
             read_query_from_client(fd);
         }
     } else {
-        return read_query_from_client(fd);
+        read_query_from_client(fd);
     }
 }
 
-void Network::read_query_from_client(int fd) {
+bool Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end() || it->second == nullptr) {
         LOG_WARN("find connection failed, fd: %d", fd);
-        return;
+        return false;
     }
 
     Connection* c = it->second;
     if (!c->is_active()) {
-        return;
+        return false;
     }
 
     int read_len = 0;
     Codec::STATUS status;
 
+    // read data.
+    read_len = c->conn_read();
+    if (read_len == 0) {
+        LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
+                  fd, errno, strerror(errno));
+        c->set_state(Connection::STATE::CLOSED);
+        close_conn(c);
+        return false;
+    }
+
+    if (read_len < 0 && errno != EAGAIN) {
+        LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
+                  fd, errno, strerror(errno));
+        c->set_state(Connection::STATE::ERROR);
+        close_conn(c);
+        return false;
+    }
+
     if (c->is_http_codec()) {
-        // recv
-        read_len = c->conn_read();
-        if (read_len == 0) {
-            LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
-                      c->get_fd(), errno, strerror(errno));
-            c->set_state(Connection::STATE::CLOSED);
-            close_conn(c);
-            return;
-        }
-
-        if (read_len < 0 && errno != EAGAIN) {
-            LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
-                      c->get_fd(), errno, strerror(errno));
-            c->set_state(Connection::STATE::ERROR);
-            close_conn(c);
-            return;
-        }
-
-        // process_input_buffer
-
         HttpMsg msg;
-        status = c->decode(&msg);
+        status = c->decode(&msg);  // decode raw data.
         if (status == Codec::STATUS::OK) {
+            Request req(c, &msg);
+            for (Module* m : m_core_modules) {
+                LOG_DEBUG("module name: %s", m->get_name().c_str());
+                if (m->process_message(&req) != Cmd::STATUS::UNKOWN) {
+                    break;
+                }
+            }
+        } else {
+            if (status == Codec::STATUS::PAUSE) {
+                LOG_DEBUG("decode next time. fd: %d", fd);
+                return true;  // not enough data, and decode next time.
+            } else {
+                LOG_DEBUG("decode failed. fd: %d", fd);
+                close_conn(c);
+                return false;
+            }
         }
 
-        LOG_DEBUG("connection is http codec type");
+        LOG_DEBUG("connection is http codec type, status: %d", (int)status);
     } else {
-        LOG_DEBUG("connection is not http codec type");
+        // LOG_DEBUG("connection is not http codec type, status: %d", (int)status);
     }
 
     // connection read data.
@@ -361,7 +383,8 @@ void Network::read_query_from_client(int fd) {
     c->set_active_time(mstime());
 
     // analysis data.
-    LOG_DEBUG("recv data: %s", c->get_query_data());
+    // LOG_DEBUG("recv data: %s", c->get_query_data());
+    return true;
 }
 
 void Network::accept_server_conn(int fd) {
@@ -458,6 +481,18 @@ bool Network::set_gate_codec_type(Codec::TYPE type) {
         return false;
     }
     m_gate_codec_type = type;
+    return true;
+}
+
+bool Network::load_modules() {
+    // core module.
+    Module* p = new MoudleCore;
+    if (p == nullptr) {
+        return false;
+    }
+    p->init(m_logger);
+    p->set_name(CORE_MODULE);
+    m_core_modules.push_back(p);
     return true;
 }
 

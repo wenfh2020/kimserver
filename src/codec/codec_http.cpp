@@ -265,9 +265,8 @@ error:
 }
 
 Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
-    if (sbuf->is_readable()) {
-        // not enough data to decode.
-        return Codec::STATUS::PAUSE;
+    if (!sbuf->is_readable()) {
+        return Codec::STATUS::PAUSE;  // not enough data to decode.
     }
 
     ++m_decode_cnt;
@@ -416,7 +415,7 @@ int CodecHttp::on_chunk_complete(http_parser* parser) {
 
 int CodecHttp::on_message_complete(http_parser* parser) {
     HttpMsg* msg = (HttpMsg*)parser->data;
-    if (0 != parser->status_code) {
+    if (parser->status_code != 0) {
         msg->set_status_code(parser->status_code);
         msg->set_type(HTTP_RESPONSE);
     } else {

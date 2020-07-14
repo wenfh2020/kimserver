@@ -2,12 +2,14 @@
 #define __NETWORK_H__
 
 #include <iostream>
+#include <list>
 #include <unordered_map>
 
 #include "codec/codec.h"
 #include "context.h"
 #include "events.h"
 #include "events_callback.h"
+#include "module.h"
 #include "net/anet.h"
 #include "node_info.h"
 #include "worker_data_mgr.h"
@@ -32,6 +34,8 @@ class Network : public IEventsCallback {
     bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
 
     void destory();
+
+    bool load_modules();
 
     // events.
     void run();
@@ -63,7 +67,7 @@ class Network : public IEventsCallback {
     void accept_server_conn(int fd);
     void accept_and_transfer_fd(int fd);
     void read_transfer_fd(int fd);
-    void read_query_from_client(int fd);
+    bool read_query_from_client(int fd);
 
     // connection
     Connection* create_conn(int fd);
@@ -88,6 +92,7 @@ class Network : public IEventsCallback {
     std::unordered_map<int, Connection*> m_conns;  // key: fd, value: connection.
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
+    std::list<Module*> m_core_modules;
 };
 
 }  // namespace kim

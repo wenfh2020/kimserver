@@ -9,6 +9,7 @@ namespace kim {
 
 class Request {
    public:
+    Request() {}
     Request(Connection* c, MsgHead* head, MsgBody* body);
     Request(Connection* c, HttpMsg* msg);
     Request(const Request&) = delete;
@@ -30,9 +31,6 @@ class Request {
     void set_errno(int n) { m_errno = n; }
     int get_errno() { return m_errno; }
 
-    void set_error(const std::string& error) { m_error = error; }
-    std::string get_error() { return m_error; }
-
     void set_privdate(void* data) { m_privdata = data; }
     void* get_privdata() { return m_privdata; }
 
@@ -43,7 +41,6 @@ class Request {
     HttpMsg* m_http_msg = nullptr;  // http msg.
 
     int m_errno = -1;            // error number.
-    std::string m_error;         // error string.
     void* m_privdata = nullptr;  // private data.
 };
 
