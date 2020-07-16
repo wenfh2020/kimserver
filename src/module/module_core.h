@@ -8,7 +8,7 @@ namespace kim {
 
 class MoudleCore : public Module {
     BEGIN_HTTP_MAP()
-    HTTP_HANDLER("/kim/im/user/", CmdHello);
+    HTTP_HANDLER("/kim/im/user/", CmdHello, "hello");
     END_HTTP_MAP()
 };
 

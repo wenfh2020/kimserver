@@ -7,20 +7,12 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger) : Cmd(logger) {}
+    CmdHello() {}
     virtual ~CmdHello() {
         std::cout << "delete cmd hello" << std::endl;
     }
 
-    virtual Cmd::STATUS call_back(Request* req) {
-        LOG_DEBUG("cmd hello, http path");
-        const HttpMsg* msg = req->get_http_msg();
-        if (msg == nullptr) {
-            return Cmd::STATUS::ERROR;
-        }
-        LOG_DEBUG("cmd hello, http path: %s", msg->path().c_str());
-        return Cmd::STATUS::OK;
-    }
+    virtual Cmd::STATUS call_back(Request* req);
 };
 
 }  // namespace kim
