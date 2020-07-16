@@ -2,6 +2,7 @@
 #define __MODULE_H__
 
 #include "cmd.h"
+#include "net.h"
 #include "request.h"
 
 namespace kim {
@@ -19,7 +20,7 @@ class Module {
 
     virtual Cmd::STATUS process_message(Request* msg) { return Cmd::STATUS::UNKOWN; }
 
-    bool init(Log* logger);
+    bool init(Log* logger, INet* net);
     void set_version(int ver) { m_version = ver; }
     void set_name(const std::string& name) { m_name = name; }
     std::string get_name() { return m_name; }
@@ -31,6 +32,7 @@ class Module {
     std::string m_file_path;
     std::set<Cmd*> m_cmds;
     Log* m_logger = nullptr;
+    INet* m_net = nullptr;
 };
 
 #define BEGIN_HTTP_MAP()                                \
@@ -42,15 +44,24 @@ class Module {
         }                                               \
         std::string path = msg->path();
 
-#define HTTP_HANDLER(_path, _cmd)      \
-    if (path == (_path)) {             \
-        _cmd* p = new _cmd(m_logger);  \
-        auto it = m_cmds.insert(p);    \
-        if (it.second == false) {      \
-            delete p;                  \
-            return Cmd::STATUS::ERROR; \
-        }                              \
-        return p->call_back(req);      \
+#define HTTP_HANDLER(_path, _cmd, _name)        \
+    if (path == (_path)) {                      \
+        _cmd* p = new _cmd;                     \
+        p->init(m_logger, m_net);               \
+        p->set_net(m_net);                      \
+        p->set_cmd_name(_name);                 \
+        p->set_logger(m_logger);                \
+        Cmd::STATUS status = p->call_back(req); \
+        if (status == Cmd::STATUS::RUNNING) {   \
+            auto it = m_cmds.insert(p);         \
+            if (it.second == false) {           \
+                delete p;                       \
+                return Cmd::STATUS::ERROR;      \
+            }                                   \
+            return status;                      \
+        }                                       \
+        delete p;                               \
+        return status;                          \
     }
 
 #define END_HTTP_MAP()          \

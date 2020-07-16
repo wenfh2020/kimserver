@@ -10,12 +10,9 @@ namespace kim {
 
 Connection::Connection(Log* logger, int fd, uint64_t id)
     : m_id(id), m_logger(logger), m_fd(fd) {
-    m_query_buf = sdsempty();
-    m_qb_pos = 0;
 }
 
 Connection::~Connection() {
-    sdsfree(m_query_buf);
     SAFE_DELETE(m_recv_buf);
     SAFE_DELETE(m_send_buf);
     SAFE_DELETE(m_wait_send_buf);
@@ -48,32 +45,6 @@ bool Connection::init(Codec::TYPE code_type) {
     return true;
 }
 
-// int Connection::conn_read(void* buf, size_t buf_len) {
-//     int ret = read(m_fd, buf, buf_len);
-//     if (ret == 0) {
-//         m_state = STATE::CLOSED;
-//     } else if (ret < 0 && errno != EAGAIN) {
-//         m_state = STATE::ERROR;
-//     }
-//     m_errno = errno;
-//     return ret;
-// }
-
-int Connection::read_data() {
-    // size_t qblen;
-    // int nread, readlen;
-
-    // readlen = PROTO_IOBUF_LEN;
-    // qblen = sdslen(m_query_buf);
-    // m_query_buf = sdsMakeRoomFor(m_query_buf, readlen);
-    // nread = conn_read(m_query_buf + qblen, readlen);
-    // if (nread > 0) {
-    //     sdsIncrLen(m_query_buf, nread);
-    // }
-    // return nread;
-    return 0;
-}
-
 bool Connection::is_http_codec() {
     if (m_codec == nullptr) {
         return false;
@@ -81,18 +52,27 @@ bool Connection::is_http_codec() {
     return m_codec->get_codec_type() == Codec::TYPE::HTTP;
 }
 
-int Connection::conn_read() {
+Codec::STATUS Connection::conn_read(HttpMsg& msg) {
     if (m_recv_buf == nullptr) {
-        return 0;
+        return Codec::STATUS::ERR;
     }
 
-    int ret = 0;
-
-    ret = m_recv_buf->read_fd(m_fd, m_errno);
-    m_errno = errno;
+    int read_len = m_recv_buf->read_fd(m_fd, m_errno);
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
-              m_fd, ret, m_recv_buf->get_readable_len());
-    if (ret > 0) {
+              m_fd, read_len, m_recv_buf->get_readable_len());
+    if (read_len == 0) {
+        LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
+                  m_fd, errno, strerror(errno));
+        return Codec::STATUS::ERR;
+    }
+
+    if (read_len < 0 && errno != EAGAIN) {
+        LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
+                  m_fd, errno, strerror(errno));
+        return Codec::STATUS::ERR;
+    }
+
+    if (read_len > 0) {
         // recovery socket buffer.
         if (m_recv_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
             m_recv_buf->get_readable_len() < m_recv_buf->capacity() / 2) {
@@ -100,15 +80,64 @@ int Connection::conn_read() {
         }
         m_active_time = mstime();
     }
-    return ret;
-}
 
-Codec::STATUS Connection::decode(HttpMsg* msg) {
     CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
     }
-    return codec->decode(m_recv_buf, *msg);
+    return codec->decode(m_recv_buf, msg);
+}
+
+Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
+    if (is_closed()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        return Codec::STATUS::ERR;
+    }
+
+    int write_len;
+    Codec::STATUS status;
+
+    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+    if (codec == nullptr) {
+        return Codec::STATUS::ERR;
+    }
+    status = codec->encode(msg, m_send_buf);
+    if (status != Codec::STATUS::OK) {
+        LOG_DEBUG("encode http packed failed! fd: %d, seq: %llu, status: %d",
+                  m_fd, m_id, (int)status);
+        return status;
+    }
+
+    if (!m_send_buf->is_readable()) {
+        LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
+        return status;
+    }
+
+    write_len = m_send_buf->write_fd(m_fd, m_errno);
+    LOG_DEBUG("write to fd: %d, seq: %llu, write len: %d, readed data len: %d",
+              m_fd, m_id, write_len, m_send_buf->get_readable_len());
+    if (write_len >= 0) {
+        // recovery socket buffer.
+        if (m_send_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
+            m_send_buf->get_readable_len() < m_send_buf->capacity() / 2) {
+            m_send_buf->compact(m_send_buf->get_readable_len() * 2);
+        }
+        m_active_time = mstime();
+        return (m_send_buf->get_readable_len() > 0)
+                   ? Codec::STATUS::PAUSE
+                   : Codec::STATUS::OK;
+    } else {
+        if (m_errno == EAGAIN) {
+            m_active_time = mstime();
+            return Codec::STATUS::PAUSE;
+        }
+
+        LOG_ERROR("send data failed! fd: %d, seq: %llu, readable len: %d",
+                  m_fd, m_id, m_send_buf->get_readable_len());
+        return Codec::STATUS::ERR;
+    }
+
+    return status;
 }
 
 }  // namespace kim

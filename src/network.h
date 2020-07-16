@@ -10,13 +10,14 @@
 #include "events.h"
 #include "events_callback.h"
 #include "module.h"
+#include "net.h"
 #include "net/anet.h"
 #include "node_info.h"
 #include "worker_data_mgr.h"
 
 namespace kim {
 
-class Network : public IEventsCallback {
+class Network : public IEventsCallback, public INet {
    public:
     enum class TYPE {
         UNKNOWN = 0,
@@ -52,9 +53,12 @@ class Network : public IEventsCallback {
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
     // for io events call back. IEventsCallback
-    void on_io_read(int fd) override;
-    void on_io_write(int fd) override;
-    void on_io_error(int fd) override;
+    virtual void on_io_read(int fd) override;
+    virtual void on_io_write(int fd) override;
+    virtual void on_io_error(int fd) override;
+
+    // net
+    virtual bool send_to(Connection* c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
 

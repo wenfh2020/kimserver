@@ -8,7 +8,8 @@ Module::~Module() {
     }
 }
 
-bool Module::init(Log* logger) {
+bool Module::init(Log* logger, INet* net) {
+    m_net = net;
     m_logger = logger;
     return true;
 }

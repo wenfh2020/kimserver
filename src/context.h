@@ -51,13 +51,10 @@ class Connection {
     void set_active_time(long long t) { m_active_time = t; }
     long long get_active_time() const { return m_active_time; }
 
-    int read_data();
-    const char* get_query_data() const { return m_query_buf; }
-
     bool is_http_codec();
 
-    int conn_read();
-    Codec::STATUS decode(HttpMsg* msg);
+    Codec::STATUS conn_read(HttpMsg& msg);
+    Codec::STATUS conn_write(const HttpMsg& msg);
 
    private:
     uint64_t m_id = 0;               // sequence.
@@ -70,10 +67,6 @@ class Connection {
 
     ev_io* m_ev_io = nullptr;     // libev io event obj.
     long long m_active_time = 0;  // connection last active (read/write) time.
-
-    // Codec m_codec;        // proto codec.
-    size_t m_qb_pos = 0;  // query buf position.
-    sds m_query_buf;      // query buf.
 
     SocketBuffer* m_recv_buf;
     SocketBuffer* m_send_buf;

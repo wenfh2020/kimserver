@@ -72,7 +72,7 @@ int SocketBuffer::write_fd(int fd, int& err) {
     } else {
         m_read_idx += n;
     }
-    return (n);
+    return n;
 }
 
 int SocketBuffer::read_fd(int fd, int& err) {

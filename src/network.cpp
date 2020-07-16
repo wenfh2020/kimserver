@@ -315,35 +315,15 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
-    int read_len = 0;
-    Codec::STATUS status;
-
-    // read data.
-    read_len = c->conn_read();
-    if (read_len == 0) {
-        LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
-                  fd, errno, strerror(errno));
-        c->set_state(Connection::STATE::CLOSED);
-        close_conn(c);
-        return false;
-    }
-
-    if (read_len < 0 && errno != EAGAIN) {
-        LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
-                  fd, errno, strerror(errno));
-        c->set_state(Connection::STATE::ERROR);
-        close_conn(c);
-        return false;
-    }
-
     if (c->is_http_codec()) {
         HttpMsg msg;
-        status = c->decode(&msg);  // decode raw data.
+        Codec::STATUS status = c->conn_read(msg);
         if (status == Codec::STATUS::OK) {
             Request req(c, &msg);
             for (Module* m : m_core_modules) {
                 LOG_DEBUG("module name: %s", m->get_name().c_str());
                 if (m->process_message(&req) != Cmd::STATUS::UNKOWN) {
+                    // remove cmd.
                     break;
                 }
             }
@@ -352,38 +332,16 @@ bool Network::read_query_from_client(int fd) {
                 LOG_DEBUG("decode next time. fd: %d", fd);
                 return true;  // not enough data, and decode next time.
             } else {
-                LOG_DEBUG("decode failed. fd: %d", fd);
+                LOG_DEBUG("read failed. fd: %d", fd);
                 close_conn(c);
                 return false;
             }
         }
-
         LOG_DEBUG("connection is http codec type, status: %d", (int)status);
     } else {
         // LOG_DEBUG("connection is not http codec type, status: %d", (int)status);
     }
 
-    // connection read data.
-    // int read_len = c->read_data();
-    // if (read_len == 0) {
-    //     close_conn(c);
-    //     LOG_DEBUG("connection closed, fd: %d", fd);
-    //     return;
-    // }
-
-    // if (read_len < 0) {
-    //     if ((read_len == -1) && (c->is_active())) {  // EAGAIN
-    //         return;
-    //     }
-    //     close_conn(c);
-    //     LOG_DEBUG("client closed connection! fd: %d", fd);
-    //     return;
-    // }
-
-    c->set_active_time(mstime());
-
-    // analysis data.
-    // LOG_DEBUG("recv data: %s", c->get_query_data());
     return true;
 }
 
@@ -490,9 +448,29 @@ bool Network::load_modules() {
     if (p == nullptr) {
         return false;
     }
-    p->init(m_logger);
+    p->init(m_logger, this);
     p->set_name(CORE_MODULE);
     m_core_modules.push_back(p);
+    return true;
+}
+
+bool Network::send_to(Connection* c, const HttpMsg& msg) {
+    if (c->is_closed()) {
+        LOG_WARN("connection is closed! fd: %d", c->get_fd());
+        return false;
+    }
+
+    Codec::STATUS status = c->conn_write(msg);
+    if (status == Codec::STATUS::ERR) {
+        close_conn(c);
+        return false;
+    }
+
+    if (status == Codec::STATUS::PAUSE) {
+        // add write events.
+        return true;
+    }
+
     return true;
 }
 
