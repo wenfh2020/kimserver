@@ -10,8 +10,8 @@ namespace kim {
 class Request {
    public:
     Request() {}
-    Request(Connection* c, MsgHead* head, MsgBody* body);
-    Request(Connection* c, HttpMsg* msg);
+    Request(std::shared_ptr<Connection> c, MsgHead* head, MsgBody* body);
+    Request(std::shared_ptr<Connection> c, HttpMsg* msg);
     Request(const Request&) = delete;
     Request& operator=(const Request&) = delete;
     virtual ~Request() {}
@@ -25,8 +25,8 @@ class Request {
     void set_http_msg(HttpMsg* msg) { m_http_msg = msg; }
     const HttpMsg* get_http_msg() const { return m_http_msg; }
 
-    void set_conn(Connection* c) { m_conn = c; }
-    Connection* get_conn() { return m_conn; }
+    void set_conn(std::shared_ptr<Connection> c) { m_conn = c; }
+    std::shared_ptr<Connection> get_conn() { return m_conn; }
 
     void set_errno(int n) { m_errno = n; }
     int get_errno() { return m_errno; }
@@ -35,10 +35,10 @@ class Request {
     void* get_privdata() { return m_privdata; }
 
    private:
-    Connection* m_conn = nullptr;   // connection.
-    MsgHead* m_msg_head = nullptr;  // protobuf msg head.
-    MsgBody* m_msg_body = nullptr;  // protobuf msg body.
-    HttpMsg* m_http_msg = nullptr;  // http msg.
+    std::shared_ptr<Connection> m_conn = nullptr;  // connection.
+    MsgHead* m_msg_head = nullptr;                 // protobuf msg head.
+    MsgBody* m_msg_body = nullptr;                 // protobuf msg body.
+    HttpMsg* m_http_msg = nullptr;                 // http msg.
 
     int m_errno = -1;            // error number.
     void* m_privdata = nullptr;  // private data.

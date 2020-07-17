@@ -58,7 +58,7 @@ class Network : public IEventsCallback, public INet {
     virtual void on_io_error(int fd) override;
 
     // net
-    virtual bool send_to(Connection* c, const HttpMsg& msg) override;
+    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
 
@@ -74,8 +74,8 @@ class Network : public IEventsCallback, public INet {
     bool read_query_from_client(int fd);
 
     // connection
-    Connection* create_conn(int fd);
-    bool close_conn(Connection* c);
+    std::shared_ptr<Connection> create_conn(int fd);
+    bool close_conn(std::shared_ptr<Connection> c);
     void close_conns();
 
     int get_new_seq() { return ++m_seq; }
@@ -91,9 +91,9 @@ class Network : public IEventsCallback, public INet {
     int m_manager_ctrl_fd = -1;  // chanel fd use for worker.
     int m_manager_data_fd = -1;  // chanel fd use for worker.
 
-    TYPE m_type = TYPE::UNKNOWN;                   // owner type
-    WorkerDataMgr* m_woker_data_mgr = nullptr;     // manager handle worker data.
-    std::unordered_map<int, Connection*> m_conns;  // key: fd, value: connection.
+    TYPE m_type = TYPE::UNKNOWN;                                    // owner type
+    WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
+    std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
     std::list<Module*> m_core_modules;

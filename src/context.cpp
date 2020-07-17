@@ -57,7 +57,10 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
         return Codec::STATUS::ERR;
     }
 
-    int read_len = m_recv_buf->read_fd(m_fd, m_errno);
+    int read_len;
+    CodecHttp* codec;
+
+    read_len = m_recv_buf->read_fd(m_fd, m_errno);
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
               m_fd, read_len, m_recv_buf->get_readable_len());
     if (read_len == 0) {
@@ -81,7 +84,7 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
         m_active_time = mstime();
     }
 
-    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+    codec = dynamic_cast<CodecHttp*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
     }
@@ -95,9 +98,10 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
     }
 
     int write_len;
+    CodecHttp* codec;
     Codec::STATUS status;
 
-    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+    codec = dynamic_cast<CodecHttp*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
     }

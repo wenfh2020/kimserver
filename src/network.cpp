@@ -144,7 +144,10 @@ bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
         }
     }
 
-    Connection* c = create_conn(fd);
+    ev_io* w;
+    std::shared_ptr<Connection> c;
+
+    c = create_conn(fd);
     if (c == nullptr) {
         LOG_ERROR("add chanel event failed! fd: %d", fd);
         return false;
@@ -153,7 +156,7 @@ bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     c->set_active_time(mstime());
     c->set_state(Connection::STATE::CONNECTED);
 
-    ev_io* w = c->get_ev_io();
+    w = c->get_ev_io();
     if (!m_events->add_read_event(fd, &w, this)) {
         LOG_ERROR("add read event failed! fd: %d", fd);
         return false;
@@ -164,14 +167,17 @@ bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     return true;
 }
 
-Connection* Network::create_conn(int fd) {
+std::shared_ptr<Connection> Network::create_conn(int fd) {
     auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
         return it->second;
     }
 
-    uint64_t seq = get_new_seq();
-    Connection* c = new Connection(m_logger, fd, seq);
+    uint64_t seq;
+    std::shared_ptr<Connection> c;
+
+    seq = get_new_seq();
+    c = std::make_shared<Connection>(m_logger, fd, seq);
     if (c == nullptr) {
         LOG_ERROR("new connection failed! fd: %d", fd);
         return nullptr;
@@ -182,7 +188,7 @@ Connection* Network::create_conn(int fd) {
 }
 
 // delete event to stop callback, and then close fd.
-bool Network::close_conn(Connection* c) {
+bool Network::close_conn(std::shared_ptr<Connection> c) {
     if (c == nullptr) {
         return false;
     }
@@ -197,11 +203,10 @@ bool Network::close_conn(int fd) {
 
     auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
-        Connection* c = it->second;
+        std::shared_ptr<Connection> c = it->second;
         if (c != nullptr) {
             c->set_state(Connection::STATE::CLOSED);
             m_events->del_event(c->get_ev_io());
-            SAFE_DELETE(c);
         }
         m_conns.erase(it);
     }
@@ -259,11 +264,10 @@ void Network::close_conns() {
 
 void Network::close_fds() {
     for (const auto& it : m_conns) {
-        Connection* c = static_cast<Connection*>(it.second);
-        int fd = c->get_fd();
+        int fd = it.second->get_fd();
         if (fd != -1) {
             close(fd);
-            c->set_fd(-1);
+            it.second->set_fd(-1);
         }
     }
 }
@@ -274,7 +278,7 @@ void Network::on_io_write(int fd) {
         return;
     }
 
-    Connection* c = it->second;
+    std::shared_ptr<Connection> c = it->second;
     if (c == nullptr || !c->is_active()) {
         return;
     }
@@ -310,7 +314,7 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
-    Connection* c = it->second;
+    std::shared_ptr<Connection> c = it->second;
     if (!c->is_active()) {
         return false;
     }
@@ -454,7 +458,7 @@ bool Network::load_modules() {
     return true;
 }
 
-bool Network::send_to(Connection* c, const HttpMsg& msg) {
+bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     if (c->is_closed()) {
         LOG_WARN("connection is closed! fd: %d", c->get_fd());
         return false;

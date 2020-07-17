@@ -151,4 +151,7 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 }
 
+void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+}
+
 }  // namespace kim

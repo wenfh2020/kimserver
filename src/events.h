@@ -29,11 +29,10 @@ class Events {
     bool setup_signal_events(ISignalCallBack* cb);
     void create_signal_event(int signum, ISignalCallBack* cb);
 
-    ev_tstamp get_now_time() { return ev_now(m_ev_loop); }
-
    private:
     static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
+    static void on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
 
    private:
     Log* m_logger = nullptr;
