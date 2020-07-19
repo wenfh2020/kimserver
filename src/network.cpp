@@ -326,13 +326,15 @@ void Network::on_io_read(int fd) {
 
 void Network::on_timer(void* privdata) {
     int secs;
+    ConnectionData* conn_data;
     std::shared_ptr<Connection> c;
 
-    c = static_cast<ConnectionData*>(privdata)->m_conn;
+    conn_data = static_cast<ConnectionData*>(privdata);
+    c = conn_data->m_conn;
     secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
     if (secs > 0) {
         LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
-        m_events->restart_timer(secs, c->get_ev_timer(), this);
+        m_events->restart_timer(secs, c->get_ev_timer(), conn_data);
         return;
     }
 
@@ -475,13 +477,13 @@ void Network::read_transfer_fd(int fd) {
 
             ev_timer* w = c->get_ev_timer();
             if (w == nullptr) {
-                w = m_events->add_timer_event(1.0, conn_data);
+                w = m_events->add_timer_event(1, conn_data);
                 if (w == nullptr) {
                     LOG_ERROR("add timer failed! fd: %d", fd);
                     goto error;
                 }
             } else {
-                if (!m_events->restart_timer(1.0, w, conn_data)) {
+                if (!m_events->restart_timer(1, w, conn_data)) {
                     LOG_ERROR("restart timer failed! fd: %d", fd);
                     goto error;
                 }

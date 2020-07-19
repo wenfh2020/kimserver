@@ -34,7 +34,7 @@ class Events {
     void create_signal_event(int signum, void* privdata);
 
     // timer
-    ev_timer* add_timer_event(ev_tstamp val, void* privdata);
+    ev_timer* add_timer_event(int secs, void* privdata);
     bool restart_timer(int secs, ev_timer* w, void* privdat);
     bool del_event(ev_timer* w);
 

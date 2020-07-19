@@ -32,6 +32,7 @@ esac
 echo $request
 echo ""
 
+# curl -v -d "$request" --header 'Connection:keep-alive' $url | python -m json.tool
 curl -v -d "$request" $url | python -m json.tool
 
 #| ascii2uni -a U -q
