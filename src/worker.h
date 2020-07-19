@@ -8,7 +8,7 @@
 
 namespace kim {
 
-class Worker : public IEventsCallback {
+class Worker : public ICallback {
    public:
     Worker(const std::string& name);
     virtual ~Worker();

@@ -74,7 +74,7 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
         return;
     }
 
-    IEventsCallback* cb = static_cast<IEventsCallback*>(s->data);
+    ICallback* cb = static_cast<ICallback*>(s->data);
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
@@ -175,7 +175,7 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 
     int fd = w->fd;
-    IEventsCallback* cb = static_cast<IEventsCallback*>(w->data);
+    ICallback* cb = static_cast<ICallback*>(w->data);
 
     if (events & EV_READ) {
         cb->on_io_read(fd);
@@ -193,13 +193,13 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 }
 
 void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    IEventsCallback* cb;
+    ICallback* cb;
     std::shared_ptr<Connection> c;
 
     if (w->data != nullptr) {
         c = static_cast<ConnectionData*>(w->data)->m_conn;
         if (c != nullptr) {
-            cb = static_cast<IEventsCallback*>(c->get_private_data());
+            cb = static_cast<ICallback*>(c->get_private_data());
             if (cb != nullptr) {
                 cb->on_timer(w->data);
                 return;

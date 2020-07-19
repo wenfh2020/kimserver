@@ -1,7 +1,7 @@
 #ifndef __MANAGER_H__
 #define __MANAGER_H__
 
-#include "events_callback.h"
+#include "callback.h"
 #include "network.h"
 #include "node_info.h"
 #include "server.h"
@@ -10,7 +10,7 @@
 
 namespace kim {
 
-class Manager : public IEventsCallback {
+class Manager : public ICallback {
    public:
     Manager();
     virtual ~Manager();

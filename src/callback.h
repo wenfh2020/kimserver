@@ -7,10 +7,10 @@
 
 namespace kim {
 
-class IEventsCallback {
+class ICallback {
    public:
-    IEventsCallback() {}
-    virtual ~IEventsCallback() {}
+    ICallback() {}
+    virtual ~ICallback() {}
 
     // signal.
     virtual void on_terminated(ev_signal* s) {}

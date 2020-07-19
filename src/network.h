@@ -5,10 +5,10 @@
 #include <list>
 #include <unordered_map>
 
+#include "callback.h"
 #include "codec/codec.h"
 #include "context.h"
 #include "events.h"
-#include "events_callback.h"
 #include "module.h"
 #include "net.h"
 #include "net/anet.h"
@@ -17,7 +17,7 @@
 
 namespace kim {
 
-class Network : public IEventsCallback, public INet {
+class Network : public ICallback, public INet {
    public:
     enum class TYPE {
         UNKNOWN = 0,
@@ -30,9 +30,9 @@ class Network : public IEventsCallback, public INet {
 
     // for manager.
     bool create(const AddrInfo* addr_info,
-                Codec::TYPE code_type, IEventsCallback* s, WorkerDataMgr* m);
+                Codec::TYPE code_type, ICallback* s, WorkerDataMgr* m);
     // for worker.
-    bool create(IEventsCallback* s, int ctrl_fd, int data_fd);
+    bool create(ICallback* s, int ctrl_fd, int data_fd);
 
     void destory();
 
@@ -53,7 +53,7 @@ class Network : public IEventsCallback, public INet {
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
-    // for io events call back. IEventsCallback
+    // for io events call back. ICallback
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
     virtual void on_io_error(int fd) override;
@@ -67,7 +67,7 @@ class Network : public IEventsCallback, public INet {
     long long get_keep_alive() { return m_keep_alive; }
 
    private:
-    bool create_events(IEventsCallback* s, int fd1, int fd2,
+    bool create_events(ICallback* s, int fd1, int fd2,
                        Codec::TYPE codec_type, bool is_worker);
 
     // socket
