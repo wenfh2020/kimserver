@@ -74,7 +74,7 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
         return;
     }
 
-    ISignalCallBack* cb = static_cast<ISignalCallBack*>(s->data);
+    IEventsCallback* cb = static_cast<IEventsCallback*>(s->data);
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 

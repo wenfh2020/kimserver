@@ -30,9 +30,9 @@ class Network : public IEventsCallback, public INet {
 
     // for manager.
     bool create(const AddrInfo* addr_info,
-                Codec::TYPE code_type, ISignalCallBack* s, WorkerDataMgr* m);
+                Codec::TYPE code_type, IEventsCallback* s, WorkerDataMgr* m);
     // for worker.
-    bool create(ISignalCallBack* s, int ctrl_fd, int data_fd);
+    bool create(IEventsCallback* s, int ctrl_fd, int data_fd);
 
     void destory();
 
@@ -67,7 +67,7 @@ class Network : public IEventsCallback, public INet {
     long long get_keep_alive() { return m_keep_alive; }
 
    private:
-    bool create_events(ISignalCallBack* s, int fd1, int fd2,
+    bool create_events(IEventsCallback* s, int fd1, int fd2,
                        Codec::TYPE codec_type, bool is_worker);
 
     // socket

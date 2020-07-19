@@ -10,7 +10,7 @@
 
 namespace kim {
 
-class Manager : public ISignalCallBack {
+class Manager : public IEventsCallback {
    public:
     Manager();
     virtual ~Manager();

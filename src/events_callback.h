@@ -7,30 +7,21 @@
 
 namespace kim {
 
-///////////////////////////////////////////////////////
-
-class ISignalCallBack {
-   public:
-    ISignalCallBack() {}
-    virtual ~ISignalCallBack() {}
-
-    // signal callback.
-    virtual void on_terminated(ev_signal* s) {}
-    virtual void on_child_terminated(ev_signal* s) {}
-};
-
-///////////////////////////////////////////////////////
-
 class IEventsCallback {
    public:
     IEventsCallback() {}
     virtual ~IEventsCallback() {}
 
-    // socket's io event callback.
+    // signal.
+    virtual void on_terminated(ev_signal* s) {}
+    virtual void on_child_terminated(ev_signal* s) {}
+
+    // socket.
     virtual void on_io_read(int fd) {}
     virtual void on_io_write(int fd) {}
     virtual void on_io_error(int fd) {}
 
+    // timer.
     virtual void on_timer(void* privdata) {}
 };
 
