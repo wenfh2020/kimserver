@@ -44,7 +44,7 @@ void Events::end_ev_loop() {
     }
 }
 
-void Events::create_signal_event(int signum, ISignalCallBack* s) {
+void Events::create_signal_event(int signum, void* privdata) {
     LOG_DEBUG("create_signal_event, sig: %d", signum);
     if (m_ev_loop == nullptr) {
         return;
@@ -52,19 +52,19 @@ void Events::create_signal_event(int signum, ISignalCallBack* s) {
 
     ev_signal* sig = new ev_signal();
     ev_signal_init(sig, on_signal_callback, signum);
-    sig->data = s;
+    sig->data = privdata;
     ev_signal_start(m_ev_loop, sig);
 }
 
-bool Events::setup_signal_events(ISignalCallBack* s) {
+bool Events::setup_signal_events(void* privdata) {
     LOG_DEBUG("setup_signal_events()");
-    if (s == nullptr) {
+    if (privdata == nullptr) {
         return false;
     }
 
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (unsigned int i = 0; i < sizeof(signals) / sizeof(int); i++) {
-        create_signal_event(signals[i], s);
+        create_signal_event(signals[i], privdata);
     }
     return true;
 }
@@ -78,32 +78,59 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
-bool Events::add_read_event(int fd, ev_io** w, IEventsCallback* cb) {
+bool Events::add_read_event(int fd, ev_io** w, void* privdata) {
     if (*w == nullptr) {
         *w = (ev_io*)malloc(sizeof(ev_io));
         if (w == nullptr) {
-            LOG_ERROR("new ev_io failed!");
+            LOG_ERROR("alloc ev_io failed!");
             return false;
         }
-
-        ev_io_init(*w, on_io_callback, fd, EV_READ);
-        ev_io_start(m_ev_loop, *w);
-
-        LOG_DEBUG("start ev io, fd: %d", fd);
-    } else {
-        if (ev_is_active(*w)) {
-            ev_io_stop(m_ev_loop, *w);
-            ev_io_set(*w, (*w)->fd, (*w)->events | EV_READ);
-            ev_io_start(m_ev_loop, *w);
-        } else {
-            ev_io_init(*w, on_io_callback, fd, EV_READ);
-            ev_io_start(m_ev_loop, *w);
-        }
-
-        LOG_DEBUG("restart ev io, fd: %d", fd);
     }
 
-    (*w)->data = cb;
+    if (ev_is_active(*w)) {
+        ev_io_stop(m_ev_loop, *w);
+        ev_io_set(*w, (*w)->fd, (*w)->events | EV_READ);
+        ev_io_start(m_ev_loop, *w);
+    } else {
+        ev_io_init(*w, on_io_callback, fd, EV_READ);
+        ev_io_start(m_ev_loop, *w);
+    }
+    (*w)->data = privdata;
+
+    LOG_DEBUG("restart ev io, fd: %d", fd);
+    return true;
+}
+
+bool Events::add_timer_event(ev_tstamp secs, ev_timer** w, void* privdata) {
+    if (*w == nullptr) {
+        *w = (ev_timer*)malloc(sizeof(ev_timer));
+        if (w == nullptr) {
+            LOG_ERROR("alloc timer failed!");
+            return false;
+        }
+    }
+
+    if (ev_is_active(*w)) {
+        ev_timer_stop(m_ev_loop, *w);
+        ev_timer_set(*w, secs + ev_time() - ev_now(m_ev_loop), 0);
+        ev_timer_start(m_ev_loop, *w);
+    } else {
+        ev_timer_init(*w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
+        ev_timer_start(m_ev_loop, *w);
+    }
+    (*w)->data = privdata;
+
+    LOG_DEBUG("start timer, seconds: %d", secs);
+    return true;
+}
+
+bool Events::restart_timer(int secs, ev_timer* w) {
+    if (w == nullptr) {
+        return false;
+    }
+    ev_timer_stop(m_ev_loop, w);
+    ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
+    ev_timer_start(m_ev_loop, w);
     return true;
 }
 
@@ -115,6 +142,18 @@ bool Events::del_event(ev_io* w) {
     LOG_DEBUG("delete event, fd: %d", w->fd);
 
     ev_io_stop(m_ev_loop, w);
+    w->data = NULL;
+    SAFE_FREE(w);
+    return true;
+}
+
+bool Events::del_event(ev_timer* w) {
+    if (w == nullptr) {
+        return false;
+    }
+
+    LOG_DEBUG("delete timer event");
+    ev_timer_stop(m_ev_loop, w);
     w->data = NULL;
     SAFE_FREE(w);
     return true;
@@ -152,6 +191,22 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 }
 
 void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    IEventsCallback* cb;
+    ConnectionData* conn_data;
+    std::shared_ptr<Connection> c;
+
+    if (w->data != nullptr) {
+        conn_data = static_cast<ConnectionData*>(w->data);
+        if (conn_data != nullptr) {
+            c = conn_data->m_conn;
+            if (c != nullptr) {
+                cb = static_cast<IEventsCallback*>(c->get_private_data());
+                if (cb != nullptr) {
+                    cb->on_timer(w->data);
+                }
+            }
+        }
+    }
 }
 
 }  // namespace kim

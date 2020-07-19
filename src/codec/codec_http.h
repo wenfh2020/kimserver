@@ -12,7 +12,7 @@ namespace kim {
 
 class CodecHttp : public Codec {
    public:
-    CodecHttp(Log *logger, Codec::TYPE type, double keep_alive = -1.0);
+    CodecHttp(Log *logger, Codec::TYPE type, int keep_alive = -1);
     virtual ~CodecHttp();
 
     Codec::STATUS encode(const HttpMsg &msg, SocketBuffer *sbuf);
@@ -24,7 +24,7 @@ class CodecHttp : public Codec {
     std::string to_string(const HttpMsg &oHttpMsg);
     static void decode_params(const std::string &s, std::map<std::string, std::string> &params);
 
-    double get_keep_alive() { return m_keep_alive; }
+    int get_keep_alive() { return m_keep_alive; }
 
    protected:
     static int on_message_begin(http_parser *parser);
@@ -44,7 +44,7 @@ class CodecHttp : public Codec {
     int m_encode_cnt = 0;
     int m_decode_cnt = 0;
     bool m_is_client = false;
-    double m_keep_alive = -1.0;
+    int m_keep_alive = -1;
 
     http_parser m_parser;
     http_parser_settings m_parser_setting;

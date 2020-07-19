@@ -30,6 +30,8 @@ class IEventsCallback {
     virtual void on_io_read(int fd) {}
     virtual void on_io_write(int fd) {}
     virtual void on_io_error(int fd) {}
+
+    virtual void on_timer(void* privdata) {}
 };
 
 }  // namespace kim

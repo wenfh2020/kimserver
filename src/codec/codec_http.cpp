@@ -71,7 +71,7 @@ namespace kim {
         goto error;                \
     }
 
-CodecHttp::CodecHttp(Log* logger, Codec::TYPE type, double keep_alive)
+CodecHttp::CodecHttp(Log* logger, Codec::TYPE type, int keep_alive)
     : Codec(logger, type), m_keep_alive(keep_alive) {
 }
 
@@ -252,7 +252,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     write_index = sbuf->get_write_index();
     sbuf->set_write_index(write_index - size);
 
-    LOG_DEBUG("%s", sbuf->get_raw_write_buffer());
+    // LOG_DEBUG("%s", sbuf->get_raw_write_buffer());
     LOG_DEBUG("readable len: %d, read index: %d, write index: %d, writed len: %d",
               sbuf->get_readable_len(), sbuf->get_read_index(),
               sbuf->get_write_index(), writed_len);
@@ -303,7 +303,7 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
     if (msg.type() == HTTP_REQUEST) {
         m_http_major = msg.http_major();
         m_http_minor = msg.http_minor();
-        m_keep_alive = (msg.keep_alive() > 0) ? msg.keep_alive() : m_keep_alive;
+        m_keep_alive = (msg.keep_alive() >= 0) ? msg.keep_alive() : m_keep_alive;
     }
 
     auto iter = msg.headers().find("Content-Encoding");

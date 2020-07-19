@@ -41,7 +41,8 @@ class Network : public IEventsCallback, public INet {
     // events.
     void run();
     void end_ev_loop();
-    bool add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel = false);
+    std::shared_ptr<Connection> add_read_event(
+        int fd, Codec::TYPE codec_type, bool is_chanel = false);
 
     // socket.
     void close_chanel(int* fds);
@@ -56,11 +57,14 @@ class Network : public IEventsCallback, public INet {
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
     virtual void on_io_error(int fd) override;
+    virtual void on_timer(void* privdata) override;
 
     // net
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
+    void set_keep_alive(long long keep_alive) { m_keep_alive = keep_alive; }
+    long long get_keep_alive() { return m_keep_alive; }
 
    private:
     bool create_events(ISignalCallBack* s, int fd1, int fd2,
@@ -94,6 +98,7 @@ class Network : public IEventsCallback, public INet {
     TYPE m_type = TYPE::UNKNOWN;                                    // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
+    long long m_keep_alive = 0;
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
     std::list<Module*> m_core_modules;

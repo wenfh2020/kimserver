@@ -18,7 +18,7 @@ Cmd::STATUS CmdHello::call_back(Request* req) {
     m.set_http_major(msg->http_major());
     m.set_http_minor(msg->http_minor());
 
-    CJsonObject obj;  //应答json
+    CJsonObject obj;
     obj.Add("code", 0);
     obj.Add("msg", "error");
     m.set_body(obj.ToFormattedString());

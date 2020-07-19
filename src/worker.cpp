@@ -75,6 +75,11 @@ bool Worker::load_network() {
         return false;
     }
 
+    int secs = 0;
+    if (m_conf.Get("keep_alive", secs)) {
+        m_net->set_keep_alive(secs);
+    }
+
     return true;
 }
 

@@ -16,6 +16,7 @@ Connection::~Connection() {
     SAFE_DELETE(m_recv_buf);
     SAFE_DELETE(m_send_buf);
     SAFE_DELETE(m_wait_send_buf);
+    SAFE_DELETE(m_codec);
 }
 
 bool Connection::init(Codec::TYPE code_type) {
@@ -40,8 +41,10 @@ bool Connection::init(Codec::TYPE code_type) {
     }
 
     if (m_codec != nullptr) {
+        set_active_time(mstime());
         m_codec->set_codec_type(code_type);
     }
+
     return true;
 }
 
@@ -142,6 +145,28 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
     }
 
     return status;
+}
+
+bool Connection::is_need_alive_check() {
+    if (m_codec != nullptr) {
+        if (m_codec->get_codec_type() == Codec::TYPE::HTTP) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int Connection::get_keep_alive() {
+    if (is_http_codec()) {  // http codec has it's own keep alive.
+        CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+        if (codec != nullptr) {
+            int keep_alive = codec->get_keep_alive();
+            if (keep_alive >= 0) {
+                return keep_alive;
+            }
+        }
+    }
+    return m_keep_alive;
 }
 
 }  // namespace kim

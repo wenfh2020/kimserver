@@ -127,20 +127,20 @@ error:
     return false;
 }
 
-bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
+std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     if (anet_no_block(m_err, fd) != ANET_OK) {
         LOG_ERROR("set socket no block failed! fd: %d", fd);
-        return false;
+        return nullptr;
     }
 
     if (!is_chanel) {
         if (anet_keep_alive(m_err, fd, 100) != ANET_OK) {
             LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
-            return false;
+            return nullptr;
         }
         if (anet_set_tcp_no_delay(m_err, fd, 1) != ANET_OK) {
             LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
-            return false;
+            return nullptr;
         }
     }
 
@@ -150,21 +150,22 @@ bool Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     c = create_conn(fd);
     if (c == nullptr) {
         LOG_ERROR("add chanel event failed! fd: %d", fd);
-        return false;
+        return nullptr;
     }
     c->init(codec_type);
+    c->set_private_data(this);
     c->set_active_time(mstime());
     c->set_state(Connection::STATE::CONNECTED);
 
     w = c->get_ev_io();
     if (!m_events->add_read_event(fd, &w, this)) {
         LOG_ERROR("add read event failed! fd: %d", fd);
-        return false;
+        return nullptr;
     }
     c->set_ev_io(w);
 
     LOG_DEBUG("add read event done! fd: %d", fd);
-    return true;
+    return c;
 }
 
 std::shared_ptr<Connection> Network::create_conn(int fd) {
@@ -182,6 +183,7 @@ std::shared_ptr<Connection> Network::create_conn(int fd) {
         LOG_ERROR("new connection failed! fd: %d", fd);
         return nullptr;
     }
+    c->set_keep_alive(m_keep_alive);
     m_conns[fd] = c;
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
     return c;
@@ -207,6 +209,13 @@ bool Network::close_conn(int fd) {
         if (c != nullptr) {
             c->set_state(Connection::STATE::CLOSED);
             m_events->del_event(c->get_ev_io());
+
+            ev_timer* w = c->get_ev_timer();
+            if (w != nullptr) {
+                delete static_cast<ConnectionData*>(w->data);
+                w->data = nullptr;
+                m_events->del_event(w);
+            }
         }
         m_conns.erase(it);
     }
@@ -305,6 +314,23 @@ void Network::on_io_read(int fd) {
     } else {
         read_query_from_client(fd);
     }
+}
+
+void Network::on_timer(void* privdata) {
+    int secs;
+    std::shared_ptr<Connection> c;
+
+    c = static_cast<ConnectionData*>(privdata)->m_conn;
+    secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
+    if (secs > 0) {
+        LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
+        m_events->restart_timer(secs, c->get_ev_timer());
+        return;
+    }
+
+    close_conn(c);
+    LOG_DEBUG("time up, close connection! secs: %d, fd: %d, seq: %llu",
+              secs, c->get_fd(), c->get_id());
 }
 
 bool Network::read_query_from_client(int fd) {
@@ -406,6 +432,9 @@ void Network::accept_and_transfer_fd(int fd) {
 // worker send fd which transfered from manager.
 void Network::read_transfer_fd(int fd) {
     channel_t ch;
+    Codec::TYPE codec;
+    ConnectionData* conn_data = nullptr;
+    std::shared_ptr<Connection> c = nullptr;
     int err, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
@@ -420,15 +449,39 @@ void Network::read_transfer_fd(int fd) {
             return;
         }
 
-        if (!add_read_event(ch.fd, static_cast<Codec::TYPE>(ch.codec))) {
+        codec = static_cast<Codec::TYPE>(ch.codec);
+        c = add_read_event(ch.fd, codec);
+        if (c == nullptr) {
             LOG_ERROR("add data fd read event failed, fd: %d", ch.fd);
-            close_conn(fd);
-            return;
+            goto error;
+        }
+
+        // add timer.
+        if (codec == Codec::TYPE::HTTP) {
+            conn_data = new ConnectionData;
+            if (conn_data == nullptr) {
+                LOG_ERROR("alloc connection data failed! fd: %d", fd);
+                goto error;
+            }
+            conn_data->m_conn = c;
+
+            ev_timer* w = c->get_ev_timer();
+            if (!m_events->add_timer_event(1.0, &w, conn_data)) {
+                LOG_ERROR("add timer failed! fd: %d", fd);
+                goto error;
+            }
+            w->data = conn_data;
+            c->set_ev_timer(w);
         }
 
         LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
                   ch.fd, ch.family, ch.codec);
     }
+
+error:
+    close_conn(ch.fd);
+    SAFE_FREE(conn_data);
+    return;
 }
 
 void Network::end_ev_loop() {
