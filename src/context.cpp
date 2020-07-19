@@ -13,6 +13,7 @@ Connection::Connection(Log* logger, int fd, uint64_t id)
 }
 
 Connection::~Connection() {
+    LOG_DEBUG("~Connection()");
     SAFE_DELETE(m_recv_buf);
     SAFE_DELETE(m_send_buf);
     SAFE_DELETE(m_wait_send_buf);

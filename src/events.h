@@ -24,7 +24,8 @@ class Events {
     void end_ev_loop();
 
     // io
-    bool add_read_event(int fd, ev_io** w, void* privdata);
+    ev_io* add_read_event(int fd, void* privdata);
+    bool restart_read_event(ev_io* w, int fd, void* privadata);
     bool del_event(ev_io* w);
     bool stop_event(ev_io* w);
 

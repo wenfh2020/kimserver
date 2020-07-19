@@ -78,27 +78,35 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
-bool Events::add_read_event(int fd, ev_io** w, void* privdata) {
-    if (*w == nullptr) {
-        *w = (ev_io*)malloc(sizeof(ev_io));
-        if (w == nullptr) {
-            LOG_ERROR("alloc ev_io failed!");
-            return false;
-        }
+ev_io* Events::add_read_event(int fd, void* privdata) {
+    ev_io* w = (ev_io*)malloc(sizeof(ev_io));
+    if (w == nullptr) {
+        LOG_ERROR("alloc ev_io failed!");
+        return nullptr;
     }
 
-    if (ev_is_active(*w)) {
-        ev_io_stop(m_ev_loop, *w);
-        ev_io_set(*w, (*w)->fd, (*w)->events | EV_READ);
-        ev_io_start(m_ev_loop, *w);
-    } else {
-        ev_io_init(*w, on_io_callback, fd, EV_READ);
-        ev_io_start(m_ev_loop, *w);
-    }
-    (*w)->data = privdata;
+    ev_io_init(w, on_io_callback, fd, EV_READ);
+    ev_io_start(m_ev_loop, w);
+    w->data = privdata;
 
     LOG_DEBUG("restart ev io, fd: %d", fd);
-    return true;
+    return w;
+}
+
+bool Events::restart_read_event(ev_io* w, int fd, void* privdata) {
+    if (w == nullptr) {
+        return false;
+    }
+    if (ev_is_active(w)) {
+        ev_io_stop(m_ev_loop, w);
+        ev_io_set(w, w->fd, w->events | EV_READ);
+        ev_io_start(m_ev_loop, w);
+    } else {
+        ev_io_init(w, on_io_callback, fd, EV_READ);
+        ev_io_start(m_ev_loop, w);
+    }
+    w->data = privdata;
+    return false;
 }
 
 bool Events::add_timer_event(ev_tstamp secs, ev_timer** w, void* privdata) {
@@ -192,12 +200,10 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 
 void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     IEventsCallback* cb;
-    ConnectionData* conn_data;
     std::shared_ptr<Connection> c;
 
     if (w->data != nullptr) {
-        conn_data = static_cast<ConnectionData*>(w->data);
-        c = conn_data->m_conn;
+        c = static_cast<ConnectionData*>(w->data)->m_conn;
         if (c != nullptr) {
             cb = static_cast<IEventsCallback*>(c->get_private_data());
             if (cb != nullptr) {

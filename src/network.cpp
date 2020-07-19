@@ -158,9 +158,17 @@ std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_ty
     c->set_state(Connection::STATE::CONNECTED);
 
     w = c->get_ev_io();
-    if (!m_events->add_read_event(fd, &w, this)) {
-        LOG_ERROR("add read event failed! fd: %d", fd);
-        return nullptr;
+    if (w == nullptr) {
+        w = m_events->add_read_event(fd, this);
+        if (w == nullptr) {
+            LOG_ERROR("add read event failed! fd: %d", fd);
+            return nullptr;
+        }
+    } else {
+        if (!m_events->restart_read_event(w, fd, this)) {
+            LOG_ERROR("reastart read event failed! fd: %d", fd);
+            return nullptr;
+        }
     }
     c->set_ev_io(w);
 
