@@ -197,13 +197,11 @@ void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
 
     if (w->data != nullptr) {
         conn_data = static_cast<ConnectionData*>(w->data);
-        if (conn_data != nullptr) {
-            c = conn_data->m_conn;
-            if (c != nullptr) {
-                cb = static_cast<IEventsCallback*>(c->get_private_data());
-                if (cb != nullptr) {
-                    cb->on_timer(w->data);
-                }
+        c = conn_data->m_conn;
+        if (c != nullptr) {
+            cb = static_cast<IEventsCallback*>(c->get_private_data());
+            if (cb != nullptr) {
+                cb->on_timer(w->data);
             }
         }
     }
