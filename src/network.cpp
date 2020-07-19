@@ -332,7 +332,7 @@ void Network::on_timer(void* privdata) {
     secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
     if (secs > 0) {
         LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
-        m_events->restart_timer(secs, c->get_ev_timer());
+        m_events->restart_timer(secs, c->get_ev_timer(), this);
         return;
     }
 
@@ -474,11 +474,18 @@ void Network::read_transfer_fd(int fd) {
             conn_data->m_conn = c;
 
             ev_timer* w = c->get_ev_timer();
-            if (!m_events->add_timer_event(1.0, &w, conn_data)) {
-                LOG_ERROR("add timer failed! fd: %d", fd);
-                goto error;
+            if (w == nullptr) {
+                w = m_events->add_timer_event(1.0, conn_data);
+                if (w == nullptr) {
+                    LOG_ERROR("add timer failed! fd: %d", fd);
+                    goto error;
+                }
+            } else {
+                if (!m_events->restart_timer(1.0, w, conn_data)) {
+                    LOG_ERROR("restart timer failed! fd: %d", fd);
+                    goto error;
+                }
             }
-            w->data = conn_data;
             c->set_ev_timer(w);
         }
 
