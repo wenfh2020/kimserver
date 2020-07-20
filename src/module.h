@@ -18,7 +18,7 @@ class Module {
     Module(Log* logger) : m_logger(logger) {}
     virtual ~Module();
 
-    virtual Cmd::STATUS process_message(Request* msg) { return Cmd::STATUS::UNKOWN; }
+    virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) { return Cmd::STATUS::UNKOWN; }
 
     bool init(Log* logger, INet* net);
     void set_version(int ver) { m_version = ver; }
@@ -35,26 +35,25 @@ class Module {
     INet* m_net = nullptr;
 };
 
-#define BEGIN_HTTP_MAP()                                \
-   public:                                              \
-    virtual Cmd::STATUS process_message(Request* req) { \
-        const HttpMsg* msg = req->get_http_msg();       \
-        if (msg == nullptr) {                           \
-            return Cmd::STATUS::ERROR;                  \
-        }                                               \
+#define BEGIN_HTTP_MAP()                                                \
+   public:                                                              \
+    virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) { \
+        const HttpMsg* msg = req->get_http_msg();                       \
+        if (msg == nullptr) {                                           \
+            return Cmd::STATUS::ERROR;                                  \
+        }                                                               \
         std::string path = msg->path();
 
 #define HTTP_HANDLER(_path, _cmd, _name)        \
     if (path == (_path)) {                      \
         _cmd* p = new _cmd;                     \
         p->init(m_logger, m_net);               \
-        p->set_net(m_net);                      \
         p->set_cmd_name(_name);                 \
-        p->set_logger(m_logger);                \
+        p->set_req(req);                        \
         Cmd::STATUS status = p->call_back(req); \
         if (status == Cmd::STATUS::RUNNING) {   \
             auto it = m_cmds.insert(p);         \
-            if (it.second == false) {           \
+            if (!it.second) {                   \
                 delete p;                       \
                 return Cmd::STATUS::ERROR;      \
             }                                   \

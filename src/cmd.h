@@ -22,17 +22,18 @@ class Cmd {
     virtual ~Cmd();
 
     void init(Log* logger, INet* net);
-    // void init(Request* req, uint64_t id, const std::string& name);
 
     virtual Cmd::STATUS time_out() { return Cmd::STATUS::OK; }
-    virtual Cmd::STATUS call_back(Request* req) { return Cmd::STATUS::OK; }
-
-    // virtual Cmd::STATUS send_to(Request* req) { return Cmd::STATUS::OK; }
+    virtual Cmd::STATUS call_back(std::shared_ptr<Request> req) { return Cmd::STATUS::OK; }
+    virtual Cmd::STATUS response(const HttpMsg& msg);
+    virtual Cmd::STATUS response_http(const std::string& data);
 
     uint64_t get_id() { return m_id; }
-    Request* get_req() { return m_req; }
 
-    void set_net(INet* net) { m_net = net; }
+    void set_req(std::shared_ptr<Request> req) { m_req = req; }
+    std::shared_ptr<Request> get_req() { return m_req; }
+
+    void set_net(INet* net);
     void set_logger(Log* logger) { m_logger = logger; }
     void set_cmd_name(const std::string& name) { m_cmd_name = name; }
     std::string get_cmd_name() { return m_cmd_name; }
@@ -46,7 +47,7 @@ class Cmd {
 
    protected:
     uint64_t m_id = 0;
-    Request* m_req = nullptr;
+    std::shared_ptr<Request> m_req = nullptr;
     std::string m_cmd_name;
     Log* m_logger = nullptr;
     INet* m_net = nullptr;

@@ -10,20 +10,14 @@ namespace kim {
 class Request {
    public:
     Request() {}
-    Request(std::shared_ptr<Connection> c, MsgHead* head, MsgBody* body);
-    Request(std::shared_ptr<Connection> c, HttpMsg* msg);
+    Request(std::shared_ptr<Connection> c);
     Request(const Request&) = delete;
     Request& operator=(const Request&) = delete;
-    virtual ~Request() {}
+    virtual ~Request();
 
-    void set_msg_head(MsgHead* head) { m_msg_head = head; }
-    MsgHead* get_msg_head() { return m_msg_head; }
-
-    void set_msg_body(MsgBody* body) { m_msg_body = body; }
-    MsgBody* get_msg_body() { return m_msg_body; }
-
-    void set_http_msg(HttpMsg* msg) { m_http_msg = msg; }
-    const HttpMsg* get_http_msg() const { return m_http_msg; }
+    MsgHead* get_msg_head();
+    MsgBody* get_msg_body();
+    HttpMsg* get_http_msg();
 
     void set_conn(std::shared_ptr<Connection> c) { m_conn = c; }
     std::shared_ptr<Connection> get_conn() { return m_conn; }

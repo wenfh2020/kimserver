@@ -1,5 +1,5 @@
 {
-    "worker_processes": 4,
+    "worker_processes": 2,
     "node_type": "gate",
     "server_name": "kimserver",
     "bind": "127.0.0.1",

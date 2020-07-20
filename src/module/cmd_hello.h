@@ -8,11 +8,9 @@ namespace kim {
 class CmdHello : public Cmd {
    public:
     CmdHello() {}
-    virtual ~CmdHello() {
-        std::cout << "delete cmd hello" << std::endl;
-    }
+    virtual ~CmdHello();
 
-    virtual Cmd::STATUS call_back(Request* req);
+    virtual Cmd::STATUS call_back(std::shared_ptr<Request> req);
 };
 
 }  // namespace kim

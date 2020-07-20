@@ -238,6 +238,7 @@ bool Manager::create_worker(int worker_index) {
             m_net->close_conn(data_fds[0]);
             LOG_CRIT("chanel fd add event failed! kill child: %d", pid);
             kill(pid, SIGKILL);
+            return false;
         }
 
         m_worker_data_mgr.add_worker_info(

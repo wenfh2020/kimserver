@@ -129,7 +129,7 @@ error:
 
 std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     if (anet_no_block(m_err, fd) != ANET_OK) {
-        LOG_ERROR("set socket no block failed! fd: %d", fd);
+        LOG_ERROR("set socket no block failed! fd: %d, error: %s", fd, m_err);
         return nullptr;
     }
 
@@ -356,14 +356,17 @@ bool Network::read_query_from_client(int fd) {
     }
 
     if (c->is_http_codec()) {
-        HttpMsg msg;
-        Codec::STATUS status = c->conn_read(msg);
+        HttpMsg* msg;
+        Codec::STATUS status;
+        std::shared_ptr<Request> req;
+
+        req = std::make_shared<Request>(c);
+        msg = req->get_http_msg();
+        status = c->conn_read(*msg);
         if (status == Codec::STATUS::OK) {
-            Request req(c, &msg);
             for (Module* m : m_core_modules) {
                 LOG_DEBUG("module name: %s", m->get_name().c_str());
-                if (m->process_message(&req) != Cmd::STATUS::UNKOWN) {
-                    // remove cmd.
+                if (m->process_message(req) != Cmd::STATUS::UNKOWN) {
                     break;
                 }
             }
@@ -518,13 +521,13 @@ bool Network::set_gate_codec_type(Codec::TYPE type) {
 
 bool Network::load_modules() {
     // core module.
-    Module* p = new MoudleCore;
-    if (p == nullptr) {
+    Module* m = new MoudleCore;
+    if (m == nullptr) {
         return false;
     }
-    p->init(m_logger, this);
-    p->set_name(CORE_MODULE);
-    m_core_modules.push_back(p);
+    m->init(m_logger, this);
+    m->set_name(CORE_MODULE);
+    m_core_modules.push_back(m);
     return true;
 }
 

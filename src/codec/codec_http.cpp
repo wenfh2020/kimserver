@@ -256,6 +256,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     LOG_DEBUG("readable len: %d, read index: %d, write index: %d, writed len: %d",
               sbuf->get_readable_len(), sbuf->get_read_index(),
               sbuf->get_write_index(), writed_len);
+    LOG_DEBUG("\n%s", to_string(msg).c_str());
     return Codec::STATUS::OK;
 
 error:
@@ -319,7 +320,7 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
         }
     }
 
-    LOG_DEBUG("%s", to_string(msg).c_str());
+    LOG_DEBUG("\n%s", to_string(msg).c_str());
     return Codec::STATUS::OK;
 }
 
@@ -448,6 +449,7 @@ std::string CodecHttp::to_string(const HttpMsg& msg) {
     } else {
         data += prover;
         if (msg.status_code() > 0) {
+            data += "\r\n";
             data += std::to_string(msg.status_code());
             data += "\r\n";
         }

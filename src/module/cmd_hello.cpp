@@ -4,7 +4,11 @@
 
 namespace kim {
 
-Cmd::STATUS CmdHello::call_back(Request* req) {
+CmdHello::~CmdHello() {
+    LOG_DEBUG("delete cmd hello");
+}
+
+Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
     const HttpMsg* msg = req->get_http_msg();
     if (msg == nullptr) {
         return Cmd::STATUS::ERROR;
@@ -22,11 +26,6 @@ Cmd::STATUS CmdHello::call_back(Request* req) {
     obj.Add("code", 0);
     obj.Add("msg", "error");
     m.set_body(obj.ToFormattedString());
-
-    if (!m_net->send_to(req->get_conn(), m)) {
-        return Cmd::STATUS::ERROR;
-    }
-    return Cmd::STATUS::OK;
+    return response(m);
 }
-
 }  // namespace kim
