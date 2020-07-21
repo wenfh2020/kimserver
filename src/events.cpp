@@ -78,46 +78,79 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
-ev_io* Events::add_read_event(int fd, void* privdata) {
-    ev_io* w = (ev_io*)malloc(sizeof(ev_io));
+ev_io* Events::add_read_event(int fd, ev_io* w, void* privdata) {
     if (w == nullptr) {
-        LOG_ERROR("alloc ev_io failed!");
-        return nullptr;
+        w = (ev_io*)malloc(sizeof(ev_io));
+        if (w == nullptr) {
+            LOG_ERROR("alloc ev_io failed!");
+            return nullptr;
+        }
     }
 
-    ev_io_init(w, on_io_callback, fd, EV_READ);
-    ev_io_start(m_ev_loop, w);
-    w->data = privdata;
-
-    LOG_DEBUG("restart ev io, fd: %d", fd);
-    return w;
-}
-
-bool Events::restart_read_event(ev_io* w, int fd, void* privdata) {
-    if (w == nullptr) {
-        return false;
-    }
     if (ev_is_active(w)) {
         ev_io_stop(m_ev_loop, w);
-        ev_io_set(w, w->fd, w->events | EV_READ);
+        ev_io_set(w, fd, w->events | EV_READ);
         ev_io_start(m_ev_loop, w);
     } else {
         ev_io_init(w, on_io_callback, fd, EV_READ);
         ev_io_start(m_ev_loop, w);
     }
     w->data = privdata;
-    return false;
+
+    LOG_DEBUG("add read ev io, fd: %d", fd);
+    return w;
 }
 
-ev_timer* Events::add_timer_event(int secs, void* privdata) {
-    ev_timer* w = (ev_timer*)malloc(sizeof(ev_timer));
+ev_io* Events::add_write_event(int fd, ev_io* w, void* privdata) {
     if (w == nullptr) {
-        LOG_ERROR("alloc timer failed!");
-        return nullptr;
+        w = (ev_io*)malloc(sizeof(ev_io));
+        if (w == nullptr) {
+            LOG_ERROR("alloc ev_io failed!");
+            return nullptr;
+        }
     }
 
-    ev_timer_init(w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
-    ev_timer_start(m_ev_loop, w);
+    if (ev_is_active(w)) {
+        ev_io_stop(m_ev_loop, w);
+        ev_io_set(w, w->fd, w->events | EV_WRITE);
+        ev_io_start(m_ev_loop, w);
+    } else {
+        ev_io_init(w, on_io_callback, fd, EV_WRITE);
+        ev_io_start(m_ev_loop, w);
+    }
+    LOG_DEBUG("add write ev io, fd: %d", fd);
+    return w;
+}
+
+bool Events::del_write_event(ev_io* w) {
+    if (w == nullptr) {
+        return false;
+    }
+    if (w->events | EV_WRITE) {
+        ev_io_stop(m_ev_loop, w);
+        ev_io_set(w, w->fd, w->events & (~EV_WRITE));
+        ev_io_start(m_ev_loop, w);
+    }
+    return true;
+}
+
+ev_timer* Events::add_timer_event(int secs, ev_timer* w, void* privdata) {
+    if (w == nullptr) {
+        w = (ev_timer*)malloc(sizeof(ev_timer));
+        if (w == nullptr) {
+            LOG_ERROR("alloc timer failed!");
+            return nullptr;
+        }
+    }
+
+    if (ev_is_active(w)) {
+        ev_timer_stop(m_ev_loop, w);
+        ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
+        ev_timer_start(m_ev_loop, w);
+    } else {
+        ev_timer_init(w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
+        ev_timer_start(m_ev_loop, w);
+    }
     w->data = privdata;
 
     LOG_DEBUG("start timer, seconds: %d", secs);

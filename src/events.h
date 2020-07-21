@@ -24,8 +24,9 @@ class Events {
     void end_ev_loop();
 
     // io
-    ev_io* add_read_event(int fd, void* privdata);
-    bool restart_read_event(ev_io* w, int fd, void* privadata);
+    ev_io* add_read_event(int fd, ev_io* w, void* privdata);
+    ev_io* add_write_event(int fd, ev_io* w, void* privdata);
+    bool del_write_event(ev_io* w);
     bool del_event(ev_io* w);
     bool stop_event(ev_io* w);
 
@@ -34,7 +35,7 @@ class Events {
     void create_signal_event(int signum, void* privdata);
 
     // timer
-    ev_timer* add_timer_event(int secs, void* privdata);
+    ev_timer* add_timer_event(int secs, ev_timer* w, void* privdata);
     bool restart_timer(int secs, ev_timer* w, void* privdat);
     bool del_event(ev_timer* w);
 

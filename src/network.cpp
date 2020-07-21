@@ -110,6 +110,7 @@ bool Network::create_events(ICallback* s, int fd1, int fd2,
     if (!add_read_event(fd1, codec_type, is_worker) ||
         !add_read_event(fd2, codec_type, is_worker)) {
         close_conn(fd1);
+        close_conn(fd2);
         LOG_ERROR("add read event failed, fd1: %d, fd2: %d", fd1, fd2);
         goto error;
     }
@@ -157,18 +158,10 @@ std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_ty
     c->set_active_time(mstime());
     c->set_state(Connection::STATE::CONNECTED);
 
-    w = c->get_ev_io();
+    w = m_events->add_read_event(fd, c->get_ev_io(), this);
     if (w == nullptr) {
-        w = m_events->add_read_event(fd, this);
-        if (w == nullptr) {
-            LOG_ERROR("add read event failed! fd: %d", fd);
-            return nullptr;
-        }
-    } else {
-        if (!m_events->restart_read_event(w, fd, this)) {
-            LOG_ERROR("reastart read event failed! fd: %d", fd);
-            return nullptr;
-        }
+        LOG_ERROR("add read event failed! fd: %d", fd);
+        return nullptr;
     }
     c->set_ev_io(w);
 
@@ -446,6 +439,7 @@ void Network::accept_and_transfer_fd(int fd) {
 void Network::read_transfer_fd(int fd) {
     channel_t ch;
     Codec::TYPE codec;
+    ev_timer* w;
     ConnectionData* conn_data = nullptr;
     std::shared_ptr<Connection> c = nullptr;
     int err, max = MAX_ACCEPTS_PER_CALL;
@@ -477,19 +471,10 @@ void Network::read_transfer_fd(int fd) {
                 goto error;
             }
             conn_data->m_conn = c;
-
-            ev_timer* w = c->get_ev_timer();
+            w = m_events->add_timer_event(1, c->get_ev_timer(), conn_data);
             if (w == nullptr) {
-                w = m_events->add_timer_event(1, conn_data);
-                if (w == nullptr) {
-                    LOG_ERROR("add timer failed! fd: %d", fd);
-                    goto error;
-                }
-            } else {
-                if (!m_events->restart_timer(1, w, conn_data)) {
-                    LOG_ERROR("restart timer failed! fd: %d", fd);
-                    goto error;
-                }
+                LOG_ERROR("add timer failed! fd: %d", fd);
+                goto error;
             }
             c->set_ev_timer(w);
         }
@@ -532,22 +517,33 @@ bool Network::load_modules() {
 }
 
 bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
+    int fd = c->get_fd();
     if (c->is_closed()) {
-        LOG_WARN("connection is closed! fd: %d", c->get_fd());
+        LOG_WARN("connection is closed! fd: %d", fd);
         return false;
     }
 
+    ev_io* w = c->get_ev_io();
     Codec::STATUS status = c->conn_write(msg);
-    if (status == Codec::STATUS::ERR) {
+    if (status == Codec::STATUS::OK) {
+        m_events->del_write_event(w);
         close_conn(c);
         return false;
     }
 
     if (status == Codec::STATUS::PAUSE) {
-        // add write events.
+        w = m_events->add_write_event(fd, w, this);
+        if (w == nullptr) {
+            close_conn(c);
+            LOG_ERROR("add write event failed! fd: %d", fd);
+            return false;
+        }
+        c->set_ev_io(w);
         return true;
     }
 
+    // ok remove write event.
+    m_events->del_write_event(w);
     return true;
 }
 
