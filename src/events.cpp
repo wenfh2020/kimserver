@@ -85,11 +85,15 @@ ev_io* Events::add_read_event(int fd, ev_io* w, void* privdata) {
             LOG_ERROR("alloc ev_io failed!");
             return nullptr;
         }
-        ev_io_init(w, on_io_callback, fd, EV_READ);
-        ev_io_start(m_ev_loop, w);
-    } else {
+        memset(w, 0, sizeof(ev_io));
+    }
+
+    if (ev_is_active(w)) {
         ev_io_stop(m_ev_loop, w);
         ev_io_set(w, fd, w->events | EV_READ);
+        ev_io_start(m_ev_loop, w);
+    } else {
+        ev_io_init(w, on_io_callback, fd, EV_READ);
         ev_io_start(m_ev_loop, w);
     }
     w->data = privdata;
@@ -105,14 +109,17 @@ ev_io* Events::add_write_event(int fd, ev_io* w, void* privdata) {
             LOG_ERROR("alloc ev_io failed!");
             return nullptr;
         }
-        ev_io_init(w, on_io_callback, fd, EV_WRITE);
-        ev_io_start(m_ev_loop, w);
-    } else {
+        memset(w, 0, sizeof(ev_io));
+    }
+
+    if (ev_is_active(w)) {
         ev_io_stop(m_ev_loop, w);
         ev_io_set(w, w->fd, w->events | EV_WRITE);
         ev_io_start(m_ev_loop, w);
+    } else {
+        ev_io_init(w, on_io_callback, fd, EV_WRITE);
+        ev_io_start(m_ev_loop, w);
     }
-    w->data = privdata;
     LOG_DEBUG("add write ev io, fd: %d", fd);
     return w;
 }
@@ -136,14 +143,19 @@ ev_timer* Events::add_timer_event(int secs, ev_timer* w, void* privdata) {
             LOG_ERROR("alloc timer failed!");
             return nullptr;
         }
-        ev_timer_init(w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
-        ev_timer_start(m_ev_loop, w);
-    } else {
+        memset(w, 0, sizeof(ev_timer));
+    }
+
+    if (ev_is_active(w)) {
         ev_timer_stop(m_ev_loop, w);
         ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
         ev_timer_start(m_ev_loop, w);
+    } else {
+        ev_timer_init(w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
+        ev_timer_start(m_ev_loop, w);
     }
     w->data = privdata;
+
     LOG_DEBUG("start timer, seconds: %d", secs);
     return w;
 }
@@ -156,6 +168,7 @@ bool Events::restart_timer(int secs, ev_timer* w, void* privdata) {
     ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
     ev_timer_start(m_ev_loop, w);
     w->data = privdata;
+
     LOG_DEBUG("restart timer, seconds: %d", secs);
     return true;
 }
