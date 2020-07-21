@@ -210,12 +210,14 @@ bool Network::close_conn(int fd) {
         if (c != nullptr) {
             c->set_state(Connection::STATE::CLOSED);
             m_events->del_event(c->get_ev_io());
+            c->set_ev_io(nullptr);
 
             ev_timer* w = c->get_ev_timer();
             if (w != nullptr) {
                 delete static_cast<ConnectionData*>(w->data);
                 w->data = nullptr;
                 m_events->del_event(w);
+                c->set_ev_timer(nullptr);
             }
         }
         m_conns.erase(it);
