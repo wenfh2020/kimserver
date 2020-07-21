@@ -98,7 +98,7 @@ class Network : public ICallback, public INet {
     TYPE m_type = TYPE::UNKNOWN;                                    // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
-    long long m_keep_alive = 0;
+    int m_keep_alive = 0;
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
     std::list<Module*> m_core_modules;

@@ -1,5 +1,5 @@
 {
-    "worker_processes": 2,
+    "worker_processes": 10,
     "node_type": "gate",
     "server_name": "kimserver",
     "bind": "127.0.0.1",
@@ -9,5 +9,5 @@
     "gate_codec": 2,
     "keep_alive": 30,
     "log_path": "kimserver.log",
-    "log_level": "debug"
+    "log_level": "info"
 }

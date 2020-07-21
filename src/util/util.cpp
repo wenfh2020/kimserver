@@ -1,10 +1,13 @@
 #include "util.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+#define CONFIG_MIN_RESERVED_FDS 32
 
 void daemonize(void) {
     int fd;
@@ -20,6 +23,63 @@ void daemonize(void) {
         dup2(fd, STDERR_FILENO);
         if (fd > STDERR_FILENO) close(fd);
     }
+}
+
+bool adjust_files_limit(int& max_clients) {
+    rlim_t maxfiles = max_clients + CONFIG_MIN_RESERVED_FDS;
+    struct rlimit limit;
+
+    if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
+        return false;
+    }
+
+    rlim_t oldlimit = limit.rlim_cur;
+    if (oldlimit >= maxfiles) {
+        return true;
+    }
+
+    rlim_t bestlimit;
+    int setrlimit_error = 0;
+
+    /* Try to set the file limit to match 'maxfiles' or at least
+     * to the higher value supported less than maxfiles. */
+    bestlimit = maxfiles;
+    while (bestlimit > oldlimit) {
+        rlim_t decr_step = 16;
+
+        limit.rlim_cur = bestlimit;
+        limit.rlim_max = bestlimit;
+        if (setrlimit(RLIMIT_NOFILE, &limit) != -1) {
+            break;
+        }
+        setrlimit_error = errno;
+
+        /* We failed to set file limit to 'bestlimit'. Try with a
+         * smaller limit decrementing by a few FDs per iteration. */
+        if (bestlimit < decr_step) {
+            break;
+        }
+        bestlimit -= decr_step;
+    }
+
+    /* Assume that the limit we get initially is still valid if
+     * our last try was even lower. */
+    if (bestlimit < oldlimit) {
+        bestlimit = oldlimit;
+    }
+
+    if (bestlimit < maxfiles) {
+        // unsigned int old_maxclients = max_clients;
+        max_clients = bestlimit - CONFIG_MIN_RESERVED_FDS;
+        /* maxclients is unsigned so may overflow: in order
+                 * to check if maxclients is now logically less than 1
+                 * we test indirectly via bestlimit. */
+        if (bestlimit <= CONFIG_MIN_RESERVED_FDS) {
+            return false;
+        }
+        return false;
+    }
+    return true;
 }
 
 const char* to_lower(char* s, int len) {
