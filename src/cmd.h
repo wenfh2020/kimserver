@@ -25,8 +25,7 @@ class Cmd {
 
     virtual Cmd::STATUS time_out() { return Cmd::STATUS::OK; }
     virtual Cmd::STATUS call_back(std::shared_ptr<Request> req) { return Cmd::STATUS::OK; }
-    virtual Cmd::STATUS response(const HttpMsg& msg);
-    virtual Cmd::STATUS response_http(const std::string& data);
+    virtual Cmd::STATUS response_http(const std::string& data, int status_code = 200);
 
     uint64_t get_id() { return m_id; }
 

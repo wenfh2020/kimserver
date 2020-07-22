@@ -79,7 +79,7 @@ work on Linux / MacOS
 * request
 
 ```shell
-curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/
+curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/ | python -m json.tool
 ```
 
 * response
@@ -87,7 +87,11 @@ curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/
 ```json
 {
     "code": 0,
-    "msg": "error"
+    "msg": "success",
+    "data": {
+        "id": "123",
+        "name": "kimserver"
+    }
 }
 ```
 
@@ -146,19 +150,18 @@ Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
         return Cmd::STATUS::ERROR;
     }
 
-    LOG_DEBUG("cmd hello, http path: %s", msg->path().c_str());
+    LOG_DEBUG("cmd hello, http path: %s, data: %s",
+              msg->path().c_str(), msg->body().c_str());
 
-    HttpMsg m;
-    m.set_type(HTTP_RESPONSE);
-    m.set_status_code(200);
-    m.set_http_major(msg->http_major());
-    m.set_http_minor(msg->http_minor());
+    CJsonObject data;
+    data.Add("id", "123");
+    data.Add("name", "kimserver");
 
     CJsonObject obj;
     obj.Add("code", 0);
     obj.Add("msg", "success");
-    m.set_body(obj.ToFormattedString());
-    return response(m);
+    obj.Add("data", data);
+    return response_http(obj.ToString());
 }
 
 }
