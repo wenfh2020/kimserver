@@ -16,7 +16,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
-#define IO_TIMER_VAL 1
+#define IO_TIMER_VAL 3
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {

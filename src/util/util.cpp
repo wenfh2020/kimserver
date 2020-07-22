@@ -40,7 +40,7 @@ bool adjust_files_limit(int& max_clients) {
     }
 
     rlim_t bestlimit;
-    int setrlimit_error = 0;
+    // int setrlimit_error = 0;
 
     /* Try to set the file limit to match 'maxfiles' or at least
      * to the higher value supported less than maxfiles. */
@@ -53,7 +53,7 @@ bool adjust_files_limit(int& max_clients) {
         if (setrlimit(RLIMIT_NOFILE, &limit) != -1) {
             break;
         }
-        setrlimit_error = errno;
+        // setrlimit_error = errno;
 
         /* We failed to set file limit to 'bestlimit'. Try with a
          * smaller limit decrementing by a few FDs per iteration. */
