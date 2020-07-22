@@ -24,7 +24,7 @@ Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
 
     CJsonObject obj;
     obj.Add("code", 0);
-    obj.Add("msg", "error");
+    obj.Add("msg", "success");
     m.set_body(obj.ToFormattedString());
     return response(m);
 }
