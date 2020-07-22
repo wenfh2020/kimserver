@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
 

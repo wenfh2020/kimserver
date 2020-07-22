@@ -333,7 +333,6 @@ void Network::on_io_read(int fd) {
 }
 
 void Network::check_wait_send_fds() {
-    LOG_INFO("");
     auto it = m_wait_send_fds.begin();
     for (; it != m_wait_send_fds.end();) {
         chanel_resend_data_t* data = *it;
@@ -343,8 +342,10 @@ void Network::check_wait_send_fds() {
             close(data->m_ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
-            LOG_INFO("resend chanel failed! fd: %d, errno: %d",
-                     err, data->m_ch.fd);
+            if (err != 0) {
+                LOG_ERROR("resend chanel failed! fd: %d, errno: %d",
+                          data->m_ch.fd, err);
+            }
             continue;
         }
 
@@ -359,13 +360,13 @@ void Network::check_wait_send_fds() {
         }
 
         it++;
-        LOG_INFO("wait to write channel, errno: %d", err);
+        LOG_DEBUG("wait to write channel, errno: %d", err);
     }
+    LOG_DEBUG("wait send list cnt: %d", m_wait_send_fds.size());
 }
 
 void Network::on_repeat_timer(void* privdata) {
     check_wait_send_fds();
-    // manager.
 }
 
 void Network::on_io_timer(void* privdata) {
@@ -489,9 +490,10 @@ void Network::accept_and_transfer_fd(int fd) {
             if (err == EAGAIN) {
                 chanel_resend_data_t* ch_data =
                     (chanel_resend_data_t*)malloc(sizeof(chanel_resend_data_t));
-                ch_data->m_ch = {cfd, family, static_cast<int>(m_gate_codec_type)};
+                memset(ch_data, 0, sizeof(chanel_resend_data_t));
+                ch_data->m_ch = ch;
                 m_wait_send_fds.push_back(ch_data);
-                LOG_INFO("wait to write channel, errno: %d", err);
+                LOG_DEBUG("wait to write channel, errno: %d", err);
                 return;
             }
             LOG_ERROR("write channel failed! errno: %d", err);
