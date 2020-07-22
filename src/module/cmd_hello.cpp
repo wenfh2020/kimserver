@@ -28,4 +28,5 @@ Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
     m.set_body(obj.ToFormattedString());
     return response(m);
 }
+
 }  // namespace kim

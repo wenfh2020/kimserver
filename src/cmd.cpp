@@ -40,10 +40,5 @@ Cmd::STATUS Cmd::response_http(const std::string& data) {
     }
     return Cmd::STATUS::OK;
 }
-// void Cmd::init(Request* req, uint64_t id, const std::string& name) {
-//     m_req = req;
-//     m_id = id;
-//     m_cmd_name = name;
-// }
 
 };  // namespace kim

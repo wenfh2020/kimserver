@@ -362,7 +362,7 @@ void Network::check_wait_send_fds() {
         it++;
         LOG_DEBUG("wait to write channel, errno: %d", err);
     }
-    LOG_DEBUG("wait send list cnt: %d", m_wait_send_fds.size());
+    // LOG_DEBUG("wait send list cnt: %d", m_wait_send_fds.size());
 }
 
 void Network::on_repeat_timer(void* privdata) {

@@ -53,13 +53,6 @@ bool Manager::init(const char* conf_path) {
 
     create_workers();
     set_proc_title("%s", m_conf("server_name").c_str());
-
-    // int max_clients = MAX_CLIENTS;
-    // if (!adjust_files_limit(max_clients)) {
-    //     LOG_ERROR("adjust files limit failed! max clients: %d", max_clients);
-    // }
-    // LOG_INFO("adjust files limit success! max clients: %d", max_clients);
-
     LOG_INFO("init manager success!");
     return true;
 }

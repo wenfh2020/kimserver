@@ -9,7 +9,6 @@ class CmdHello : public Cmd {
    public:
     CmdHello() {}
     virtual ~CmdHello();
-
     virtual Cmd::STATUS call_back(std::shared_ptr<Request> req);
 };
 

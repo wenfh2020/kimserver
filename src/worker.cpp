@@ -36,12 +36,6 @@ bool Worker::init(const WorkerInfo* info, const CJsonObject& conf) {
 
     LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
              info->index, info->ctrl_fd, info->data_fd);
-
-    // int max_clients = MAX_CLIENTS;
-    // if (!adjust_files_limit(max_clients)) {
-    //     LOG_ERROR("adjust files limit failed! max clients: %d", max_clients);
-    // }
-    // LOG_INFO("adjust files limit success! max clients: %d", max_clients);
     return true;
 }
 

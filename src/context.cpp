@@ -53,7 +53,7 @@ bool Connection::is_http_codec() {
     if (m_codec == nullptr) {
         return false;
     }
-    return m_codec->get_codec_type() == Codec::TYPE::HTTP;
+    return (m_codec->get_codec_type() == Codec::TYPE::HTTP);
 }
 
 Codec::STATUS Connection::conn_read(HttpMsg& msg) {
