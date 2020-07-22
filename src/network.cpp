@@ -339,13 +339,13 @@ void Network::check_wait_send_fds() {
         int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
         int err = write_channel(chanel_fd, &data->m_ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
-            close(data->m_ch.fd);
-            free(data);
-            m_wait_send_fds.erase(it++);
             if (err != 0) {
                 LOG_ERROR("resend chanel failed! fd: %d, errno: %d",
                           data->m_ch.fd, err);
             }
+            close(data->m_ch.fd);
+            free(data);
+            m_wait_send_fds.erase(it++);
             continue;
         }
 
