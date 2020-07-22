@@ -59,7 +59,26 @@ work on Linux / MacOS
 
 ## 3. usage
 
-### 3.1. module
+### 3.1. test
+
+* request
+
+```shell
+curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/
+```
+
+* response
+
+```json
+{
+    "code": 0,
+    "msg": "error"
+}
+```
+
+---
+
+### 3.2. module
 
 * module_core.h
 
@@ -77,7 +96,7 @@ class MoudleCore : public Module {
 
 ---
 
-### 3.2. cmd
+### 3.3. cmd
 
 * cmd_hello.h
 
