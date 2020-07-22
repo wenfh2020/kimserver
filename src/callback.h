@@ -22,7 +22,8 @@ class ICallback {
     virtual void on_io_error(int fd) {}
 
     // timer.
-    virtual void on_timer(void* privdata) {}
+    virtual void on_io_timer(void* privdata) {}
+    virtual void on_repeat_timer(void* privdata) {}
 };
 
 }  // namespace kim

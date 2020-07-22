@@ -13,6 +13,8 @@
 
 namespace kim {
 
+typedef void (*timer_cb)(struct ev_loop*, ev_timer*, int);
+
 class Events {
    public:
     Events(Log* logger);
@@ -35,7 +37,9 @@ class Events {
     void create_signal_event(int signum, void* privdata);
 
     // timer
-    ev_timer* add_timer_event(int secs, ev_timer* w, void* privdata);
+    ev_timer* add_io_timer(int secs, ev_timer* w, void* privdata);
+    ev_timer* add_repeat_timer(int secs, ev_timer* w, void* privdata);
+    ev_timer* add_timer_event(int secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs = 0);
     bool restart_timer(int secs, ev_timer* w, void* privdat);
     bool del_event(ev_timer* w);
 
@@ -43,7 +47,8 @@ class Events {
     // libev callback.
     static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
-    static void on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
 
    private:
     Log* m_logger = nullptr;

@@ -7,7 +7,6 @@
 #include "module.h"
 #include "module/module_core.h"
 #include "net/anet.h"
-#include "net/chanel.h"
 #include "server.h"
 #include "util/util.h"
 
@@ -17,6 +16,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
+#define IO_TIMER_VAL 1
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -27,9 +27,17 @@ Network::~Network() {
 }
 
 void Network::destory() {
+    if (m_events != nullptr) {
+        m_events->del_event(m_timer);
+        m_timer = nullptr;
+    }
     end_ev_loop();
     close_conns();
     SAFE_DELETE(m_events);
+    for (const auto& it : m_wait_send_fds) {
+        free(it);
+    }
+    m_wait_send_fds.clear();
 }
 
 void Network::run() {
@@ -74,6 +82,11 @@ bool Network::create(const AddrInfo* addr_info,
     }
 
     m_woker_data_mgr = m;
+
+    if (!load_timer()) {
+        LOG_ERROR("load timer failed!");
+        return false;
+    }
     return true;
 }
 
@@ -319,23 +332,62 @@ void Network::on_io_read(int fd) {
     }
 }
 
-void Network::on_timer(void* privdata) {
-    int secs;
-    ConnectionData* conn_data;
-    std::shared_ptr<Connection> c;
+void Network::check_wait_send_fds() {
+    LOG_INFO("");
+    auto it = m_wait_send_fds.begin();
+    for (; it != m_wait_send_fds.end();) {
+        chanel_resend_data_t* data = *it;
+        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+        int err = write_channel(chanel_fd, &data->m_ch, sizeof(channel_t), m_logger);
+        if (err == 0 || (err != 0 && err != EAGAIN)) {
+            close(data->m_ch.fd);
+            free(data);
+            m_wait_send_fds.erase(it++);
+            LOG_INFO("resend chanel failed! fd: %d, errno: %d",
+                     err, data->m_ch.fd);
+            continue;
+        }
 
-    conn_data = static_cast<ConnectionData*>(privdata);
-    c = conn_data->m_conn;
-    secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
-    if (secs > 0) {
-        LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
-        m_events->restart_timer(secs, c->get_ev_timer(), conn_data);
-        return;
+        //  err == EAGAIN)
+        if (++data->m_cnt >= 3) {
+            LOG_INFO("resend chanel too much! fd: %d, errno: %d",
+                     err, data->m_ch.fd);
+            close(data->m_ch.fd);
+            free(data);
+            m_wait_send_fds.erase(it++);
+            continue;
+        }
+
+        it++;
+        LOG_INFO("wait to write channel, errno: %d", err);
     }
+}
 
-    close_conn(c);
-    LOG_DEBUG("time up, close connection! secs: %d, fd: %d, seq: %llu",
-              secs, c->get_fd(), c->get_id());
+void Network::on_repeat_timer(void* privdata) {
+    check_wait_send_fds();
+    // manager.
+}
+
+void Network::on_io_timer(void* privdata) {
+    if (is_worker()) {
+        int secs;
+        ConnectionData* conn_data;
+        std::shared_ptr<Connection> c;
+
+        conn_data = static_cast<ConnectionData*>(privdata);
+        c = conn_data->m_conn;
+        secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
+        if (secs > 0) {
+            LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
+            m_events->restart_timer(secs, c->get_ev_timer(), conn_data);
+            return;
+        }
+
+        close_conn(c);
+        LOG_INFO("time up, close connection! secs: %d, fd: %d, seq: %llu",
+                 secs, c->get_fd(), c->get_id());
+    } else {
+    }
 }
 
 bool Network::read_query_from_client(int fd) {
@@ -352,6 +404,7 @@ bool Network::read_query_from_client(int fd) {
 
     if (c->is_http_codec()) {
         HttpMsg* msg;
+        Cmd::STATUS cmd_stat;
         Codec::STATUS status;
         std::shared_ptr<Request> req;
 
@@ -361,7 +414,12 @@ bool Network::read_query_from_client(int fd) {
         if (status == Codec::STATUS::OK) {
             for (Module* m : m_core_modules) {
                 LOG_DEBUG("module name: %s", m->get_name().c_str());
-                if (m->process_message(req) != Cmd::STATUS::UNKOWN) {
+                cmd_stat = m->process_message(req);
+                if (cmd_stat != Cmd::STATUS::UNKOWN) {
+                    if (cmd_stat != Cmd::STATUS::RUNNING &&
+                        c->get_active_time() == 0) {
+                        close_conn(c);
+                    }
                     break;
                 }
             }
@@ -428,6 +486,14 @@ void Network::accept_and_transfer_fd(int fd) {
         channel_t ch = {cfd, family, static_cast<int>(m_gate_codec_type)};
         int err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
+            if (err == EAGAIN) {
+                chanel_resend_data_t* ch_data =
+                    (chanel_resend_data_t*)malloc(sizeof(chanel_resend_data_t));
+                ch_data->m_ch = {cfd, family, static_cast<int>(m_gate_codec_type)};
+                m_wait_send_fds.push_back(ch_data);
+                LOG_INFO("wait to write channel, errno: %d", err);
+                return;
+            }
             LOG_ERROR("write channel failed! errno: %d", err);
         }
     } else {
@@ -473,7 +539,7 @@ void Network::read_transfer_fd(int fd) {
                 goto error;
             }
             conn_data->m_conn = c;
-            w = m_events->add_timer_event(1, c->get_ev_timer(), conn_data);
+            w = m_events->add_io_timer(IO_TIMER_VAL, c->get_ev_timer(), conn_data);
             if (w == nullptr) {
                 LOG_ERROR("add timer failed! fd: %d", fd);
                 goto error;
@@ -518,6 +584,14 @@ bool Network::load_modules() {
     return true;
 }
 
+bool Network::load_timer() {
+    if (m_events == nullptr) {
+        return false;
+    }
+    m_timer = m_events->add_repeat_timer(1, m_timer, this);
+    return (m_timer != nullptr);
+}
+
 bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     int fd = c->get_fd();
     if (c->is_closed()) {
@@ -529,8 +603,7 @@ bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     Codec::STATUS status = c->conn_write(msg);
     if (status == Codec::STATUS::OK) {
         m_events->del_write_event(w);
-        close_conn(c);
-        return false;
+        return true;
     }
 
     if (status == Codec::STATUS::PAUSE) {

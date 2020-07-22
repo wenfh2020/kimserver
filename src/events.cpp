@@ -136,7 +136,15 @@ bool Events::del_write_event(ev_io* w) {
     return true;
 }
 
-ev_timer* Events::add_timer_event(int secs, ev_timer* w, void* privdata) {
+ev_timer* Events::add_io_timer(int secs, ev_timer* w, void* privdata) {
+    return add_timer_event(secs, w, on_io_timer_callback, privdata);
+}
+
+ev_timer* Events::add_repeat_timer(int secs, ev_timer* w, void* privdata) {
+    return add_timer_event(secs, w, on_repeat_timer_callback, privdata, secs);
+}
+
+ev_timer* Events::add_timer_event(int secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs) {
     if (w == nullptr) {
         w = (ev_timer*)malloc(sizeof(ev_timer));
         if (w == nullptr) {
@@ -148,10 +156,10 @@ ev_timer* Events::add_timer_event(int secs, ev_timer* w, void* privdata) {
 
     if (ev_is_active(w)) {
         ev_timer_stop(m_ev_loop, w);
-        ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
+        ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), repeat_secs);
         ev_timer_start(m_ev_loop, w);
     } else {
-        ev_timer_init(w, on_timer_callback, secs + ev_time() - ev_now(m_ev_loop), 0.);
+        ev_timer_init(w, tcb, secs + ev_time() - ev_now(m_ev_loop), repeat_secs);
         ev_timer_start(m_ev_loop, w);
     }
     w->data = privdata;
@@ -229,7 +237,7 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 }
 
-void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     ICallback* cb;
     std::shared_ptr<Connection> c;
 
@@ -238,13 +246,23 @@ void Events::on_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
         if (c != nullptr) {
             cb = static_cast<ICallback*>(c->get_private_data());
             if (cb != nullptr) {
-                cb->on_timer(w->data);
+                cb->on_io_timer(w->data);
                 return;
             }
         }
     }
 
     ev_timer_stop(loop, w);
+}
+
+void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    if (w->data == nullptr) {
+        return;
+    }
+    ICallback* cb = static_cast<ICallback*>(w->data);
+    if (cb != nullptr) {
+        cb->on_repeat_timer(w->data);
+    }
 }
 
 }  // namespace kim

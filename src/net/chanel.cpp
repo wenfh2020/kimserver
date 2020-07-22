@@ -10,6 +10,7 @@ namespace kim {
 #define LOG_FORMAT(level, args...) \
     logger->log_data(__FILE__, __LINE__, __FUNCTION__, level, ##args);
 #define LOG_ERROR(args...) LOG_FORMAT((Log::LL_ERR), ##args)
+#define LOG_DEBUG(args...) LOG_FORMAT((Log::LL_DEBUG), ##args)
 
 int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     ssize_t n;
@@ -62,12 +63,14 @@ int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
     n = sendmsg(fd, &msg, 0);
 
     if (n == -1) {
-        LOG_ERROR("sendmsg() failed! err: %d, error: %s",
-                  errno, strerror(errno));
         err = errno;
         if (err == EAGAIN) {
+            LOG_DEBUG("wait to sendmsg again! err: %d, error: %s",
+                      errno, strerror(errno));
             return err;
         }
+        LOG_ERROR("sendmsg() failed! err: %d, error: %s",
+                  errno, strerror(errno));
         return -1;
     }
     return 0;

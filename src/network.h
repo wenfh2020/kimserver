@@ -12,10 +12,16 @@
 #include "module.h"
 #include "net.h"
 #include "net/anet.h"
+#include "net/chanel.h"
 #include "node_info.h"
 #include "worker_data_mgr.h"
 
 namespace kim {
+
+typedef struct chanel_resend_data_s {
+    channel_t m_ch;
+    int m_cnt = 0;
+} chanel_resend_data_t;
 
 class Network : public ICallback, public INet {
    public:
@@ -37,6 +43,7 @@ class Network : public ICallback, public INet {
     void destory();
 
     bool load_modules();
+    bool load_timer();
 
     // events.
     void run();
@@ -57,7 +64,10 @@ class Network : public ICallback, public INet {
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
     virtual void on_io_error(int fd) override;
-    virtual void on_timer(void* privdata) override;
+
+    // timer
+    virtual void on_io_timer(void* privdata) override;
+    virtual void on_repeat_timer(void* privdata) override;
 
     // net
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
@@ -83,6 +93,7 @@ class Network : public ICallback, public INet {
     void close_conns();
 
     int get_new_seq() { return ++m_seq; }
+    void check_wait_send_fds();
 
    private:
     Log* m_logger = nullptr;     // logger.
@@ -102,6 +113,9 @@ class Network : public ICallback, public INet {
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
     std::list<Module*> m_core_modules;
+
+    ev_timer* m_timer = nullptr;
+    std::list<chanel_resend_data_t*> m_wait_send_fds;
 };
 
 }  // namespace kim
