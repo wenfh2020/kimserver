@@ -29,6 +29,7 @@ Kimserver is an async tcp multiple processes (one master process and one or more
 work on Linux / MacOS
 
 ```shell
+./gen_proto.sh
 ./run.sh
 ```
 

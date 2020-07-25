@@ -20,8 +20,12 @@ case "$1" in
     exit 0
     ;;
 "1")
-    url="$base_url/kim/im/user/"
+    url="$base_url/kim/im/helloworld/"
     request='{"uid":"hello world"}'
+    ;;
+"2")
+    url="$base_url/kim/im/test/"
+    request='{"test":"test"}'
     ;;
 *)
     echo "invalid param"

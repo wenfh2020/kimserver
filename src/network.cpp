@@ -5,7 +5,7 @@
 
 #include "context.h"
 #include "module.h"
-#include "module/module_core.h"
+#include "module/module_test.h"
 #include "net/anet.h"
 #include "server.h"
 #include "util/util.h"
@@ -412,16 +412,28 @@ bool Network::read_query_from_client(int fd) {
         req = std::make_shared<Request>(c, true);
         msg = req->get_http_msg_alloc();
         status = c->conn_read(*msg);
+
         if (status == Codec::STATUS::OK) {
+            // find path in modules and process message.
             for (Module* m : m_core_modules) {
                 LOG_DEBUG("module name: %s", m->get_name().c_str());
                 cmd_stat = m->process_message(req);
                 if (cmd_stat != Cmd::STATUS::UNKOWN) {
+                    LOG_DEBUG("cmd status: %d", cmd_stat);
                     if (cmd_stat != Cmd::STATUS::RUNNING &&
-                        c->get_active_time() == 0) {
+                        c->get_keep_alive() == 0) {  // Connection : close
+                        LOG_DEBUG("short connection! fd: %d", fd);
                         close_conn(c);
                     }
                     break;
+                }
+            }
+
+            // can not find the path in modules.
+            if (cmd_stat == Cmd::STATUS::UNKOWN) {
+                LOG_DEBUG("can not find the path: %s, ", msg->path().c_str());
+                if (c->get_keep_alive() == 0) {
+                    close_conn(c);
                 }
             }
         } else {
@@ -576,7 +588,7 @@ bool Network::set_gate_codec_type(Codec::TYPE type) {
 
 bool Network::load_modules() {
     // core module.
-    Module* m = new MoudleCore;
+    Module* m = new MoudleTest;
     if (m == nullptr) {
         return false;
     }
