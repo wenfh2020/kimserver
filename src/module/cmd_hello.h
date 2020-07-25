@@ -9,7 +9,7 @@ class CmdHello : public Cmd {
    public:
     CmdHello() {}
     virtual ~CmdHello();
-    virtual Cmd::STATUS call_back(std::shared_ptr<Request> req);
+    virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
 };
 
 }  // namespace kim

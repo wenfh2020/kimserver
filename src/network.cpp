@@ -409,8 +409,8 @@ bool Network::read_query_from_client(int fd) {
         Codec::STATUS status;
         std::shared_ptr<Request> req;
 
-        req = std::make_shared<Request>(c);
-        msg = req->get_http_msg();
+        req = std::make_shared<Request>(c, true);
+        msg = req->get_http_msg_alloc();
         status = c->conn_read(*msg);
         if (status == Codec::STATUS::OK) {
             for (Module* m : m_core_modules) {
@@ -582,6 +582,7 @@ bool Network::load_modules() {
     }
     m->init(m_logger, this);
     m->set_name(CORE_MODULE);
+    m->register_handle_func();
     m_core_modules.push_back(m);
     return true;
 }

@@ -8,7 +8,7 @@ CmdHello::~CmdHello() {
     LOG_DEBUG("delete cmd hello");
 }
 
-Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
+Cmd::STATUS CmdHello::execute(std::shared_ptr<Request> req) {
     const HttpMsg* msg = req->get_http_msg();
     if (msg == nullptr) {
         return Cmd::STATUS::ERROR;
