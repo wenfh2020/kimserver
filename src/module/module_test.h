@@ -12,12 +12,12 @@ class MoudleTest : public Module {
 
    public:
     void register_handle_func() {
-        REGISTER_HANDLE_FUNC("/kim/im/test/", MoudleTest::func_test);
-        REGISTER_HANDLE_FUNC("/kim/im/helloworld/", MoudleTest::func_hello_world);
+        REGISTER_HANDLE_FUNC("/kim/test/", MoudleTest::func_test_cmd);
+        REGISTER_HANDLE_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
     }
 
    private:
-    Cmd::STATUS func_test(std::shared_ptr<Request> req);
+    Cmd::STATUS func_test_cmd(std::shared_ptr<Request> req);
     Cmd::STATUS func_hello_world(std::shared_ptr<Request> req);
 };
 

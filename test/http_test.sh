@@ -20,11 +20,11 @@ case "$1" in
     exit 0
     ;;
 "1")
-    url="$base_url/kim/im/helloworld/"
+    url="$base_url/kim/helloworld/"
     request='{"uid":"hello world"}'
     ;;
 "2")
-    url="$base_url/kim/im/test/"
+    url="$base_url/kim/test/"
     request='{"test":"test"}'
     ;;
 *)

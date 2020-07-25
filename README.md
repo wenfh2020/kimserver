@@ -79,7 +79,7 @@ work on Linux / MacOS
 * request
 
 ```shell
-curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/ | python -m json.tool
+curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/helloworld/ | python -m json.tool
 ```
 
 * response
@@ -100,21 +100,24 @@ curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/im/user/ | python -
 <a id="markdown-32-module" name="32-module"></a>
 ### 3.2. module
 
-* module_core.h
-
 ```c++
 namespace kim {
 
-class MoudleCore : public Module {
-    REGISTER_HANDLER(MoudleCore)
+class MoudleTest : public Module {
+    REGISTER_HANDLER(MoudleTest)
 
    public:
     void register_handle_func() {
-        REGISTER_HANDLE_FUNC("/kim/im/user/", MoudleCore::func_cmd_hello);
+        REGISTER_HANDLE_FUNC("/kim/test/", MoudleTest::func_test_cmd);
+        REGISTER_HANDLE_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
     }
 
    private:
-    Cmd::STATUS func_cmd_hello(std::shared_ptr<Request> req) {
+    Cmd::STATUS func_test_cmd(std::shared_ptr<Request> req) {
+        HANDLE_CMD(CmdHello);
+    }
+
+    Cmd::STATUS func_hello_world(std::shared_ptr<Request> req) {
         const HttpMsg* msg = req->get_http_msg();
         if (msg == nullptr) {
             return Cmd::STATUS::ERROR;

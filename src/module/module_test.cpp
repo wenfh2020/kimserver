@@ -1,9 +1,11 @@
 #include "module_test.h"
 
+#include "cmd_hello.h"
+
 namespace kim {
 
-Cmd::STATUS MoudleTest::func_test(std::shared_ptr<Request> req) {
-    return Cmd::STATUS::ERROR;
+Cmd::STATUS MoudleTest::func_test_cmd(std::shared_ptr<Request> req) {
+    HANDLE_CMD(CmdHello);
 }
 
 Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {

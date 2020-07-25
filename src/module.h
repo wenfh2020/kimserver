@@ -60,41 +60,27 @@ class Module {
 #define REGISTER_HANDLE_FUNC(path, func) \
     m_cmd_funcs[path] = &func;
 
-#define BEGIN_HTTP_MAP()                                                \
-   public:                                                              \
-    virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) { \
-        const HttpMsg* msg = req->get_http_msg();                       \
-        if (msg == nullptr) {                                           \
-            return Cmd::STATUS::ERROR;                                  \
-        }                                                               \
-        std::string path = msg->path();
-
-#define HTTP_HANDLER(_path, _cmd, _name)      \
-    if (path == (_path)) {                    \
-        _cmd* p = new _cmd;                   \
-        p->init(m_logger, m_net);             \
-        p->set_cmd_name(_name);               \
-        p->set_req(req);                      \
-        Cmd::STATUS status = p->execute(req); \
-        if (status == Cmd::STATUS::RUNNING) { \
-            auto it = m_cmds.insert(p);       \
-            if (!it.second) {                 \
-                delete p;                     \
-                return Cmd::STATUS::ERROR;    \
-            }                                 \
-            return status;                    \
+#define HANDLE_CMD(_cmd)                      \
+    const HttpMsg* msg = req->get_http_msg(); \
+    if (msg == nullptr) {                     \
+        return Cmd::STATUS::ERROR;            \
+    }                                         \
+    std::string path = msg->path();           \
+    _cmd* p = new _cmd;                       \
+    p->init(m_logger, m_net);                 \
+    p->set_cmd_name(#_cmd);                   \
+    p->set_req(req);                          \
+    Cmd::STATUS status = p->execute(req);     \
+    if (status == Cmd::STATUS::RUNNING) {     \
+        auto it = m_cmds.insert(p);           \
+        if (!it.second) {                     \
+            delete p;                         \
+            return Cmd::STATUS::ERROR;        \
         }                                     \
-        delete p;                             \
         return status;                        \
-    }
-
-#define END_HTTP_MAP()          \
-    return Cmd::STATUS::UNKOWN; \
-    }
-
-#define END_HTTP_MAP_EX(base)          \
-    return base::process_message(req); \
-    }
+    }                                         \
+    delete p;                                 \
+    return status;
 
 }  // namespace kim
 
