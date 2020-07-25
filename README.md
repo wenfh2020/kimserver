@@ -164,5 +164,5 @@ Cmd::STATUS CmdHello::call_back(std::shared_ptr<Request> req) {
     return response_http(obj.ToString());
 }
 
-}
+}  // namespace kim
 ```
