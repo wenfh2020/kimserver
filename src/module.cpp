@@ -1,10 +1,12 @@
 #include "module.h"
 
+#include "../server.h"
+
 namespace kim {
 
 Module::~Module() {
     for (const auto& it : m_cmds) {
-        delete it;
+        delete it.second;
     }
 }
 

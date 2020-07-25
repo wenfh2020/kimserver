@@ -16,12 +16,10 @@ class Cmd {
         ERROR = 4,
     };
 
-    Cmd() {}
+    Cmd(Log* logger, INet* net, uint64_t id);
     Cmd(const Cmd&) = delete;
     Cmd& operator=(const Cmd&) = delete;
     virtual ~Cmd();
-
-    void init(Log* logger, INet* net);
 
     virtual Cmd::STATUS time_out() { return Cmd::STATUS::OK; }
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req) { return Cmd::STATUS::OK; }
@@ -29,11 +27,12 @@ class Cmd {
     virtual Cmd::STATUS response_http(const std::string& data, int status_code = 200);
 
     uint64_t get_id() { return m_id; }
+    void set_id(uint64_t id) { m_id = id; }
 
     void set_req(std::shared_ptr<Request> req) { m_req = req; }
     std::shared_ptr<Request> get_req() { return m_req; }
 
-    void set_net(INet* net);
+    void set_net(INet* net) { m_net = net; }
     void set_logger(Log* logger) { m_logger = logger; }
     void set_cmd_name(const std::string& name) { m_cmd_name = name; }
     std::string get_cmd_name() { return m_cmd_name; }

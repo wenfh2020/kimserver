@@ -16,7 +16,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
-#define IO_TIMER_VAL 3
+#define IO_TIMER_VAL 1
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -371,7 +371,7 @@ void Network::on_repeat_timer(void* privdata) {
 
 void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
-        int secs;
+        double secs;
         ConnectionData* conn_data;
         std::shared_ptr<Connection> c;
 
@@ -420,10 +420,13 @@ bool Network::read_query_from_client(int fd) {
                 cmd_stat = m->process_message(req);
                 if (cmd_stat != Cmd::STATUS::UNKOWN) {
                     LOG_DEBUG("cmd status: %d", cmd_stat);
-                    if (cmd_stat != Cmd::STATUS::RUNNING &&
-                        c->get_keep_alive() == 0) {  // Connection : close
-                        LOG_DEBUG("short connection! fd: %d", fd);
-                        close_conn(c);
+                    if (cmd_stat == Cmd::STATUS::RUNNING) {
+                        // add timer for check.
+                    } else {
+                        if (c->get_keep_alive() == 0) {  // Connection : close
+                            LOG_DEBUG("short connection! fd: %d", fd);
+                            close_conn(c);
+                        }
                     }
                     break;
                 }
@@ -587,13 +590,13 @@ bool Network::set_gate_codec_type(Codec::TYPE type) {
 }
 
 bool Network::load_modules() {
-    // core module.
     Module* m = new MoudleTest;
     if (m == nullptr) {
         return false;
     }
     m->init(m_logger, this);
     m->set_name(CORE_MODULE);
+    m->set_id(get_seq());
     m->register_handle_func();
     m_core_modules.push_back(m);
     return true;

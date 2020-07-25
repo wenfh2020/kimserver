@@ -37,10 +37,10 @@ class Events {
     void create_signal_event(int signum, void* privdata);
 
     // timer
-    ev_timer* add_io_timer(int secs, ev_timer* w, void* privdata);
-    ev_timer* add_repeat_timer(int secs, ev_timer* w, void* privdata);
-    ev_timer* add_timer_event(int secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs = 0);
-    bool restart_timer(int secs, ev_timer* w, void* privdat);
+    ev_timer* add_io_timer(double secs, ev_timer* w, void* privdata);
+    ev_timer* add_repeat_timer(double secs, ev_timer* w, void* privdata);
+    ev_timer* add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs = 0);
+    bool restart_timer(double secs, ev_timer* w, void* privdat);
     bool del_event(ev_timer* w);
 
    private:

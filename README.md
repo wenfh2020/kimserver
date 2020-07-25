@@ -114,6 +114,7 @@ class MoudleTest : public Module {
 
    private:
     Cmd::STATUS func_test_cmd(std::shared_ptr<Request> req) {
+        // cmd for async/sync logic.
         HANDLE_CMD(CmdHello);
     }
 

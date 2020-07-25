@@ -136,15 +136,15 @@ bool Events::del_write_event(ev_io* w) {
     return true;
 }
 
-ev_timer* Events::add_io_timer(int secs, ev_timer* w, void* privdata) {
+ev_timer* Events::add_io_timer(double secs, ev_timer* w, void* privdata) {
     return add_timer_event(secs, w, on_io_timer_callback, privdata);
 }
 
-ev_timer* Events::add_repeat_timer(int secs, ev_timer* w, void* privdata) {
+ev_timer* Events::add_repeat_timer(double secs, ev_timer* w, void* privdata) {
     return add_timer_event(secs, w, on_repeat_timer_callback, privdata, secs);
 }
 
-ev_timer* Events::add_timer_event(int secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs) {
+ev_timer* Events::add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs) {
     if (w == nullptr) {
         w = (ev_timer*)malloc(sizeof(ev_timer));
         if (w == nullptr) {
@@ -168,7 +168,7 @@ ev_timer* Events::add_timer_event(int secs, ev_timer* w, timer_cb tcb, void* pri
     return w;
 }
 
-bool Events::restart_timer(int secs, ev_timer* w, void* privdata) {
+bool Events::restart_timer(double secs, ev_timer* w, void* privdata) {
     if (w == nullptr) {
         return false;
     }

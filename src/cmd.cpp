@@ -2,16 +2,10 @@
 
 namespace kim {
 
+Cmd::Cmd(Log* logger, INet* net, uint64_t id)
+    : m_id(id), m_logger(logger), m_net(net) {}
+
 Cmd::~Cmd() {
-}
-
-void Cmd::init(Log* logger, INet* net) {
-    m_net = net;
-    m_logger = logger;
-}
-
-void Cmd::set_net(INet* net) {
-    m_net = net;
 }
 
 Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {

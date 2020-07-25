@@ -7,7 +7,7 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello() {}
+    CmdHello(Log* logger, INet* net, uint64_t id);
     virtual ~CmdHello();
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
 };

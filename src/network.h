@@ -73,8 +73,8 @@ class Network : public ICallback, public INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
-    void set_keep_alive(long long keep_alive) { m_keep_alive = keep_alive; }
-    long long get_keep_alive() { return m_keep_alive; }
+    void set_keep_alive(int keep_alive) { m_keep_alive = keep_alive; }
+    int get_keep_alive() { return m_keep_alive; }
 
    private:
     bool create_events(ICallback* s, int fd1, int fd2,

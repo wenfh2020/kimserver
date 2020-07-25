@@ -4,6 +4,10 @@
 
 namespace kim {
 
+CmdHello::CmdHello(Log* logger, INet* net, uint64_t id)
+    : Cmd(logger, net, id) {
+}
+
 CmdHello::~CmdHello() {
     LOG_DEBUG("delete cmd hello");
 }

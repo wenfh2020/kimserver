@@ -13,7 +13,13 @@ class INet {
     virtual ~INet() {}
 
    public:
+    uint64_t get_seq() { return ++m_seq; }
+
+   public:
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return true; }
+
+   private:
+    uint64_t m_seq = 0;
 };
 
 }  // namespace kim
