@@ -6,6 +6,7 @@
 #include "util/json/CJsonObject.hpp"
 
 namespace kim {
+
 class MoudleCore : public Module {
     REGISTER_HANDLER(MoudleCore)
 
