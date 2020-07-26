@@ -10,7 +10,6 @@
 #include "context.h"
 #include "events.h"
 #include "module.h"
-#include "net.h"
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "node_info.h"
@@ -23,7 +22,7 @@ typedef struct chanel_resend_data_s {
     int m_cnt = 0;
 } chanel_resend_data_t;
 
-class Network : public ICallback, public INet {
+class Network : public ICallback {
    public:
     enum class TYPE {
         UNKNOWN = 0,
@@ -67,9 +66,12 @@ class Network : public ICallback, public INet {
 
     // timer
     virtual void on_io_timer(void* privdata) override;
+    virtual void on_cmd_timer(void* privdata) override;
     virtual void on_repeat_timer(void* privdata) override;
 
     // net
+    virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
+    virtual bool del_cmd_timer(ev_timer* w) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
@@ -112,7 +114,7 @@ class Network : public ICallback, public INet {
     int m_keep_alive = 0;
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
-    std::list<Module*> m_core_modules;
+    std::unordered_map<uint64_t, Module*> m_core_modules;
 
     ev_timer* m_timer = nullptr;
     std::list<chanel_resend_data_t*> m_wait_send_fds;

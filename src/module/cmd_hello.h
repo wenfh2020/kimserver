@@ -7,9 +7,12 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger, INet* net, uint64_t id);
+    CmdHello(Log* logger, ICallback* net, uint64_t id);
     virtual ~CmdHello();
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
+
+   public:
+    virtual Cmd::STATUS on_timeout() override;
+    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) override;
 };
 
 }  // namespace kim

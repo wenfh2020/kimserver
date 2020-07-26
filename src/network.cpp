@@ -16,7 +16,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
-#define IO_TIMER_VAL 1
+#define IO_TIMER_VAL 1.0
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -28,7 +28,7 @@ Network::~Network() {
 
 void Network::destory() {
     if (m_events != nullptr) {
-        m_events->del_event(m_timer);
+        m_events->del_timer_event(m_timer);
         m_timer = nullptr;
     }
     end_ev_loop();
@@ -222,14 +222,14 @@ bool Network::close_conn(int fd) {
         std::shared_ptr<Connection> c = it->second;
         if (c != nullptr) {
             c->set_state(Connection::STATE::CLOSED);
-            m_events->del_event(c->get_ev_io());
+            m_events->del_io_event(c->get_ev_io());
             c->set_ev_io(nullptr);
 
             ev_timer* w = c->get_ev_timer();
             if (w != nullptr) {
                 delete static_cast<ConnectionData*>(w->data);
                 w->data = nullptr;
-                m_events->del_event(w);
+                m_events->del_timer_event(w);
                 c->set_ev_timer(nullptr);
             }
         }
@@ -369,6 +369,14 @@ void Network::on_repeat_timer(void* privdata) {
     check_wait_send_fds();
 }
 
+void Network::on_cmd_timer(void* privdata) {
+    cmd_timer_data_t* ctd = static_cast<cmd_timer_data_t*>(privdata);
+    auto it = m_core_modules.find(ctd->m_module_id);
+    if (it != m_core_modules.end()) {
+        it->second->on_timeout(ctd);
+    }
+}
+
 void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
         double secs;
@@ -405,6 +413,7 @@ bool Network::read_query_from_client(int fd) {
 
     if (c->is_http_codec()) {
         HttpMsg* msg;
+        Module* module;
         Cmd::STATUS cmd_stat;
         Codec::STATUS status;
         std::shared_ptr<Request> req;
@@ -415,14 +424,13 @@ bool Network::read_query_from_client(int fd) {
 
         if (status == Codec::STATUS::OK) {
             // find path in modules and process message.
-            for (Module* m : m_core_modules) {
-                LOG_DEBUG("module name: %s", m->get_name().c_str());
-                cmd_stat = m->process_message(req);
+            for (const auto& it : m_core_modules) {
+                module = it.second;
+                LOG_DEBUG("module name: %s", module->get_name().c_str());
+                cmd_stat = module->process_message(req);
                 if (cmd_stat != Cmd::STATUS::UNKOWN) {
                     LOG_DEBUG("cmd status: %d", cmd_stat);
-                    if (cmd_stat == Cmd::STATUS::RUNNING) {
-                        // add timer for check.
-                    } else {
+                    if (cmd_stat != Cmd::STATUS::RUNNING) {
                         if (c->get_keep_alive() == 0) {  // Connection : close
                             LOG_DEBUG("short connection! fd: %d", fd);
                             close_conn(c);
@@ -598,7 +606,7 @@ bool Network::load_modules() {
     m->set_name(CORE_MODULE);
     m->set_id(get_seq());
     m->register_handle_func();
-    m_core_modules.push_back(m);
+    m_core_modules[m->get_id()] = m;
     return true;
 }
 
@@ -638,6 +646,14 @@ bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     // ok remove write event.
     m_events->del_write_event(w);
     return true;
+}
+
+ev_timer* Network::add_cmd_timer(double secs, ev_timer* w, void* privdata) {
+    return m_events->add_cmd_timer(secs, w, privdata);
+}
+
+bool Network::del_cmd_timer(ev_timer* w) {
+    return m_events->del_timer_event(w);
 }
 
 }  // namespace kim

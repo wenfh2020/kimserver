@@ -4,7 +4,7 @@
 
 namespace kim {
 
-CmdHello::CmdHello(Log* logger, INet* net, uint64_t id)
+CmdHello::CmdHello(Log* logger, ICallback* net, uint64_t id)
     : Cmd(logger, net, id) {
 }
 
@@ -14,6 +14,16 @@ CmdHello::~CmdHello() {
 
 Cmd::STATUS CmdHello::execute(std::shared_ptr<Request> req) {
     const HttpMsg* msg = req->get_http_msg();
+    if (msg == nullptr) {
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::RUNNING;
+}
+
+Cmd::STATUS CmdHello::on_timeout() {
+    LOG_DEBUG("hello time out!");
+
+    const HttpMsg* msg = m_req->get_http_msg();
     if (msg == nullptr) {
         return Cmd::STATUS::ERROR;
     }

@@ -2,8 +2,8 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* net, uint64_t id)
-    : m_id(id), m_logger(logger), m_net(net) {}
+Cmd::Cmd(Log* logger, ICallback* cb, uint64_t id)
+    : m_id(id), m_logger(logger), m_net(cb) {}
 
 Cmd::~Cmd() {
 }

@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "context.h"
+#include "module.h"
 
 namespace kim {
 
@@ -144,6 +145,10 @@ ev_timer* Events::add_repeat_timer(double secs, ev_timer* w, void* privdata) {
     return add_timer_event(secs, w, on_repeat_timer_callback, privdata, secs);
 }
 
+ev_timer* Events::add_cmd_timer(double secs, ev_timer* w, void* privdata) {
+    return add_timer_event(secs, w, on_cmd_timer_callback, privdata, secs);
+}
+
 ev_timer* Events::add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs) {
     if (w == nullptr) {
         w = (ev_timer*)malloc(sizeof(ev_timer));
@@ -164,7 +169,7 @@ ev_timer* Events::add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* 
     }
     w->data = privdata;
 
-    LOG_DEBUG("start timer, seconds: %d", secs);
+    LOG_DEBUG("start timer, seconds: %f", secs);
     return w;
 }
 
@@ -177,11 +182,11 @@ bool Events::restart_timer(double secs, ev_timer* w, void* privdata) {
     ev_timer_start(m_ev_loop, w);
     w->data = privdata;
 
-    LOG_DEBUG("restart timer, seconds: %d", secs);
+    LOG_DEBUG("restart timer, seconds: %f", secs);
     return true;
 }
 
-bool Events::del_event(ev_io* w) {
+bool Events::del_io_event(ev_io* w) {
     if (w == nullptr) {
         return false;
     }
@@ -194,14 +199,14 @@ bool Events::del_event(ev_io* w) {
     return true;
 }
 
-bool Events::del_event(ev_timer* w) {
+bool Events::del_timer_event(ev_timer* w) {
     if (w == nullptr) {
         return false;
     }
 
     LOG_DEBUG("delete timer event");
     ev_timer_stop(m_ev_loop, w);
-    w->data = NULL;
+    w->data = nullptr;
     SAFE_FREE(w);
     return true;
 }
@@ -240,29 +245,22 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     ICallback* cb;
     std::shared_ptr<Connection> c;
-
-    if (w->data != nullptr) {
-        c = static_cast<ConnectionData*>(w->data)->m_conn;
-        if (c != nullptr) {
-            cb = static_cast<ICallback*>(c->get_private_data());
-            if (cb != nullptr) {
-                cb->on_io_timer(w->data);
-                return;
-            }
-        }
-    }
-
-    ev_timer_stop(loop, w);
+    c = static_cast<ConnectionData*>(w->data)->m_conn;
+    cb = static_cast<ICallback*>(c->get_private_data());
+    cb->on_io_timer(w->data);
 }
 
 void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    if (w->data == nullptr) {
-        return;
-    }
     ICallback* cb = static_cast<ICallback*>(w->data);
-    if (cb != nullptr) {
-        cb->on_repeat_timer(w->data);
-    }
+    cb->on_repeat_timer(w->data);
+}
+
+void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    ICallback* cb;
+    cmd_timer_data_t* data;
+    data = static_cast<cmd_timer_data_t*>(w->data);
+    cb = static_cast<ICallback*>(data->m_net);
+    cb->on_cmd_timer(w->data);
 }
 
 }  // namespace kim
