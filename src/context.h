@@ -55,8 +55,8 @@ class Connection {
     void set_ev_io(ev_io* w) { m_ev_io = w; }
     ev_io* get_ev_io() const { return m_ev_io; }
 
-    void set_ev_timer(ev_timer* w) { m_ev_timer = w; }
-    ev_timer* get_ev_timer() { return m_ev_timer; }
+    void set_timer(ev_timer* w) { m_timer = w; }
+    ev_timer* get_timer() { return m_timer; }
 
     void set_active_time(long long t) { m_active_time = t; }
     long long get_active_time() const { return m_active_time; }
@@ -81,7 +81,7 @@ class Connection {
 
     ev_io* m_ev_io = nullptr;     // libev io event obj.
     long long m_active_time = 0;  // connection last active (read/write) time.
-    ev_timer* m_ev_timer = nullptr;
+    ev_timer* m_timer = nullptr;
     int m_keep_alive = 0;
 
     SocketBuffer* m_recv_buf;

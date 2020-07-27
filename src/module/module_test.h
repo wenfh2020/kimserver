@@ -12,8 +12,8 @@ class MoudleTest : public Module {
 
    public:
     void register_handle_func() {
-        REGISTER_HANDLE_FUNC("/kim/test/", MoudleTest::func_test_cmd);
-        REGISTER_HANDLE_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
+        REGISTER_FUNC("/kim/test/", MoudleTest::func_test_cmd);
+        REGISTER_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
     }
 
    private:

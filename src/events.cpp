@@ -259,7 +259,7 @@ void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revent
     ICallback* cb;
     cmd_timer_data_t* data;
     data = static_cast<cmd_timer_data_t*>(w->data);
-    cb = static_cast<ICallback*>(data->m_net);
+    cb = static_cast<ICallback*>(data->callback);
     cb->on_cmd_timer(w->data);
 }
 

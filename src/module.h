@@ -9,11 +9,11 @@ namespace kim {
 // data for timer callback. easy to find which moudle and cmd.
 typedef struct cmd_timer_data_s {
     cmd_timer_data_s(int mid, int cid, ICallback* net)
-        : m_module_id(mid), m_cmd_id(cid), m_net(net) {
+        : module_id(mid), cmd_id(cid), callback(net) {
     }
-    uint64_t m_module_id = 0;
-    uint64_t m_cmd_id = 0;
-    ICallback* m_net = nullptr;
+    uint64_t module_id = 0;
+    uint64_t cmd_id = 0;
+    ICallback* callback = nullptr;
 } cmd_timer_data_t;
 
 class Module {
@@ -29,10 +29,10 @@ class Module {
     void set_id(uint64_t id) { m_id = id; }
     uint64_t get_id() { return m_id; }
 
-    bool init(Log* logger, ICallback* net);
+    bool init(Log* logger, ICallback* cb);
     void set_version(int ver) { m_version = ver; }
     void set_name(const std::string& name) { m_name = name; }
-    std::string get_name() { return m_name; }
+    const std::string& get_name() { return m_name; }
     void set_file_path(const std::string& path) { m_file_path = path; }
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
     Cmd::STATUS on_timeout(cmd_timer_data_t* data);
@@ -42,7 +42,7 @@ class Module {
    protected:
     uint64_t m_id;
     Log* m_logger = nullptr;
-    ICallback* m_net = nullptr;
+    ICallback* m_callback = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds;
 
     int m_version = 1;
@@ -68,22 +68,22 @@ class Module {
    protected:                                                                  \
     std::unordered_map<std::string, cmd_func> m_cmd_funcs;
 
-#define REGISTER_HANDLE_FUNC(path, func) \
+#define REGISTER_FUNC(path, func) \
     m_cmd_funcs[path] = &func;
 
-#define HANDLE_CMD(_cmd)                                   \
-    const HttpMsg* msg = req->get_http_msg();              \
-    if (msg == nullptr) {                                  \
-        return Cmd::STATUS::ERROR;                         \
-    }                                                      \
-    std::string path = msg->path();                        \
-    _cmd* p = new _cmd(m_logger, m_net, m_net->get_seq()); \
-    p->set_req(req);                                       \
-    p->set_cmd_name(#_cmd);                                \
-    Cmd::STATUS status = execute_cmd(p, req);              \
-    if (status != Cmd::STATUS::RUNNING) {                  \
-        SAFE_DELETE(p);                                    \
-    }                                                      \
+#define HANDLE_CMD(_cmd)                                             \
+    const HttpMsg* msg = req->get_http_msg();                        \
+    if (msg == nullptr) {                                            \
+        return Cmd::STATUS::ERROR;                                   \
+    }                                                                \
+    std::string path = msg->path();                                  \
+    _cmd* p = new _cmd(m_logger, m_callback, m_callback->get_seq()); \
+    p->set_req(req);                                                 \
+    p->set_cmd_name(#_cmd);                                          \
+    Cmd::STATUS status = execute_cmd(p, req);                        \
+    if (status != Cmd::STATUS::RUNNING) {                            \
+        SAFE_DELETE(p);                                              \
+    }                                                                \
     return status;
 
 }  // namespace kim

@@ -10,8 +10,8 @@ Module::~Module() {
     }
 }
 
-bool Module::init(Log* logger, ICallback* net) {
-    m_net = net;
+bool Module::init(Log* logger, ICallback* cb) {
+    m_callback = cb;
     m_logger = logger;
     return true;
 }
@@ -24,12 +24,12 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        cmd_timer_data_t* data = new cmd_timer_data_t(get_id(), cmd->get_id(), m_net);
+        cmd_timer_data_t* data = new cmd_timer_data_t(get_id(), cmd->get_id(), m_callback);
         if (data == nullptr) {
             LOG_ERROR("alloc cmd_timer_data_t failed!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_net->add_cmd_timer(5.0, cmd->get_timer(), data);
+        ev_timer* w = m_callback->add_cmd_timer(5.0, cmd->get_timer(), data);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
             return Cmd::STATUS::ERROR;
@@ -45,9 +45,9 @@ Cmd::STATUS Module::on_timeout(cmd_timer_data_t* ctd) {
         return Cmd::STATUS::ERROR;
     }
 
-    auto it = m_cmds.find(ctd->m_cmd_id);
+    auto it = m_cmds.find(ctd->cmd_id);
     if (it == m_cmds.end() || it->second == nullptr) {
-        LOG_WARN("find cmd failed! seq: %llu", ctd->m_cmd_id);
+        LOG_WARN("find cmd failed! seq: %llu", ctd->cmd_id);
         SAFE_DELETE(ctd);
         return Cmd::STATUS::ERROR;
     }
@@ -57,7 +57,7 @@ Cmd::STATUS Module::on_timeout(cmd_timer_data_t* ctd) {
     if (status != Cmd::STATUS::RUNNING) {
         SAFE_DELETE(ctd);
         m_cmds.erase(it);
-        m_net->del_cmd_timer(cmd->get_timer());
+        m_callback->del_cmd_timer(cmd->get_timer());
         cmd->set_timer(nullptr);
         SAFE_DELETE(cmd);
         LOG_DEBUG("del timer!")
@@ -74,7 +74,7 @@ Cmd::STATUS Module::response_http(
     msg.set_http_minor(1);
     msg.set_body(data);
 
-    if (!m_net->send_to(c, msg)) {
+    if (!m_callback->send_to(c, msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;

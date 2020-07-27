@@ -225,12 +225,12 @@ bool Network::close_conn(int fd) {
             m_events->del_io_event(c->get_ev_io());
             c->set_ev_io(nullptr);
 
-            ev_timer* w = c->get_ev_timer();
+            ev_timer* w = c->get_timer();
             if (w != nullptr) {
                 delete static_cast<ConnectionData*>(w->data);
                 w->data = nullptr;
                 m_events->del_timer_event(w);
-                c->set_ev_timer(nullptr);
+                c->set_timer(nullptr);
             }
         }
         m_conns.erase(it);
@@ -337,23 +337,23 @@ void Network::check_wait_send_fds() {
     for (; it != m_wait_send_fds.end();) {
         chanel_resend_data_t* data = *it;
         int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
-        int err = write_channel(chanel_fd, &data->m_ch, sizeof(channel_t), m_logger);
+        int err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
             if (err != 0) {
                 LOG_ERROR("resend chanel failed! fd: %d, errno: %d",
-                          data->m_ch.fd, err);
+                          data->ch.fd, err);
             }
-            close(data->m_ch.fd);
+            close(data->ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
             continue;
         }
 
         //  err == EAGAIN)
-        if (++data->m_cnt >= 3) {
+        if (++data->count >= 3) {
             LOG_INFO("resend chanel too much! fd: %d, errno: %d",
-                     err, data->m_ch.fd);
-            close(data->m_ch.fd);
+                     err, data->ch.fd);
+            close(data->ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
             continue;
@@ -371,7 +371,7 @@ void Network::on_repeat_timer(void* privdata) {
 
 void Network::on_cmd_timer(void* privdata) {
     cmd_timer_data_t* ctd = static_cast<cmd_timer_data_t*>(privdata);
-    auto it = m_core_modules.find(ctd->m_module_id);
+    auto it = m_core_modules.find(ctd->module_id);
     if (it != m_core_modules.end()) {
         it->second->on_timeout(ctd);
     }
@@ -388,7 +388,7 @@ void Network::on_io_timer(void* privdata) {
         secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
         if (secs > 0) {
             LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
-            m_events->restart_timer(secs, c->get_ev_timer(), conn_data);
+            m_events->restart_timer(secs, c->get_timer(), conn_data);
             return;
         }
 
@@ -514,7 +514,7 @@ void Network::accept_and_transfer_fd(int fd) {
                 chanel_resend_data_t* ch_data =
                     (chanel_resend_data_t*)malloc(sizeof(chanel_resend_data_t));
                 memset(ch_data, 0, sizeof(chanel_resend_data_t));
-                ch_data->m_ch = ch;
+                ch_data->ch = ch;
                 m_wait_send_fds.push_back(ch_data);
                 LOG_DEBUG("wait to write channel, errno: %d", err);
                 return;
@@ -564,12 +564,12 @@ void Network::read_transfer_fd(int fd) {
                 goto error;
             }
             conn_data->m_conn = c;
-            w = m_events->add_io_timer(IO_TIMER_VAL, c->get_ev_timer(), conn_data);
+            w = m_events->add_io_timer(IO_TIMER_VAL, c->get_timer(), conn_data);
             if (w == nullptr) {
                 LOG_ERROR("add timer failed! fd: %d", fd);
                 goto error;
             }
-            c->set_ev_timer(w);
+            c->set_timer(w);
         }
 
         LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",

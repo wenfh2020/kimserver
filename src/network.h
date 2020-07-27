@@ -18,8 +18,8 @@
 namespace kim {
 
 typedef struct chanel_resend_data_s {
-    channel_t m_ch;
-    int m_cnt = 0;
+    channel_t ch;
+    int count = 0;
 } chanel_resend_data_t;
 
 class Network : public ICallback {

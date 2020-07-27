@@ -3,10 +3,7 @@
 namespace kim {
 
 Cmd::Cmd(Log* logger, ICallback* cb, uint64_t id)
-    : m_id(id), m_logger(logger), m_net(cb) {}
-
-Cmd::~Cmd() {
-}
+    : m_id(id), m_logger(logger), m_callback(cb) {}
 
 Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     HttpMsg msg;
@@ -16,7 +13,7 @@ Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     msg.set_http_minor(m_req->get_http_msg()->http_minor());
     msg.set_body(data);
 
-    if (!m_net->send_to(m_req->get_conn(), msg)) {
+    if (!m_callback->send_to(m_req->get_conn(), msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;
