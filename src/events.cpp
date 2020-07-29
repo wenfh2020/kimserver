@@ -1,11 +1,15 @@
 #include "events.h"
 
 #include <ev.h>
+#include <hiredis/adapters/libev.h>
+#include <hiredis/async.h>
+#include <hiredis/hiredis.h>
 #include <signal.h>
 #include <unistd.h>
 
 #include "context.h"
 #include "module.h"
+#include "util/util.h"
 
 namespace kim {
 
@@ -243,10 +247,8 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 }
 
 void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    ICallback* cb;
-    std::shared_ptr<Connection> c;
-    c = static_cast<ConnectionData*>(w->data)->m_conn;
-    cb = static_cast<ICallback*>(c->get_private_data());
+    std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
+    ICallback* cb = static_cast<ICallback*>(c->get_private_data());
     cb->on_io_timer(w->data);
 }
 
@@ -256,11 +258,58 @@ void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int rev
 }
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    ICallback* cb;
-    cmd_timer_data_t* data;
-    data = static_cast<cmd_timer_data_t*>(w->data);
-    cb = static_cast<ICallback*>(data->callback);
+    cmd_index_data_t* data = static_cast<cmd_index_data_t*>(w->data);
+    ICallback* cb = static_cast<ICallback*>(data->callback);
     cb->on_cmd_timer(w->data);
+}
+
+redisAsyncContext* Events::redis_connect(const std::string& host, int port, void* privdata) {
+    redisAsyncContext* c = redisAsyncConnect(host.c_str(), port);
+    if (c == nullptr || c->err) {
+        LOG_ERROR("connect redis failed! errno: %d, error: %s, host: %s, port: %d",
+                  c->err, c->errstr, host.c_str(), port);
+        return nullptr;
+    }
+
+    c->data = privdata;
+    redisLibevAttach(m_ev_loop, c);
+    redisAsyncSetConnectCallback(c, on_redis_connect);
+    redisAsyncSetDisconnectCallback(c, on_redis_disconnect);
+    return c;
+}
+
+bool Events::redis_send_to(redisAsyncContext* c, const std::string& data, void* privdata) {
+    if (c == nullptr || data.empty()) {
+        return false;
+    }
+    std::vector<std::string> args = split_str(data, ' ');
+    size_t arglen[args.size()];
+    const char* argv[args.size()];
+    for (int i = 0; i < args.size(); i++) {
+        argv[i] = args[i].c_str();
+        arglen[i] = args[i].length();
+    }
+    int ret = redisAsyncCommandArgv(c, on_redis_callback, privdata, args.size(), argv, arglen);
+    if (ret != REDIS_OK) {
+        LOG_ERROR("redis send to failed! ret: %d, errno: %d, error: %s",
+                  ret, c->err, c->errstr);
+    }
+    return (ret == REDIS_OK);
+}
+
+void Events::on_redis_connect(const redisAsyncContext* c, int status) {
+    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
+    index->callback->on_redis_connect(c, status);
+}
+
+void Events::on_redis_disconnect(const redisAsyncContext* c, int status) {
+    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
+    index->callback->on_redis_disconnect(c, status);
+}
+
+void Events::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
+    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(privdata);
+    index->callback->on_redis_callback(c, reply, privdata);
 }
 
 }  // namespace kim

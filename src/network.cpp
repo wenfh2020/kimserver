@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "context.h"
+#include "error.h"
 #include "module.h"
 #include "module/module_test.h"
 #include "net/anet.h"
@@ -16,10 +17,11 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
-#define IO_TIMER_VAL 1.0
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
+    redisAsyncContext* c = nullptr;
+    c = nullptr;
 }
 
 Network::~Network() {
@@ -33,11 +35,23 @@ void Network::destory() {
     }
     end_ev_loop();
     close_conns();
+
     SAFE_DELETE(m_events);
     for (const auto& it : m_wait_send_fds) {
         free(it);
     }
     m_wait_send_fds.clear();
+
+    for (const auto& it : m_redis_conns) {
+        RdsConnection* c = it.second;
+        SAFE_DELETE(c);
+    }
+    m_redis_conns.clear();
+
+    for (const auto& it : m_cmd_index_datas) {
+        delete it.second;
+    }
+    m_cmd_index_datas.clear();
 }
 
 void Network::run() {
@@ -142,18 +156,18 @@ error:
 }
 
 std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
-    if (anet_no_block(m_err, fd) != ANET_OK) {
-        LOG_ERROR("set socket no block failed! fd: %d, error: %s", fd, m_err);
+    if (anet_no_block(m_errstr, fd) != ANET_OK) {
+        LOG_ERROR("set socket no block failed! fd: %d, error: %s", fd, m_errstr);
         return nullptr;
     }
 
     if (!is_chanel) {
-        if (anet_keep_alive(m_err, fd, 100) != ANET_OK) {
-            LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_err);
+        if (anet_keep_alive(m_errstr, fd, 100) != ANET_OK) {
+            LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_errstr);
             return nullptr;
         }
-        if (anet_set_tcp_no_delay(m_err, fd, 1) != ANET_OK) {
-            LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_err);
+        if (anet_set_tcp_no_delay(m_errstr, fd, 1) != ANET_OK) {
+            LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_errstr);
             return nullptr;
         }
     }
@@ -370,16 +384,16 @@ void Network::on_repeat_timer(void* privdata) {
 }
 
 void Network::on_cmd_timer(void* privdata) {
-    cmd_timer_data_t* ctd = static_cast<cmd_timer_data_t*>(privdata);
-    auto it = m_core_modules.find(ctd->module_id);
+    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(privdata);
+    auto it = m_core_modules.find(index->module_id);
     if (it != m_core_modules.end()) {
-        it->second->on_timeout(ctd);
+        it->second->on_timeout(index);
     }
 }
 
 void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
-        double secs;
+        int secs;
         ConnectionData* conn_data;
         std::shared_ptr<Connection> c;
 
@@ -392,9 +406,9 @@ void Network::on_io_timer(void* privdata) {
             return;
         }
 
-        close_conn(c);
         LOG_INFO("time up, close connection! secs: %d, fd: %d, seq: %llu",
                  secs, c->get_fd(), c->get_id());
+        close_conn(c);
     } else {
     }
 }
@@ -470,11 +484,11 @@ void Network::accept_server_conn(int fd) {
     int cport, cfd, family, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
-        cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
+        cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK) {
                 LOG_ERROR("accepting client connection failed: fd: %d, error %s",
-                          fd, m_err);
+                          fd, m_errstr);
             }
             return;
         }
@@ -494,10 +508,10 @@ void Network::accept_and_transfer_fd(int fd) {
     int cport, cfd, family;
     char cip[NET_IP_STR_LEN] = {0};
 
-    cfd = anet_tcp_accept(m_err, fd, cip, sizeof(cip), &cport, &family);
+    cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
     if (cfd == ANET_ERR) {
         if (errno != EWOULDBLOCK) {
-            LOG_WARN("accepting client connection: %s", m_err);
+            LOG_WARN("accepting client connection: %s", m_errstr);
         }
         return;
     }
@@ -564,7 +578,7 @@ void Network::read_transfer_fd(int fd) {
                 goto error;
             }
             conn_data->m_conn = c;
-            w = m_events->add_io_timer(IO_TIMER_VAL, c->get_timer(), conn_data);
+            w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
             if (w == nullptr) {
                 LOG_ERROR("add timer failed! fd: %d", fd);
                 goto error;
@@ -604,9 +618,10 @@ bool Network::load_modules() {
     }
     m->init(m_logger, this);
     m->set_name(CORE_MODULE);
-    m->set_id(get_seq());
+    m->set_id(get_new_seq());
     m->register_handle_func();
     m_core_modules[m->get_id()] = m;
+    LOG_DEBUG("module id: %llu", m->get_id());
     return true;
 }
 
@@ -654,6 +669,198 @@ ev_timer* Network::add_cmd_timer(double secs, ev_timer* w, void* privdata) {
 
 bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
+}
+
+E_RDS_STATUS Network::redis_send_to(
+    const std::string& host, int port,
+    const std::string& data, cmd_index_data_t* index) {
+    LOG_DEBUG("redis send to host: %s, port: %d, cmd: %s",
+              host.c_str(), port, data.c_str());
+    RdsConnection* c;
+    std::string identity;
+
+    identity = format_addr(host, port);
+    auto it = m_redis_conns.find(identity);
+    if (it != m_redis_conns.end()) {
+        c = it->second;
+    } else {
+        LOG_DEBUG("find redis connection failed! host: %s, port: %d.",
+                  host.c_str(), port);
+        c = redis_connect(host, port, index);
+        if (c == nullptr) {
+            LOG_ERROR("create redis connection failed! host: %s, port: %d.",
+                      host.c_str(), port);
+            return E_RDS_STATUS::ERROR;
+        }
+        return E_RDS_STATUS::WAITING;
+    }
+
+    if (c->is_connecting()) {
+        LOG_DEBUG("redis is connecting. host: %s, port: %d.", host.c_str(), port);
+        return E_RDS_STATUS::WAITING;
+    }
+
+    // send.
+    if (!m_events->redis_send_to(c->get_ctx(), data, index)) {
+        LOG_ERROR("redis send data failed! host: %s, port: %d.", host.c_str(), port);
+        return E_RDS_STATUS::ERROR;
+    }
+
+    return E_RDS_STATUS::OK;
+}
+
+RdsConnection* Network::redis_connect(const std::string& host, int port, void* privdata) {
+    RdsConnection* c;
+    redisAsyncContext* ctx;
+    std::string identity;
+
+    identity = format_addr(host, port);
+    auto it = m_redis_conns.find(identity);
+    if (it != m_redis_conns.end()) {
+        return it->second;
+    }
+
+    ctx = m_events->redis_connect(host, port, privdata);
+    if (ctx == nullptr) {
+        LOG_ERROR("redis connect failed! host: %s, port: %d", host.c_str(), port);
+        return nullptr;
+    }
+
+    c = new RdsConnection(host, port, ctx);
+    if (c == nullptr) {
+        LOG_ERROR("alloc redis connection failed! host: %s, port: %d.",
+                  host.c_str(), port);
+        return nullptr;
+    }
+    c->set_state(RdsConnection::STATE::CONNECTING);
+    m_redis_conns[identity] = c;
+    return c;
+}
+
+void Network::on_redis_connect(const redisAsyncContext* c, int status) {
+    LOG_INFO("redis connected!, host: %s, port: %d", c->c.tcp.host, c->c.tcp.port);
+    int err;
+    std::string identity;
+    cmd_index_data_t* index;
+
+    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
+    auto it = m_redis_conns.find(identity);
+    if (it == m_redis_conns.end()) {
+        LOG_WARN("find redis connection failed! host: %s, port: %d",
+                 c->c.tcp.host, c->c.tcp.port);
+        return;
+    }
+
+    if (status != REDIS_OK) {
+        SAFE_DELETE(it->second);
+        m_redis_conns.erase(it);
+    } else {
+        it->second->set_state(RdsConnection::STATE::OK);
+    }
+
+    // callback connect.
+    index = static_cast<cmd_index_data_t*>(c->data);
+    if (index == nullptr) {
+        LOG_ERROR("invalid callback index data!");
+        return;
+    }
+
+    auto itr = m_core_modules.find(index->module_id);
+    if (itr == m_core_modules.end()) {
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        return;
+    }
+    err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
+    itr->second->on_callback(index, err, nullptr);
+}
+
+void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
+    LOG_INFO("redis disconnect. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+    std::string identity;
+    cmd_index_data_t* index;
+
+    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
+    auto it = m_redis_conns.find(identity);
+    if (it != m_redis_conns.end()) {
+        SAFE_DELETE(it->second);
+        m_redis_conns.erase(it);
+    }
+
+    index = static_cast<cmd_index_data_t*>(c->data);
+    if (index == nullptr) {
+        LOG_ERROR("invalid callback index data!");
+        return;
+    }
+
+    auto itr = m_core_modules.find(index->module_id);
+    if (itr == m_core_modules.end()) {
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        return;
+    }
+    itr->second->on_callback(index, ERR_REDIS_DISCONNECT, nullptr);
+}
+
+void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
+    LOG_DEBUG("redis callbak. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+    int err;
+    std::string identity;
+    cmd_index_data_t* index;
+
+    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
+    auto it = m_redis_conns.find(identity);
+    if (it == m_redis_conns.end()) {
+        LOG_ERROR("find redis connection failed! host: %s, port: %d",
+                  c->c.tcp.host, c->c.tcp.port);
+        return;
+    }
+
+    index = static_cast<cmd_index_data_t*>(privdata);
+    if (index == nullptr) {
+        LOG_ERROR("invalid callback index data!");
+        return;
+    }
+
+    auto itr = m_core_modules.find(index->module_id);
+    if (itr == m_core_modules.end()) {
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        return;
+    }
+
+    if (reply != nullptr) {
+        redisReply* r = (redisReply*)reply;
+        LOG_DEBUG("redis callback data: %s, err: %d, error: %s",
+                  r->str, c->err, c->errstr);
+    }
+
+    err = (c->err == REDIS_OK) ? ERR_OK : ERR_REDIS_CALLBACK;
+    itr->second->on_callback(index, err, reply);
+}
+
+cmd_index_data_t* Network::add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) {
+    LOG_DEBUG("add cmd index, module id: %llu, cmd id: %d", module_id, cmd_id)
+    cmd_index_data_t* data = nullptr;
+    auto it = m_cmd_index_datas.find(cmd_id);
+    if (it != m_cmd_index_datas.end()) {
+        data = it->second;
+    } else {
+        data = new cmd_index_data_t(module_id, cmd_id, this);
+        if (data == nullptr) {
+            LOG_ERROR("alloc cmd_index_data_t failed!");
+            return nullptr;
+        }
+        m_cmd_index_datas[cmd_id] = data;
+    }
+    return data;
+}
+
+bool Network::del_cmd_index_data(uint64_t cmd_id) {
+    auto it = m_cmd_index_datas.find(cmd_id);
+    if (it == m_cmd_index_datas.end()) {
+        return false;
+    }
+    SAFE_DELETE(it->second);
+    m_cmd_index_datas.erase(it);
+    return true;
 }
 
 }  // namespace kim

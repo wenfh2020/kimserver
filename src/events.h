@@ -44,6 +44,10 @@ class Events {
     bool restart_timer(double secs, ev_timer* w, void* privdat);
     bool del_timer_event(ev_timer* w);
 
+    // redis
+    redisAsyncContext* redis_connect(const std::string& host, int port, void* privdata);
+    bool redis_send_to(redisAsyncContext* c, const std::string& data, void* privdata);
+
    private:
     // libev callback.
     static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
@@ -51,6 +55,11 @@ class Events {
     static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+
+    // redis callback.
+    static void on_redis_connect(const redisAsyncContext* c, int status);
+    static void on_redis_disconnect(const redisAsyncContext* c, int status);
+    static void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata);
 
    private:
     Log* m_logger = nullptr;

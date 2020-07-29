@@ -13,6 +13,7 @@
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "node_info.h"
+#include "redis_context.h"
 #include "worker_data_mgr.h"
 
 namespace kim {
@@ -59,24 +60,38 @@ class Network : public ICallback {
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
-    // for io events call back. ICallback
-    virtual void on_io_read(int fd) override;
-    virtual void on_io_write(int fd) override;
-    virtual void on_io_error(int fd) override;
-
-    // timer
-    virtual void on_io_timer(void* privdata) override;
-    virtual void on_cmd_timer(void* privdata) override;
-    virtual void on_repeat_timer(void* privdata) override;
-
     // net
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
-    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
 
     bool set_gate_codec_type(Codec::TYPE type);
     void set_keep_alive(int keep_alive) { m_keep_alive = keep_alive; }
     int get_keep_alive() { return m_keep_alive; }
+
+    virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) override;
+    virtual bool del_cmd_index_data(uint64_t cmd_id) override;
+
+   public:
+    // io callback.
+    virtual void on_io_read(int fd) override;
+    virtual void on_io_write(int fd) override;
+    virtual void on_io_error(int fd) override;
+
+    // timer callback.
+    virtual void on_io_timer(void* privdata) override;
+    virtual void on_cmd_timer(void* privdata) override;
+    virtual void on_repeat_timer(void* privdata) override;
+
+    // socket.
+    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
+    virtual E_RDS_STATUS redis_send_to(
+        const std::string& host, int port,
+        const std::string& data, cmd_index_data_t* index) override;
+
+    // redis callback.
+    virtual void on_redis_connect(const redisAsyncContext* c, int status) override;
+    virtual void on_redis_disconnect(const redisAsyncContext* c, int status) override;
+    virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
 
    private:
     bool create_events(ICallback* s, int fd1, int fd2,
@@ -94,14 +109,17 @@ class Network : public ICallback {
     bool close_conn(std::shared_ptr<Connection> c);
     void close_conns();
 
-    int get_new_seq() { return ++m_seq; }
+    // redis
+    RdsConnection* redis_connect(const std::string& host, int port, void* privdata);
+
+    virtual uint64_t get_new_seq() override { return ++m_seq; }
     void check_wait_send_fds();
 
    private:
-    Log* m_logger = nullptr;     // logger.
-    Events* m_events = nullptr;  // libev's events manager.
-    uint64_t m_seq = 0;          // sequence.
-    char m_err[ANET_ERR_LEN];    // error string.
+    Log* m_logger = nullptr;      // logger.
+    Events* m_events = nullptr;   // libev's events manager.
+    uint64_t m_seq = 0;           // sequence.
+    char m_errstr[ANET_ERR_LEN];  // error string.
 
     int m_bind_fd = -1;          // inner servers contact each other.
     int m_gate_bind_fd = -1;     // gate bind fd for client.
@@ -111,13 +129,16 @@ class Network : public ICallback {
     TYPE m_type = TYPE::UNKNOWN;                                    // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
-    int m_keep_alive = 0;
+    int m_keep_alive = IO_TIMER_VAL;
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;
     std::unordered_map<uint64_t, Module*> m_core_modules;
 
     ev_timer* m_timer = nullptr;
     std::list<chanel_resend_data_t*> m_wait_send_fds;
+
+    std::unordered_map<std::string, RdsConnection*> m_redis_conns;
+    std::unordered_map<uint64_t, cmd_index_data_t*> m_cmd_index_datas;
 };
 
 }  // namespace kim

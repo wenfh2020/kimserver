@@ -185,6 +185,8 @@ bool Manager::restart_worker(pid_t pid) {
     // clear worker data.
     m_worker_data_mgr.remove_worker_info(pid);
 
+    return false;
+
     // fork new process.
     bool res = create_worker(worker_index);
     if (res) {

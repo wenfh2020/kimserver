@@ -4,8 +4,8 @@
 
 namespace kim {
 
-CmdHello::CmdHello(Log* logger, ICallback* net, uint64_t id)
-    : Cmd(logger, net, id) {
+CmdHello::CmdHello(Log* logger, ICallback* net, uint64_t mid, uint64_t cid)
+    : Cmd(logger, net, mid, cid) {
 }
 
 CmdHello::~CmdHello() {
@@ -13,16 +13,6 @@ CmdHello::~CmdHello() {
 }
 
 Cmd::STATUS CmdHello::execute(std::shared_ptr<Request> req) {
-    const HttpMsg* msg = req->get_http_msg();
-    if (msg == nullptr) {
-        return Cmd::STATUS::ERROR;
-    }
-    return Cmd::STATUS::RUNNING;
-}
-
-Cmd::STATUS CmdHello::on_timeout() {
-    LOG_DEBUG("hello time out!");
-
     const HttpMsg* msg = m_req->get_http_msg();
     if (msg == nullptr) {
         return Cmd::STATUS::ERROR;
@@ -34,12 +24,12 @@ Cmd::STATUS CmdHello::on_timeout() {
     CJsonObject data;
     data.Add("id", "123");
     data.Add("name", "kimserver");
+    return response_http(0, "success", data);
+}
 
-    CJsonObject obj;
-    obj.Add("code", 0);
-    obj.Add("msg", "success");
-    obj.Add("data", data);
-    return response_http(obj.ToString());
+Cmd::STATUS CmdHello::on_timeout() {
+    LOG_DEBUG("time out!");
+    return Cmd::STATUS::COMPLETED;
 }
 
 }  // namespace kim

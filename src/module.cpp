@@ -8,6 +8,7 @@ Module::~Module() {
     for (const auto& it : m_cmds) {
         delete it.second;
     }
+    m_cmds.clear();
 }
 
 bool Module::init(Log* logger, ICallback* cb) {
@@ -24,9 +25,9 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        cmd_timer_data_t* data = new cmd_timer_data_t(get_id(), cmd->get_id(), m_callback);
+        cmd_index_data_t* data = m_callback->add_cmd_index_data(get_id(), cmd->get_id());
         if (data == nullptr) {
-            LOG_ERROR("alloc cmd_timer_data_t failed!");
+            LOG_ERROR("alloc cmd_index_data_t failed!");
             return Cmd::STATUS::ERROR;
         }
         ev_timer* w = m_callback->add_cmd_timer(5.0, cmd->get_timer(), data);
@@ -39,30 +40,63 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     return status;
 }
 
-Cmd::STATUS Module::on_timeout(cmd_timer_data_t* ctd) {
-    if (ctd == nullptr) {
+bool Module::del_cmd(Cmd* cmd) {
+    auto it = m_cmds.find(cmd->get_id());
+    if (it == m_cmds.end()) {
+        return false;
+    }
+
+    m_cmds.erase(it);
+    if (cmd->get_timer() != nullptr) {
+        m_callback->del_cmd_timer(cmd->get_timer());
+        cmd->set_timer(nullptr);
+        LOG_DEBUG("del timer!")
+    }
+    m_callback->del_cmd_index_data(cmd->get_id());
+    SAFE_DELETE(cmd);
+    return true;
+}
+
+Cmd::STATUS Module::on_timeout(cmd_index_data_t* index) {
+    if (index == nullptr) {
         LOG_WARN("invalid timer for cmd!");
         return Cmd::STATUS::ERROR;
     }
 
-    auto it = m_cmds.find(ctd->cmd_id);
+    auto it = m_cmds.find(index->cmd_id);
     if (it == m_cmds.end() || it->second == nullptr) {
-        LOG_WARN("find cmd failed! seq: %llu", ctd->cmd_id);
-        SAFE_DELETE(ctd);
+        LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
         return Cmd::STATUS::ERROR;
     }
 
     Cmd* cmd = it->second;
     Cmd::STATUS status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
-        SAFE_DELETE(ctd);
-        m_cmds.erase(it);
-        m_callback->del_cmd_timer(cmd->get_timer());
-        cmd->set_timer(nullptr);
-        SAFE_DELETE(cmd);
-        LOG_DEBUG("del timer!")
+        del_cmd(cmd);
     }
     return status;
+}
+
+Cmd::STATUS Module::on_callback(cmd_index_data_t* index, int err, void* data) {
+    LOG_DEBUG("callback, module id: %llu, cmd id: %llu, err: %d",
+              index->module_id, index->cmd_id, err);
+    if (index == nullptr) {
+        LOG_WARN("invalid timer for cmd!");
+        return Cmd::STATUS::ERROR;
+    }
+
+    auto it = m_cmds.find(index->cmd_id);
+    if (it == m_cmds.end() || it->second == nullptr) {
+        LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
+        return Cmd::STATUS::ERROR;
+    }
+
+    Cmd* cmd = it->second;
+    Cmd::STATUS status = cmd->on_callback(err, data);
+    if (status != Cmd::STATUS::RUNNING) {
+        del_cmd(cmd);
+    }
+    return Cmd::STATUS::OK;
 }
 
 Cmd::STATUS Module::response_http(

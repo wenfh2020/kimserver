@@ -2,10 +2,26 @@
 #define __EVENTS_CALLBAK_H__
 
 #include <ev.h>
+#include <hiredis/async.h>
+#include <hiredis/hiredis.h>
 
 #include "context.h"
+#include "redis_context.h"
+#include "util/json/CJsonObject.hpp"
 
 namespace kim {
+
+class ICallback;
+
+// privdata for cmd callback.
+typedef struct cmd_index_data_s {
+    cmd_index_data_s(int mid, int cid, ICallback* net)
+        : module_id(mid), cmd_id(cid), callback(net) {
+    }
+    uint64_t module_id = 0;
+    uint64_t cmd_id = 0;
+    ICallback* callback = nullptr;
+} cmd_index_data_t;
 
 class ICallback {
    public:
@@ -13,9 +29,12 @@ class ICallback {
     virtual ~ICallback() {}
 
    public:
-    uint64_t get_seq() { return ++m_seq; }
+    virtual uint64_t get_new_seq() { return 0; }
+    virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) { return nullptr; }
+    virtual bool del_cmd_index_data(uint64_t cmd_id) { return false; }
+    virtual bool get_redis_config(const std::string& key, CJsonObject& config) { return false; }
 
-    // callback.
+    // libev callback.
     /////////////////////////////////
    public:
     // signal.
@@ -32,18 +51,24 @@ class ICallback {
     virtual void on_cmd_timer(void* privdata) {}
     virtual void on_repeat_timer(void* privdata) {}
 
-    // events.
+    // redis callback
     /////////////////////////////////
+    virtual void on_redis_connect(const redisAsyncContext* c, int status) {}
+    virtual void on_redis_disconnect(const redisAsyncContext* c, int status) {}
+    virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
+
    public:
     // socket.
-    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return true; }
+    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
+    virtual E_RDS_STATUS redis_send_to(
+        const std::string& host, int port,
+        const std::string& data, cmd_index_data_t* index) {
+        return E_RDS_STATUS::ERROR;
+    }
 
     // events
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) { return nullptr; }
     virtual bool del_cmd_timer(ev_timer*) { return false; }
-
-   private:
-    uint64_t m_seq = 0;
 };
 
 }  // namespace kim

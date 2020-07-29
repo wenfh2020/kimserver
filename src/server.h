@@ -52,6 +52,14 @@ namespace kim {
 #define LOG_INFO(args...) LOG_FORMAT((Log::LL_INFO), ##args)
 #define LOG_DEBUG(args...) LOG_FORMAT((Log::LL_DEBUG), ##args)
 
+enum class E_RDS_STATUS {
+    OK = 0,
+    WAITING = 2,
+    ERROR = 3,
+};
+
+#define IO_TIMER_VAL 15
+
 }  // namespace kim
 
 #endif  //__SERVER__

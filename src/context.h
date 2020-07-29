@@ -8,7 +8,6 @@
 #include "codec/codec_http.h"
 #include "proto/http.pb.h"
 #include "util/log.h"
-#include "util/sds.h"
 #include "util/socket_buffer.h"
 
 namespace kim {

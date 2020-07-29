@@ -8,7 +8,39 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <sstream>
+
 #define CONFIG_MIN_RESERVED_FDS 32
+
+std::vector<std::string> split_str(const std::string& s, char delim) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream ss(s);
+    while (std::getline(ss, token, delim)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+std::string format_str(const char* const fmt, ...) {
+    char* buffer = NULL;
+    va_list ap;
+
+    va_start(ap, fmt);
+    (void)vasprintf(&buffer, fmt, ap);
+    va_end(ap);
+
+    std::string result = buffer;
+    free(buffer);
+
+    return result;
+}
+
+std::string format_addr(const std::string& host, int port) {
+    char identity[64];
+    snprintf(identity, sizeof(identity), "%s:%d", host.c_str(), port);
+    return std::string(identity);
+}
 
 void daemonize(void) {
     int fd;
