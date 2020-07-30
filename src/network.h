@@ -84,8 +84,8 @@ class Network : public ICallback {
 
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _cstr& data, cmd_index_data_t* index) override;
-
+    virtual E_RDS_STATUS redis_send_to(
+        _cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) override;
     // redis callback.
     virtual void on_redis_connect(const redisAsyncContext* c, int status) override;
     virtual void on_redis_disconnect(const redisAsyncContext* c, int status) override;

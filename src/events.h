@@ -46,7 +46,7 @@ class Events {
 
     // redis
     redisAsyncContext* redis_connect(_cstr& host, int port, void* privdata);
-    bool redis_send_to(redisAsyncContext* c, _cstr& data, void* privdata);
+    bool redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* privdata);
 
    private:
     // libev callback.

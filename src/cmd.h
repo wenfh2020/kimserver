@@ -33,7 +33,7 @@ class Cmd {
     virtual Cmd::STATUS response_http(_cstr& data, int status_code = 200);
     virtual Cmd::STATUS response_http(int err, _cstr& errstr, const CJsonObject& data, int status_code = 200);
     virtual Cmd::STATUS response_http(int err, _cstr& errstr, int status_code = 200);
-    virtual Cmd::STATUS redis_send_to(_cstr& host, int port, _cstr& data);
+    virtual Cmd::STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds);
 
     uint64_t get_id() { return m_id; }
     void set_cmd_name(_cstr& name) { m_cmd_name = name; }

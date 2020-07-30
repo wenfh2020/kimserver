@@ -54,7 +54,6 @@ void Events::create_signal_event(int signum, void* privdata) {
     if (m_ev_loop == nullptr) {
         return;
     }
-
     ev_signal* sig = new ev_signal();
     ev_signal_init(sig, on_signal_callback, signum);
     sig->data = privdata;
@@ -66,7 +65,6 @@ bool Events::setup_signal_events(void* privdata) {
     if (privdata == nullptr) {
         return false;
     }
-
     int signals[] = {SIGCHLD, SIGILL, SIGBUS, SIGFPE, SIGKILL};
     for (unsigned int i = 0; i < sizeof(signals) / sizeof(int); i++) {
         create_signal_event(signals[i], privdata);
@@ -78,7 +76,6 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     if (s == nullptr || s->data == nullptr) {
         return;
     }
-
     ICallback* cb = static_cast<ICallback*>(s->data);
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
@@ -270,7 +267,6 @@ redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) 
                   c->err, c->errstr, host.c_str(), port);
         return nullptr;
     }
-
     c->data = privdata;
     redisLibevAttach(m_ev_loop, c);
     redisAsyncSetConnectCallback(c, on_redis_connect);
@@ -278,18 +274,17 @@ redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) 
     return c;
 }
 
-bool Events::redis_send_to(redisAsyncContext* c, _cstr& data, void* privdata) {
-    if (c == nullptr || data.empty()) {
+bool Events::redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* privdata) {
+    if (c == nullptr || rds_cmds.empty()) {
         return false;
     }
-    std::vector<std::string> args = split_str(data, ' ');
-    size_t arglen[args.size()];
-    const char* argv[args.size()];
-    for (int i = 0; i < args.size(); i++) {
-        argv[i] = args[i].c_str();
-        arglen[i] = args[i].length();
+    size_t arglen[rds_cmds.size()];
+    const char* argv[rds_cmds.size()];
+    for (size_t i = 0; i < rds_cmds.size(); i++) {
+        argv[i] = rds_cmds[i].c_str();
+        arglen[i] = rds_cmds[i].length();
     }
-    int ret = redisAsyncCommandArgv(c, on_redis_callback, privdata, args.size(), argv, arglen);
+    int ret = redisAsyncCommandArgv(c, on_redis_callback, privdata, rds_cmds.size(), argv, arglen);
     if (ret != REDIS_OK) {
         LOG_ERROR("redis send to failed! ret: %d, errno: %d, error: %s",
                   ret, c->err, c->errstr);

@@ -44,9 +44,8 @@ Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, const CJsonObject& data, 
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _cstr& data) {
-    LOG_DEBUG("redis send to host: %s, port: %d, data: %s",
-              host.c_str(), port, data.c_str());
+Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
+    LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
     if (host.empty() || port == 0) {
         LOG_ERROR("invalid addr info: host: %s, port: %d", host.c_str(), port);
         return Cmd::STATUS::ERROR;
@@ -58,7 +57,7 @@ Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _cstr& data) {
         return Cmd::STATUS::ERROR;
     }
 
-    E_RDS_STATUS status = m_callback->redis_send_to(host, port, data, d);
+    E_RDS_STATUS status = m_callback->redis_send_to(host, port, rds_cmds, d);
     if (status == E_RDS_STATUS::OK) {
         set_next_step();
         return Cmd::STATUS::RUNNING;

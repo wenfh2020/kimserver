@@ -60,7 +60,7 @@ class ICallback {
    public:
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _cstr& data, cmd_index_data_t* index) {
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) {
         return E_RDS_STATUS::ERROR;
     }
 

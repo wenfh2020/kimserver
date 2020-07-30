@@ -12,6 +12,7 @@
 namespace kim {
 
 typedef const std::string _cstr;
+typedef const std::vector<std::string> _csvector;
 
 #define MAX_PATH 256
 

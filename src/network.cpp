@@ -20,8 +20,6 @@ namespace kim {
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
-    redisAsyncContext* c = nullptr;
-    c = nullptr;
 }
 
 Network::~Network() {
@@ -672,9 +670,8 @@ bool Network::del_cmd_timer(ev_timer* w) {
 }
 
 E_RDS_STATUS Network::redis_send_to(
-    _cstr& host, int port, _cstr& data, cmd_index_data_t* index) {
-    LOG_DEBUG("redis send to host: %s, port: %d, cmd: %s",
-              host.c_str(), port, data.c_str());
+    _cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) {
+    LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
     RdsConnection* c;
     std::string identity;
 
@@ -683,12 +680,10 @@ E_RDS_STATUS Network::redis_send_to(
     if (it != m_redis_conns.end()) {
         c = it->second;
     } else {
-        LOG_DEBUG("find redis connection failed! host: %s, port: %d.",
-                  host.c_str(), port);
+        LOG_DEBUG("find redis connection failed! host: %s, port: %d.", host.c_str(), port);
         c = redis_connect(host, port, index);
         if (c == nullptr) {
-            LOG_ERROR("create redis connection failed! host: %s, port: %d.",
-                      host.c_str(), port);
+            LOG_ERROR("create redis connection failed! host: %s, port: %d.", host.c_str(), port);
             return E_RDS_STATUS::ERROR;
         }
         return E_RDS_STATUS::WAITING;
@@ -700,7 +695,7 @@ E_RDS_STATUS Network::redis_send_to(
     }
 
     // send.
-    if (!m_events->redis_send_to(c->get_ctx(), data, index)) {
+    if (!m_events->redis_send_to(c->get_ctx(), rds_cmds, index)) {
         LOG_ERROR("redis send data failed! host: %s, port: %d.", host.c_str(), port);
         return E_RDS_STATUS::ERROR;
     }
