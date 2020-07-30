@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 namespace kim {
 
