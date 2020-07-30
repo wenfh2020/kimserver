@@ -1,0 +1,3 @@
+#http://127.0.0.1:3355/kim/helloworld/ POST {"uid":"hello world"}
+#http://127.0.0.1:3355/kim/test_cmd/ POST {"test":"test_cmd"}
+http://127.0.0.1:3355/kim/test_redis/ POST {"key": "key123", "value": "hello_world"}
