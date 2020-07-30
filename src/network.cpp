@@ -17,6 +17,7 @@ namespace kim {
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
 #define CORE_MODULE "core-module"
+#define REPEAT_TIMER_VAL 1.0
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -59,9 +60,9 @@ void Network::run() {
 }
 
 bool Network::create(const AddrInfo* addr_info,
-                     Codec::TYPE code_type, ICallback* s, WorkerDataMgr* m) {
+                     Codec::TYPE code_type, ICallback* sb, WorkerDataMgr* m) {
     int fd = -1;
-    if (addr_info == nullptr || s == nullptr || m == nullptr) {
+    if (addr_info == nullptr || sb == nullptr || m == nullptr) {
         return false;
     }
 
@@ -85,17 +86,15 @@ bool Network::create(const AddrInfo* addr_info,
         m_gate_bind_fd = fd;
     }
 
-    LOG_INFO("listen fds, bind fd: %d, gate bind fd: %d",
-             m_bind_fd, m_gate_bind_fd);
+    LOG_INFO("bind fd: %d, gate bind fd: %d", m_bind_fd, m_gate_bind_fd);
 
-    if (!create_events(s, m_bind_fd, m_gate_bind_fd, code_type, false)) {
+    if (!create_events(sb, m_bind_fd, m_gate_bind_fd, code_type, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
-
     m_woker_data_mgr = m;
 
-    if (!load_timer()) {
+    if (!load_timer(sb)) {
         LOG_ERROR("load timer failed!");
         return false;
     }
@@ -314,7 +313,6 @@ void Network::on_io_write(int fd) {
     if (it == m_conns.end()) {
         return;
     }
-
     std::shared_ptr<Connection> c = it->second;
     if (c == nullptr || !c->is_active()) {
         return;
@@ -352,8 +350,7 @@ void Network::check_wait_send_fds() {
         int err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
             if (err != 0) {
-                LOG_ERROR("resend chanel failed! fd: %d, errno: %d",
-                          data->ch.fd, err);
+                LOG_ERROR("resend chanel failed! fd: %d, errno: %d", data->ch.fd, err);
             }
             close(data->ch.fd);
             free(data);
@@ -363,8 +360,7 @@ void Network::check_wait_send_fds() {
 
         //  err == EAGAIN)
         if (++data->count >= 3) {
-            LOG_INFO("resend chanel too much! fd: %d, errno: %d",
-                     err, data->ch.fd);
+            LOG_INFO("resend chanel too much! fd: %d, errno: %d", err, data->ch.fd);
             close(data->ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
@@ -452,7 +448,7 @@ bool Network::read_query_from_client(int fd) {
                 }
             }
 
-            // can not find the path in modules.
+            // no path in modules.
             if (cmd_stat == Cmd::STATUS::UNKOWN) {
                 LOG_DEBUG("can not find the path: %s, ", msg->path().c_str());
                 if (c->get_keep_alive() == 0) {
@@ -623,23 +619,27 @@ bool Network::load_modules() {
     return true;
 }
 
-bool Network::load_timer() {
-    if (m_events == nullptr) {
+bool Network::load_timer(ICallback* sb) {
+    if (m_events == nullptr || sb == nullptr) {
         return false;
     }
-    m_timer = m_events->add_repeat_timer(1, m_timer, this);
+    m_timer = m_events->add_repeat_timer(REPEAT_TIMER_VAL, m_timer, sb);
     return (m_timer != nullptr);
 }
 
 bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
-    int fd = c->get_fd();
+    int fd;
+    ev_io* w;
+    Codec::STATUS status;
+
+    fd = c->get_fd();
     if (c->is_closed()) {
         LOG_WARN("connection is closed! fd: %d", fd);
         return false;
     }
 
-    ev_io* w = c->get_ev_io();
-    Codec::STATUS status = c->conn_write(msg);
+    w = c->get_ev_io();
+    status = c->conn_write(msg);
     if (status == Codec::STATUS::OK) {
         m_events->del_write_event(w);
         return true;

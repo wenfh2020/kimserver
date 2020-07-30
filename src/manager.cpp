@@ -168,33 +168,47 @@ void Manager::on_child_terminated(ev_signal* s) {
 }
 
 bool Manager::restart_worker(pid_t pid) {
-    LOG_DEBUG("restart worker, pid: %d", pid);
+    m_restart_workers.push_back(pid);
+    return true;
+}
 
-    // close conntact chanel.
-    int chs[2];
-    if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
-        m_net->close_chanel(chs);
+void Manager::restart_workers() {
+    auto it = m_restart_workers.begin();
+    for (; it != m_restart_workers.end();) {
+        pid_t pid = *it;
+        LOG_DEBUG("restart worker, pid: %d", pid);
+
+        int chs[2];
+        if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
+            m_net->close_conn(chs[0]);
+            m_net->close_conn(chs[1]);
+        }
+
+        int worker_index;
+        if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
+            LOG_ERROR("can not find pid: %d work info.");
+            return;
+        }
+
+        // clear worker data.
+        m_worker_data_mgr.remove_worker_info(pid);
+
+        bool ret = create_worker(worker_index);
+        if (ret) {
+            LOG_INFO("restart worker success! index: %d", worker_index);
+            m_restart_workers.erase(it++);
+        } else {
+            LOG_ERROR("create worker failed! index: %d", worker_index);
+            it++;
+        }
     }
+}
 
-    int worker_index;
-    if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
-        LOG_ERROR("can not find pid: %d work info.");
-        return false;
+void Manager::on_repeat_timer(void* privdata) {
+    if (m_net != nullptr) {
+        m_net->on_repeat_timer(privdata);
     }
-
-    // clear worker data.
-    m_worker_data_mgr.remove_worker_info(pid);
-
-    return false;
-
-    // fork new process.
-    bool res = create_worker(worker_index);
-    if (res) {
-        LOG_INFO("restart worker success! index: %d", worker_index);
-    } else {
-        LOG_ERROR("create worker failed! index: %d", worker_index);
-    }
-    return res;
+    restart_workers();
 }
 
 bool Manager::create_worker(int worker_index) {
@@ -223,6 +237,7 @@ bool Manager::create_worker(int worker_index) {
         info.ctrl_fd = ctrl_fds[1];
         info.data_fd = data_fds[1];
         info.index = worker_index;
+        LOG_INFO("worker chanels, fd1: %d, fd2: %d", info.ctrl_fd, info.data_fd);
 
         Worker worker(get_worker_name(worker_index));
         if (!worker.init(&info, m_conf)) {
