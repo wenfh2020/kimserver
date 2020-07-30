@@ -6,7 +6,7 @@
 
 namespace kim {
 
-Worker::Worker(const std::string& name) {
+Worker::Worker(_cstr& name) {
     set_proc_title("%s", name.c_str());
 }
 

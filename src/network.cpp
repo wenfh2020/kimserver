@@ -672,8 +672,7 @@ bool Network::del_cmd_timer(ev_timer* w) {
 }
 
 E_RDS_STATUS Network::redis_send_to(
-    const std::string& host, int port,
-    const std::string& data, cmd_index_data_t* index) {
+    _cstr& host, int port, _cstr& data, cmd_index_data_t* index) {
     LOG_DEBUG("redis send to host: %s, port: %d, cmd: %s",
               host.c_str(), port, data.c_str());
     RdsConnection* c;
@@ -709,7 +708,7 @@ E_RDS_STATUS Network::redis_send_to(
     return E_RDS_STATUS::OK;
 }
 
-RdsConnection* Network::redis_connect(const std::string& host, int port, void* privdata) {
+RdsConnection* Network::redis_connect(_cstr& host, int port, void* privdata) {
     RdsConnection* c;
     redisAsyncContext* ctx;
     std::string identity;
@@ -801,7 +800,7 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
 }
 
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
-    LOG_DEBUG("redis callbak. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+    LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
     int err;
     std::string identity;
     cmd_index_data_t* index;

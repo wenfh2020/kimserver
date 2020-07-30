@@ -32,7 +32,7 @@ class ICallback {
     virtual uint64_t get_new_seq() { return 0; }
     virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) { return nullptr; }
     virtual bool del_cmd_index_data(uint64_t cmd_id) { return false; }
-    virtual bool get_redis_config(const std::string& key, CJsonObject& config) { return false; }
+    virtual bool get_redis_config(_cstr& key, CJsonObject& config) { return false; }
 
     // libev callback.
     /////////////////////////////////
@@ -60,9 +60,7 @@ class ICallback {
    public:
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
-    virtual E_RDS_STATUS redis_send_to(
-        const std::string& host, int port,
-        const std::string& data, cmd_index_data_t* index) {
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _cstr& data, cmd_index_data_t* index) {
         return E_RDS_STATUS::ERROR;
     }
 

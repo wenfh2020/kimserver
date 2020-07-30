@@ -15,7 +15,7 @@ INC := $(INC) \
        -I ./util
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
-          -lev -lprotobuf -lcryptopp -lhiredis \
+          -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc \
 
 CPP_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))

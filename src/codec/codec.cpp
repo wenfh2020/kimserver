@@ -26,7 +26,7 @@ Codec::STATUS Codec::decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBo
     return Codec::STATUS::ERR;
 }
 
-bool Codec::gzip(const std::string& src, std::string& dst) {
+bool Codec::gzip(_cstr& src, std::string& dst) {
     try {
         CryptoPP::Gzip zip;
         zip.Put((byte*)src.c_str(), src.size());
@@ -44,7 +44,7 @@ bool Codec::gzip(const std::string& src, std::string& dst) {
     return true;
 }
 
-bool Codec::ungzip(const std::string& src, std::string& dst) {
+bool Codec::ungzip(_cstr& src, std::string& dst) {
     try {
         CryptoPP::Gunzip zip;
         zip.Put((byte*)src.c_str(), src.size());

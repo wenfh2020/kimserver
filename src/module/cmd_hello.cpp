@@ -13,7 +13,7 @@ CmdHello::~CmdHello() {
 }
 
 Cmd::STATUS CmdHello::execute(std::shared_ptr<Request> req) {
-    const HttpMsg* msg = m_req->get_http_msg();
+    const HttpMsg* msg = req->get_http_msg();
     if (msg == nullptr) {
         return Cmd::STATUS::ERROR;
     }

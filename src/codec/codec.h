@@ -34,8 +34,8 @@ class Codec {
     bool set_codec_type(Codec::TYPE type);
     Codec::TYPE get_codec_type() { return m_codec_type; }
 
-    bool gzip(const std::string& src, std::string& dst);
-    bool ungzip(const std::string& src, std::string& dst);
+    bool gzip(_cstr& src, std::string& dst);
+    bool ungzip(_cstr& src, std::string& dst);
 
    protected:
     Log* m_logger = nullptr;

@@ -84,9 +84,7 @@ class Network : public ICallback {
 
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
-    virtual E_RDS_STATUS redis_send_to(
-        const std::string& host, int port,
-        const std::string& data, cmd_index_data_t* index) override;
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _cstr& data, cmd_index_data_t* index) override;
 
     // redis callback.
     virtual void on_redis_connect(const redisAsyncContext* c, int status) override;
@@ -110,7 +108,7 @@ class Network : public ICallback {
     void close_conns();
 
     // redis
-    RdsConnection* redis_connect(const std::string& host, int port, void* privdata);
+    RdsConnection* redis_connect(_cstr& host, int port, void* privdata);
 
     virtual uint64_t get_new_seq() override { return ++m_seq; }
     void check_wait_send_fds();

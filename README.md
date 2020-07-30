@@ -2,7 +2,7 @@
 
 Kimserver is an async tcp multiple processes (one master process and one or more worker processes) high performance server.
 
-> **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [nginx](https://github.com/nginx/nginx) / [http-parser](https://github.com/nodejs/http-parser).
+> **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [hiredis](https://github.com/redis/hiredis) / [nginx](https://github.com/nginx/nginx) / [http-parser](https://github.com/nodejs/http-parser) / [jemalloc](https://github.com/jemalloc/jemalloc) .
 
 ---
 <!-- TOC -->
@@ -19,7 +19,7 @@ Kimserver is an async tcp multiple processes (one master process and one or more
 ## 1. environment
 
 * enable c++11.
-* install g++ / libev / protobuf / cryptopp.
+* install g++ / libev / protobuf / cryptopp / hiredis / jemalloc .
 
 ---
 

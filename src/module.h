@@ -22,14 +22,13 @@ class Module {
 
     bool init(Log* logger, ICallback* cb);
     void set_version(int ver) { m_version = ver; }
-    void set_name(const std::string& name) { m_name = name; }
-    const std::string& get_name() { return m_name; }
-    void set_file_path(const std::string& path) { m_file_path = path; }
+    void set_name(_cstr& name) { m_name = name; }
+    _cstr& get_name() { return m_name; }
+    void set_file_path(_cstr& path) { m_file_path = path; }
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
     Cmd::STATUS on_timeout(cmd_index_data_t* index);
     Cmd::STATUS on_callback(cmd_index_data_t* index, int err, void* data);
-    Cmd::STATUS response_http(std::shared_ptr<Connection> c,
-                              const std::string& data, int status_code = 200);
+    Cmd::STATUS response_http(std::shared_ptr<Connection> c, _cstr& data, int status_code = 200);
 
     bool del_cmd(Cmd* cmd);
 

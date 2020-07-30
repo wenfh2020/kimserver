@@ -17,24 +17,7 @@ CmdTestRedis::CmdTestRedis(Log* logger, ICallback* net, uint64_t mid, uint64_t c
     : Cmd(logger, net, mid, cid) {
 }
 
-CmdTestRedis::~CmdTestRedis() {
-    LOG_DEBUG("delete cmd hello");
-}
-
-Cmd::STATUS CmdTestRedis::on_callback(int err, void* data) {
-    return execute(err, data);
-}
-
-Cmd::STATUS CmdTestRedis::on_timeout() {
-    LOG_DEBUG("time out!");
-    return Cmd::STATUS::COMPLETED;
-}
-
-Cmd::STATUS CmdTestRedis::execute(std::shared_ptr<Request> req) {
-    return execute(ERR_OK, nullptr);
-}
-
-Cmd::STATUS CmdTestRedis::execute(int err, void* data) {
+Cmd::STATUS CmdTestRedis::execute_steps(int err, void* data) {
     int port = 6379;
     std::string host("127.0.0.1");
 
@@ -45,7 +28,7 @@ Cmd::STATUS CmdTestRedis::execute(int err, void* data) {
                 return Cmd::STATUS::ERROR;
             }
 
-            LOG_DEBUG("cmd hello, http path: %s, data: %s",
+            LOG_DEBUG("cmd test redis, http path: %s, data: %s",
                       msg->path().c_str(), msg->body().c_str());
 
             CJsonObject req_data(msg->body());
@@ -70,7 +53,7 @@ Cmd::STATUS CmdTestRedis::execute(int err, void* data) {
             if (err != ERR_OK || reply == nullptr ||
                 reply->type != REDIS_REPLY_STATUS || strncmp(reply->str, "OK", 2) != 0) {
                 LOG_ERROR("redis set data callback failed!");
-                return response_http(ERR_FAILED, "redis set data failed!");
+                return response_http(ERR_FAILED, "redis set data callback failed!");
             }
             LOG_DEBUG("redis set callback result: %s", reply->str);
             return execute_next_step(err, data);
@@ -90,17 +73,16 @@ Cmd::STATUS CmdTestRedis::execute(int err, void* data) {
                 return response_http(ERR_FAILED, "redis set data failed!");
             }
             LOG_DEBUG("redis get callback result: %s, type: %d", reply->str, reply->type);
-            CJsonObject data;
-            data.Add("key", m_key);
-            data.Add("value", m_value);
-            return response_http(ERR_OK, "success", data);
+            CJsonObject rsp_data;
+            rsp_data.Add("key", m_key);
+            rsp_data.Add("value", m_value);
+            return response_http(ERR_OK, "success", rsp_data);
         }
         default: {
+            LOG_ERROR("invalid step");
             return response_http(ERR_FAILED, "invalid step!");
         }
     }
-
-    return Cmd::STATUS::COMPLETED;
 }
 
 }  // namespace kim

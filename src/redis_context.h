@@ -17,7 +17,7 @@ class RdsConnection {
         CLOSED,
         ERROR
     };
-    RdsConnection(const std::string& host, int port, redisAsyncContext* c);
+    RdsConnection(_cstr& host, int port, redisAsyncContext* c);
     virtual ~RdsConnection();
 
     bool is_active() { return m_state == STATE::OK; }
@@ -26,6 +26,8 @@ class RdsConnection {
     RdsConnection::STATE get_state() { return m_state; }
 
     redisAsyncContext* get_ctx() { return m_conn; }
+    int get_port() { return m_port; }
+    _cstr& get_host() { return m_host; }
 
    private:
     std::string m_host;

@@ -24,8 +24,12 @@ case "$1" in
     request='{"uid":"hello world"}'
     ;;
 "2")
-    url="$base_url/kim/test/"
-    request='{"test":"test"}'
+    url="$base_url/kim/test_cmd/"
+    request='{"test":"test_cmd"}'
+    ;;
+"3")
+    url="$base_url/kim/test_redis/"
+    request='{"key": "key123", "value": "hello_world"}'
     ;;
 *)
     echo "invalid param"

@@ -9,7 +9,7 @@ Cmd::Cmd(Log* logger, ICallback* cb, uint64_t mid, uint64_t cid)
 Cmd::~Cmd() {
 }
 
-Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
+Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {
     const HttpMsg* req_msg = m_req->get_http_msg();
     if (req_msg == nullptr) {
         LOG_ERROR("http msg is null! pls alloc!");
@@ -29,16 +29,14 @@ Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     return Cmd::STATUS::OK;
 }
 
-Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
-                               int status_code) {
+Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
-                               const CJsonObject& data, int status_code) {
+Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, const CJsonObject& data, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
@@ -46,7 +44,7 @@ Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::redis_send_to(const std::string& host, int port, const std::string& data) {
+Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _cstr& data) {
     LOG_DEBUG("redis send to host: %s, port: %d, data: %s",
               host.c_str(), port, data.c_str());
     if (host.empty() || port == 0) {
@@ -73,11 +71,27 @@ Cmd::STATUS Cmd::redis_send_to(const std::string& host, int port, const std::str
 
 Cmd::STATUS Cmd::execute_next_step(int err, void* data) {
     set_next_step();
-    return execute(err, data);
+    return execute_steps(err, data);
 }
 
-Cmd::STATUS Cmd::execute(int err, void* data) {
+Cmd::STATUS Cmd::execute(std::shared_ptr<Request> req) {
+    return execute_steps(ERR_OK, nullptr);
+}
+
+Cmd::STATUS Cmd::execute_steps(int err, void* data) {
     return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS Cmd::on_callback(int err, void* data) {
+    return execute_steps(err, data);
+}
+
+Cmd::STATUS Cmd::on_timeout() {
+    LOG_DEBUG("time out!");
+    if (m_cur_timeout_cnt++ < MAX_TIMER_CNT) {
+        return Cmd::STATUS::RUNNING;
+    }
+    return Cmd::STATUS::COMPLETED;
 }
 
 };  // namespace kim

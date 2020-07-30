@@ -4,6 +4,8 @@
 
 namespace kim {
 
+#define CMD_TIMEOUT 1.0
+
 Module::~Module() {
     for (const auto& it : m_cmds) {
         delete it.second;
@@ -30,7 +32,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("alloc cmd_index_data_t failed!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_callback->add_cmd_timer(5.0, cmd->get_timer(), data);
+        ev_timer* w = m_callback->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), data);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
             return Cmd::STATUS::ERROR;
@@ -99,8 +101,7 @@ Cmd::STATUS Module::on_callback(cmd_index_data_t* index, int err, void* data) {
     return Cmd::STATUS::OK;
 }
 
-Cmd::STATUS Module::response_http(
-    std::shared_ptr<Connection> c, const std::string& data, int status_code) {
+Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, _cstr& data, int status_code) {
     HttpMsg msg;
     msg.set_type(HTTP_RESPONSE);
     msg.set_status_code(status_code);

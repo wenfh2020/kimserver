@@ -11,6 +11,8 @@
 
 namespace kim {
 
+typedef const std::string _cstr;
+
 #define MAX_PATH 256
 
 #define EXIT_SUCCESS 0
