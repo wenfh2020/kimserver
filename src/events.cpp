@@ -76,7 +76,7 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     if (s == nullptr || s->data == nullptr) {
         return;
     }
-    ICallback* cb = static_cast<ICallback*>(s->data);
+    INet* cb = static_cast<INet*>(s->data);
     (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
 }
 
@@ -226,7 +226,7 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 
     int fd = w->fd;
-    ICallback* cb = static_cast<ICallback*>(w->data);
+    INet* cb = static_cast<INet*>(w->data);
 
     if (events & EV_READ) {
         cb->on_io_read(fd);
@@ -245,18 +245,18 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 
 void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
-    ICallback* cb = static_cast<ICallback*>(c->get_private_data());
+    INet* cb = static_cast<INet*>(c->get_private_data());
     cb->on_io_timer(w->data);
 }
 
 void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    ICallback* cb = static_cast<ICallback*>(w->data);
+    INet* cb = static_cast<INet*>(w->data);
     cb->on_repeat_timer(w->data);
 }
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     cmd_index_data_t* data = static_cast<cmd_index_data_t*>(w->data);
-    ICallback* cb = static_cast<ICallback*>(data->callback);
+    INet* cb = static_cast<INet*>(data->net);
     cb->on_cmd_timer(w->data);
 }
 
@@ -294,17 +294,17 @@ bool Events::redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* priv
 
 void Events::on_redis_connect(const redisAsyncContext* c, int status) {
     cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
-    index->callback->on_redis_connect(c, status);
+    index->net->on_redis_connect(c, status);
 }
 
 void Events::on_redis_disconnect(const redisAsyncContext* c, int status) {
     cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
-    index->callback->on_redis_disconnect(c, status);
+    index->net->on_redis_disconnect(c, status);
 }
 
 void Events::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     cmd_index_data_t* index = static_cast<cmd_index_data_t*>(privdata);
-    index->callback->on_redis_callback(c, reply, privdata);
+    index->net->on_redis_callback(c, reply, privdata);
 }
 
 }  // namespace kim

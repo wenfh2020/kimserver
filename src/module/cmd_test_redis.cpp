@@ -15,7 +15,7 @@ enum E_STEP {
     E_STEP_REDIS_GET_CALLBACK,
 };
 
-CmdTestRedis::CmdTestRedis(Log* logger, ICallback* net, uint64_t mid, uint64_t cid)
+CmdTestRedis::CmdTestRedis(Log* logger, INet* net, uint64_t mid, uint64_t cid)
     : Cmd(logger, net, mid, cid) {
 }
 

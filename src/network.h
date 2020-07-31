@@ -5,11 +5,11 @@
 #include <list>
 #include <unordered_map>
 
-#include "callback.h"
 #include "codec/codec.h"
 #include "context.h"
 #include "events.h"
 #include "module.h"
+#include "net.h"
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "node_info.h"
@@ -23,7 +23,7 @@ typedef struct chanel_resend_data_s {
     int count = 0;
 } chanel_resend_data_t;
 
-class Network : public ICallback {
+class Network : public INet {
    public:
     enum class TYPE {
         UNKNOWN = 0,
@@ -33,10 +33,10 @@ class Network : public ICallback {
     Network(Log* logger, TYPE type);
     virtual ~Network();
     bool create(const AddrInfo* addr_info,
-                Codec::TYPE code_type, ICallback* sb, WorkerDataMgr* m);  // for manager.
-    bool create(ICallback* sb, int ctrl_fd, int data_fd);                 // for worker.
+                Codec::TYPE code_type, INet* sb, WorkerDataMgr* m);  // for manager.
+    bool create(INet* sb, int ctrl_fd, int data_fd);                 // for worker.
     void destory();
-    bool load_timer(ICallback* sb);
+    bool load_timer(INet* sb);
     bool load_modules();
 
     // events.
@@ -86,7 +86,7 @@ class Network : public ICallback {
    private:
     void check_wait_send_fds();
     virtual uint64_t get_new_seq() override { return ++m_seq; }
-    bool create_events(ICallback* s, int fd1, int fd2, Codec::TYPE codec_type, bool is_worker);
+    bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec_type, bool is_worker);
 
     // socket.
     int listen_to_port(const char* bind, int port);

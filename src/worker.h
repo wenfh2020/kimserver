@@ -8,7 +8,7 @@
 
 namespace kim {
 
-class Worker : public ICallback {
+class Worker : public INet {
    public:
     Worker(_cstr& name);
     virtual ~Worker();

@@ -2,8 +2,8 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, ICallback* cb, uint64_t mid, uint64_t cid)
-    : m_id(cid), m_module_id(mid), m_logger(logger), m_callback(cb) {
+Cmd::Cmd(Log* logger, INet* cb, uint64_t mid, uint64_t cid)
+    : m_id(cid), m_module_id(mid), m_logger(logger), m_net(cb) {
 }
 
 Cmd::~Cmd() {
@@ -23,7 +23,7 @@ Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {
     msg.set_http_minor(req_msg->http_minor());
     msg.set_body(data);
 
-    if (!m_callback->send_to(m_req->get_conn(), msg)) {
+    if (!m_net->send_to(m_req->get_conn(), msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;
@@ -50,14 +50,14 @@ Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
         LOG_ERROR("invalid addr info: host: %s, port: %d", host.c_str(), port);
         return Cmd::STATUS::ERROR;
     }
-    cmd_index_data_t* d = m_callback->add_cmd_index_data(m_id, m_module_id);
+    cmd_index_data_t* d = m_net->add_cmd_index_data(m_id, m_module_id);
     if (d == nullptr) {
         LOG_ERROR("add cmd index data failed! cmd id: %llu, module id: %llu",
                   m_id, m_module_id);
         return Cmd::STATUS::ERROR;
     }
 
-    E_RDS_STATUS status = m_callback->redis_send_to(host, port, rds_cmds, d);
+    E_RDS_STATUS status = m_net->redis_send_to(host, port, rds_cmds, d);
     if (status == E_RDS_STATUS::OK) {
         set_next_step();
         return Cmd::STATUS::RUNNING;

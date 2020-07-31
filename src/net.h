@@ -11,22 +11,22 @@
 
 namespace kim {
 
-class ICallback;
+class INet;
 
 // privdata for cmd callback.
 typedef struct cmd_index_data_s {
-    cmd_index_data_s(int mid, int cid, ICallback* net)
-        : module_id(mid), cmd_id(cid), callback(net) {
+    cmd_index_data_s(int mid, int cid, INet* n)
+        : module_id(mid), cmd_id(cid), net(n) {
     }
     uint64_t module_id = 0;
     uint64_t cmd_id = 0;
-    ICallback* callback = nullptr;
+    INet* net = nullptr;
 } cmd_index_data_t;
 
-class ICallback {
+class INet {
    public:
-    ICallback() {}
-    virtual ~ICallback() {}
+    INet() {}
+    virtual ~INet() {}
 
    public:
     virtual uint64_t get_new_seq() { return 0; }

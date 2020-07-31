@@ -4,7 +4,7 @@
 
 namespace kim {
 
-CmdHello::CmdHello(Log* logger, ICallback* net, uint64_t mid, uint64_t cid)
+CmdHello::CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t cid)
     : Cmd(logger, net, mid, cid) {
 }
 

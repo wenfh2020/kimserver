@@ -60,7 +60,7 @@ void Network::run() {
 }
 
 bool Network::create(const AddrInfo* addr_info,
-                     Codec::TYPE code_type, ICallback* sb, WorkerDataMgr* m) {
+                     Codec::TYPE code_type, INet* sb, WorkerDataMgr* m) {
     int fd = -1;
     if (addr_info == nullptr || sb == nullptr || m == nullptr) {
         return false;
@@ -101,7 +101,7 @@ bool Network::create(const AddrInfo* addr_info,
     return true;
 }
 
-bool Network::create(ICallback* s, int ctrl_fd, int data_fd) {
+bool Network::create(INet* s, int ctrl_fd, int data_fd) {
     if (!create_events(s, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
@@ -118,7 +118,7 @@ bool Network::create(ICallback* s, int ctrl_fd, int data_fd) {
     return true;
 }
 
-bool Network::create_events(ICallback* s, int fd1, int fd2,
+bool Network::create_events(INet* s, int fd1, int fd2,
                             Codec::TYPE codec_type, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
@@ -619,7 +619,7 @@ bool Network::load_modules() {
     return true;
 }
 
-bool Network::load_timer(ICallback* sb) {
+bool Network::load_timer(INet* sb) {
     if (m_events == nullptr || sb == nullptr) {
         return false;
     }

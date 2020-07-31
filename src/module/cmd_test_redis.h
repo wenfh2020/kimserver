@@ -7,7 +7,7 @@ namespace kim {
 
 class CmdTestRedis : public Cmd {
    public:
-    CmdTestRedis(Log* logger, ICallback* net, uint64_t mid, uint64_t id);
+    CmdTestRedis(Log* logger, INet* net, uint64_t mid, uint64_t id);
     virtual ~CmdTestRedis() { LOG_DEBUG("delete cmd test redis.") }
 
    protected:

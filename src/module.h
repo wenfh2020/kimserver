@@ -20,7 +20,7 @@ class Module {
     void set_id(uint64_t id) { m_id = id; }
     uint64_t get_id() { return m_id; }
 
-    bool init(Log* logger, ICallback* cb);
+    bool init(Log* logger, INet* cb);
     void set_version(int ver) { m_version = ver; }
     void set_name(_cstr& name) { m_name = name; }
     _cstr& get_name() { return m_name; }
@@ -35,7 +35,7 @@ class Module {
    protected:
     uint64_t m_id;
     Log* m_logger = nullptr;
-    ICallback* m_callback = nullptr;
+    INet* m_net = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds;
 
     int m_version = 1;
@@ -64,19 +64,19 @@ class Module {
 #define REGISTER_FUNC(path, func) \
     m_cmd_funcs[path] = &func;
 
-#define HANDLE_CMD(_cmd)                                                           \
-    const HttpMsg* msg = req->get_http_msg();                                      \
-    if (msg == nullptr) {                                                          \
-        return Cmd::STATUS::ERROR;                                                 \
-    }                                                                              \
-    std::string path = msg->path();                                                \
-    _cmd* p = new _cmd(m_logger, m_callback, get_id(), m_callback->get_new_seq()); \
-    p->set_req(req);                                                               \
-    p->set_cmd_name(#_cmd);                                                        \
-    Cmd::STATUS status = execute_cmd(p, req);                                      \
-    if (status != Cmd::STATUS::RUNNING) {                                          \
-        SAFE_DELETE(p);                                                            \
-    }                                                                              \
+#define HANDLE_CMD(_cmd)                                                 \
+    const HttpMsg* msg = req->get_http_msg();                            \
+    if (msg == nullptr) {                                                \
+        return Cmd::STATUS::ERROR;                                       \
+    }                                                                    \
+    std::string path = msg->path();                                      \
+    _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq()); \
+    p->set_req(req);                                                     \
+    p->set_cmd_name(#_cmd);                                              \
+    Cmd::STATUS status = execute_cmd(p, req);                            \
+    if (status != Cmd::STATUS::RUNNING) {                                \
+        SAFE_DELETE(p);                                                  \
+    }                                                                    \
     return status;
 
 }  // namespace kim

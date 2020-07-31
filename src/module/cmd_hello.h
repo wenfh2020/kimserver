@@ -7,7 +7,7 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger, ICallback* net, uint64_t mid, uint64_t id);
+    CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id);
     virtual ~CmdHello();
 
    public:

@@ -2,8 +2,8 @@
 #define __CMD_H__
 
 #include "../util/json/CJsonObject.hpp"
-#include "callback.h"
 #include "error.h"
+#include "net.h"
 #include "request.h"
 
 #define MAX_TIMER_CNT 3
@@ -19,7 +19,7 @@ class Cmd {
         COMPLETED = 3,
         ERROR = 4,
     };
-    Cmd(Log* logger, ICallback* cb, uint64_t mid, uint64_t cid);
+    Cmd(Log* logger, INet* cb, uint64_t mid, uint64_t cid);
     Cmd(const Cmd&) = delete;
     Cmd& operator=(const Cmd&) = delete;
     virtual ~Cmd();
@@ -59,7 +59,7 @@ class Cmd {
     uint64_t m_id = 0;
     uint64_t m_module_id = 0;
     Log* m_logger = nullptr;
-    ICallback* m_callback = nullptr;
+    INet* m_net = nullptr;
 
     std::shared_ptr<Request> m_req = nullptr;
     std::string m_cmd_name;

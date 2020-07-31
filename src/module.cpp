@@ -13,8 +13,8 @@ Module::~Module() {
     m_cmds.clear();
 }
 
-bool Module::init(Log* logger, ICallback* cb) {
-    m_callback = cb;
+bool Module::init(Log* logger, INet* cb) {
+    m_net = cb;
     m_logger = logger;
     return true;
 }
@@ -27,12 +27,12 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        cmd_index_data_t* data = m_callback->add_cmd_index_data(get_id(), cmd->get_id());
+        cmd_index_data_t* data = m_net->add_cmd_index_data(get_id(), cmd->get_id());
         if (data == nullptr) {
             LOG_ERROR("alloc cmd_index_data_t failed!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_callback->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), data);
+        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), data);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
             return Cmd::STATUS::ERROR;
@@ -50,11 +50,11 @@ bool Module::del_cmd(Cmd* cmd) {
 
     m_cmds.erase(it);
     if (cmd->get_timer() != nullptr) {
-        m_callback->del_cmd_timer(cmd->get_timer());
+        m_net->del_cmd_timer(cmd->get_timer());
         cmd->set_timer(nullptr);
         LOG_DEBUG("del timer!")
     }
-    m_callback->del_cmd_index_data(cmd->get_id());
+    m_net->del_cmd_index_data(cmd->get_id());
     SAFE_DELETE(cmd);
     return true;
 }
@@ -109,7 +109,7 @@ Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, _cstr& data, in
     msg.set_http_minor(1);
     msg.set_body(data);
 
-    if (!m_callback->send_to(c, msg)) {
+    if (!m_net->send_to(c, msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;
