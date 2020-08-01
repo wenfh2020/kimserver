@@ -32,6 +32,7 @@ class INet {
     virtual uint64_t get_new_seq() { return 0; }
     virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) { return nullptr; }
     virtual bool del_cmd_index_data(uint64_t cmd_id) { return false; }
+    virtual cmd_index_data_t* get_cmd_index_data(uint64_t cmd_id) { return nullptr; }
     virtual bool get_redis_config(_cstr& key, CJsonObject& config) { return false; }
 
     // libev callback.

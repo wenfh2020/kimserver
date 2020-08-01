@@ -13,8 +13,8 @@ Module::~Module() {
     m_cmds.clear();
 }
 
-bool Module::init(Log* logger, INet* cb) {
-    m_net = cb;
+bool Module::init(Log* logger, INet* net) {
+    m_net = net;
     m_logger = logger;
     return true;
 }

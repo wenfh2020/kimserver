@@ -19,7 +19,7 @@ class Cmd {
         COMPLETED = 3,
         ERROR = 4,
     };
-    Cmd(Log* logger, INet* cb, uint64_t mid, uint64_t cid);
+    Cmd(Log* logger, INet* net, uint64_t mid, uint64_t cid);
     Cmd(const Cmd&) = delete;
     Cmd& operator=(const Cmd&) = delete;
     virtual ~Cmd();

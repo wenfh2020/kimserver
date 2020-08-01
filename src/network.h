@@ -32,11 +32,10 @@ class Network : public INet {
     };
     Network(Log* logger, TYPE type);
     virtual ~Network();
-    bool create(const AddrInfo* addr_info,
-                Codec::TYPE code_type, INet* sb, WorkerDataMgr* m);  // for manager.
-    bool create(INet* sb, int ctrl_fd, int data_fd);                 // for worker.
+    bool create(INet* net, int ctrl_fd, int data_fd);                                            // for worker.
+    bool create(const AddrInfo* addr_info, Codec::TYPE code_type, INet* net, WorkerDataMgr* m);  // for manager.
     void destory();
-    bool load_timer(INet* sb);
+    bool load_timer(INet* net);
     bool load_modules();
 
     // events.
@@ -61,6 +60,7 @@ class Network : public INet {
 
     // for cmd callback.
     virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) override;
+    virtual cmd_index_data_t* get_cmd_index_data(uint64_t cmd_id) override;
     virtual bool del_cmd_index_data(uint64_t cmd_id) override;
 
    public:

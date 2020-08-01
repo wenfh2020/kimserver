@@ -2,11 +2,8 @@
 #define __EVENTS_H__
 
 #include <ev.h>
+#include <hiredis/async.h>
 
-#include <map>
-#include <memory>
-
-#include "context.h"
 #include "net.h"
 #include "server.h"
 #include "util/log.h"
@@ -17,7 +14,7 @@ typedef void (*timer_cb)(struct ev_loop*, ev_timer*, int);
 
 class Events {
    public:
-    Events(Log* logger);
+    Events(Log* logger, INet* net);
     virtual ~Events();
 
     bool create();
@@ -63,6 +60,7 @@ class Events {
 
    private:
     Log* m_logger = nullptr;
+    INet* m_net = nullptr;
     struct ev_loop* m_ev_loop = nullptr;
 };
 

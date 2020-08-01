@@ -2,8 +2,8 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* cb, uint64_t mid, uint64_t cid)
-    : m_id(cid), m_module_id(mid), m_logger(logger), m_net(cb) {
+Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t cid)
+    : m_id(cid), m_module_id(mid), m_logger(logger), m_net(net) {
 }
 
 Cmd::~Cmd() {
@@ -50,14 +50,14 @@ Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
         LOG_ERROR("invalid addr info: host: %s, port: %d", host.c_str(), port);
         return Cmd::STATUS::ERROR;
     }
-    cmd_index_data_t* d = m_net->add_cmd_index_data(m_id, m_module_id);
-    if (d == nullptr) {
+    cmd_index_data_t* index = m_net->add_cmd_index_data(m_id, m_module_id);
+    if (index == nullptr) {
         LOG_ERROR("add cmd index data failed! cmd id: %llu, module id: %llu",
                   m_id, m_module_id);
         return Cmd::STATUS::ERROR;
     }
 
-    E_RDS_STATUS status = m_net->redis_send_to(host, port, rds_cmds, d);
+    E_RDS_STATUS status = m_net->redis_send_to(host, port, rds_cmds, index);
     if (status == E_RDS_STATUS::OK) {
         set_next_step();
         return Cmd::STATUS::RUNNING;

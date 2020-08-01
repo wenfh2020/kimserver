@@ -60,9 +60,9 @@ void Network::run() {
 }
 
 bool Network::create(const AddrInfo* addr_info,
-                     Codec::TYPE code_type, INet* sb, WorkerDataMgr* m) {
+                     Codec::TYPE code_type, INet* net, WorkerDataMgr* m) {
     int fd = -1;
-    if (addr_info == nullptr || sb == nullptr || m == nullptr) {
+    if (addr_info == nullptr || net == nullptr || m == nullptr) {
         return false;
     }
 
@@ -88,13 +88,13 @@ bool Network::create(const AddrInfo* addr_info,
 
     LOG_INFO("bind fd: %d, gate bind fd: %d", m_bind_fd, m_gate_bind_fd);
 
-    if (!create_events(sb, m_bind_fd, m_gate_bind_fd, code_type, false)) {
+    if (!create_events(net, m_bind_fd, m_gate_bind_fd, code_type, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
     m_woker_data_mgr = m;
 
-    if (!load_timer(sb)) {
+    if (!load_timer(net)) {
         LOG_ERROR("load timer failed!");
         return false;
     }
@@ -120,7 +120,7 @@ bool Network::create(INet* s, int ctrl_fd, int data_fd) {
 
 bool Network::create_events(INet* s, int fd1, int fd2,
                             Codec::TYPE codec_type, bool is_worker) {
-    m_events = new Events(m_logger);
+    m_events = new Events(m_logger, this);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
         return false;
@@ -619,11 +619,11 @@ bool Network::load_modules() {
     return true;
 }
 
-bool Network::load_timer(INet* sb) {
-    if (m_events == nullptr || sb == nullptr) {
+bool Network::load_timer(INet* net) {
+    if (m_events == nullptr || net == nullptr) {
         return false;
     }
-    m_timer = m_events->add_repeat_timer(REPEAT_TIMER_VAL, m_timer, sb);
+    m_timer = m_events->add_repeat_timer(REPEAT_TIMER_VAL, m_timer, net);
     return (m_timer != nullptr);
 }
 
@@ -680,10 +680,10 @@ E_RDS_STATUS Network::redis_send_to(
     if (it != m_redis_conns.end()) {
         c = it->second;
     } else {
-        LOG_DEBUG("find redis connection failed! host: %s, port: %d.", host.c_str(), port);
+        LOG_DEBUG("find redis conn failed! host: %s, port: %d.", host.c_str(), port);
         c = redis_connect(host, port, index);
         if (c == nullptr) {
-            LOG_ERROR("create redis connection failed! host: %s, port: %d.", host.c_str(), port);
+            LOG_ERROR("create redis conn failed! host: %s, port: %d.", host.c_str(), port);
             return E_RDS_STATUS::ERROR;
         }
         return E_RDS_STATUS::WAITING;
@@ -722,7 +722,7 @@ RdsConnection* Network::redis_connect(_cstr& host, int port, void* privdata) {
 
     c = new RdsConnection(host, port, ctx);
     if (c == nullptr) {
-        LOG_ERROR("alloc redis connection failed! host: %s, port: %d.",
+        LOG_ERROR("alloc redis conn failed! host: %s, port: %d.",
                   host.c_str(), port);
         return nullptr;
     }
@@ -740,7 +740,7 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
     identity = format_addr(c->c.tcp.host, c->c.tcp.port);
     auto it = m_redis_conns.find(identity);
     if (it == m_redis_conns.end()) {
-        LOG_WARN("find redis connection failed! host: %s, port: %d",
+        LOG_WARN("find redis conn failed! host: %s, port: %d",
                  c->c.tcp.host, c->c.tcp.port);
         return;
     }
@@ -803,7 +803,7 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
     identity = format_addr(c->c.tcp.host, c->c.tcp.port);
     auto it = m_redis_conns.find(identity);
     if (it == m_redis_conns.end()) {
-        LOG_ERROR("find redis connection failed! host: %s, port: %d",
+        LOG_ERROR("find redis conn failed! host: %s, port: %d",
                   c->c.tcp.host, c->c.tcp.port);
         return;
     }
@@ -832,19 +832,27 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
 
 cmd_index_data_t* Network::add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) {
     LOG_DEBUG("add cmd index, module id: %llu, cmd id: %d", module_id, cmd_id)
-    cmd_index_data_t* data = nullptr;
+    cmd_index_data_t* index = get_cmd_index_data(cmd_id);
+    if (index != nullptr) {
+        return index;
+    }
+
+    index = new cmd_index_data_t(module_id, cmd_id, this);
+    if (index == nullptr) {
+        LOG_ERROR("alloc cmd_index_data_t failed!");
+        return nullptr;
+    }
+    m_cmd_index_datas[cmd_id] = index;
+    return index;
+}
+
+cmd_index_data_t* Network::get_cmd_index_data(uint64_t cmd_id) {
+    cmd_index_data_t* index = nullptr;
     auto it = m_cmd_index_datas.find(cmd_id);
     if (it != m_cmd_index_datas.end()) {
-        data = it->second;
-    } else {
-        data = new cmd_index_data_t(module_id, cmd_id, this);
-        if (data == nullptr) {
-            LOG_ERROR("alloc cmd_index_data_t failed!");
-            return nullptr;
-        }
-        m_cmd_index_datas[cmd_id] = data;
+        index = it->second;
     }
-    return data;
+    return index;
 }
 
 bool Network::del_cmd_index_data(uint64_t cmd_id) {

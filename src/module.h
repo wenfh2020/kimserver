@@ -20,7 +20,7 @@ class Module {
     void set_id(uint64_t id) { m_id = id; }
     uint64_t get_id() { return m_id; }
 
-    bool init(Log* logger, INet* cb);
+    bool init(Log* logger, INet* net);
     void set_version(int ver) { m_version = ver; }
     void set_name(_cstr& name) { m_name = name; }
     _cstr& get_name() { return m_name; }

@@ -2,7 +2,6 @@
 
 #include <ev.h>
 #include <hiredis/adapters/libev.h>
-#include <hiredis/async.h>
 #include <hiredis/hiredis.h>
 #include <signal.h>
 #include <unistd.h>
@@ -13,7 +12,7 @@
 
 namespace kim {
 
-Events::Events(Log* logger) : m_logger(logger) {
+Events::Events(Log* logger, INet* net) : m_logger(logger), m_net(net) {
 }
 
 Events::~Events() {
@@ -76,8 +75,8 @@ void Events::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     if (s == nullptr || s->data == nullptr) {
         return;
     }
-    INet* cb = static_cast<INet*>(s->data);
-    (s->signum == SIGCHLD) ? cb->on_child_terminated(s) : cb->on_terminated(s);
+    INet* net = static_cast<INet*>(s->data);
+    (s->signum == SIGCHLD) ? net->on_child_terminated(s) : net->on_terminated(s);
 }
 
 ev_io* Events::add_read_event(int fd, ev_io* w, void* privdata) {
@@ -226,38 +225,38 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 
     int fd = w->fd;
-    INet* cb = static_cast<INet*>(w->data);
+    INet* net = static_cast<INet*>(w->data);
 
     if (events & EV_READ) {
-        cb->on_io_read(fd);
+        net->on_io_read(fd);
     }
 
     if (events & EV_WRITE) {
-        cb->on_io_write(fd);
+        net->on_io_write(fd);
     }
 
     /* when error happen (read / write),
      * handle EV_READ / EV_WRITE events will be ok. */
     if (events & EV_ERROR) {
-        cb->on_io_error(fd);
+        net->on_io_error(fd);
     }
 }
 
 void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
-    INet* cb = static_cast<INet*>(c->get_private_data());
-    cb->on_io_timer(w->data);
+    INet* net = static_cast<INet*>(c->get_private_data());
+    net->on_io_timer(w->data);
 }
 
 void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    INet* cb = static_cast<INet*>(w->data);
-    cb->on_repeat_timer(w->data);
+    INet* net = static_cast<INet*>(w->data);
+    net->on_repeat_timer(w->data);
 }
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     cmd_index_data_t* data = static_cast<cmd_index_data_t*>(w->data);
-    INet* cb = static_cast<INet*>(data->net);
-    cb->on_cmd_timer(w->data);
+    INet* net = static_cast<INet*>(data->net);
+    net->on_cmd_timer(w->data);
 }
 
 redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) {
