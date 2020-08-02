@@ -12,7 +12,7 @@
 
 namespace kim {
 
-Events::Events(Log* logger, INet* net) : m_logger(logger), m_net(net) {
+Events::Events(Log* logger) : m_logger(logger) {
 }
 
 Events::~Events() {
@@ -254,9 +254,8 @@ void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int rev
 }
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    cmd_index_data_t* data = static_cast<cmd_index_data_t*>(w->data);
-    INet* net = static_cast<INet*>(data->net);
-    net->on_cmd_timer(w->data);
+    Cmd* p = static_cast<Cmd*>(w->data);
+    p->get_net()->on_cmd_timer(p);
 }
 
 redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) {
@@ -292,13 +291,13 @@ bool Events::redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* priv
 }
 
 void Events::on_redis_connect(const redisAsyncContext* c, int status) {
-    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
-    index->net->on_redis_connect(c, status);
+    INet* net = static_cast<INet*>(c->data);
+    net->on_redis_connect(c, status);
 }
 
 void Events::on_redis_disconnect(const redisAsyncContext* c, int status) {
-    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(c->data);
-    index->net->on_redis_disconnect(c, status);
+    INet* net = static_cast<INet*>(c->data);
+    net->on_redis_disconnect(c, status);
 }
 
 void Events::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {

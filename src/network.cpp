@@ -120,7 +120,7 @@ bool Network::create(INet* s, int ctrl_fd, int data_fd) {
 
 bool Network::create_events(INet* s, int fd1, int fd2,
                             Codec::TYPE codec_type, bool is_worker) {
-    m_events = new Events(m_logger, this);
+    m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
         return false;
@@ -378,10 +378,10 @@ void Network::on_repeat_timer(void* privdata) {
 }
 
 void Network::on_cmd_timer(void* privdata) {
-    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(privdata);
-    auto it = m_core_modules.find(index->module_id);
+    Cmd* cmd = static_cast<Cmd*>(privdata);
+    auto it = m_core_modules.find(cmd->get_module_id());
     if (it != m_core_modules.end()) {
-        it->second->on_timeout(index);
+        it->second->on_timeout(cmd);
     }
 }
 
@@ -681,7 +681,7 @@ E_RDS_STATUS Network::redis_send_to(
         c = it->second;
     } else {
         LOG_DEBUG("find redis conn failed! host: %s, port: %d.", host.c_str(), port);
-        c = redis_connect(host, port, index);
+        c = redis_connect(host, port, this);
         if (c == nullptr) {
             LOG_ERROR("create redis conn failed! host: %s, port: %d.", host.c_str(), port);
             return E_RDS_STATUS::ERROR;
@@ -752,20 +752,17 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
         it->second->set_state(RdsConnection::STATE::OK);
     }
 
-    // callback connect.
-    index = static_cast<cmd_index_data_t*>(c->data);
-    if (index == nullptr) {
-        LOG_ERROR("invalid callback index data!");
-        return;
+    for (const auto& it : m_cmd_index_datas) {
+        // callback connect.
+        index = it.second;
+        auto itr = m_core_modules.find(index->module_id);
+        if (itr == m_core_modules.end()) {
+            LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+            return;
+        }
+        err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
+        itr->second->on_callback(index, err, nullptr);
     }
-
-    auto itr = m_core_modules.find(index->module_id);
-    if (itr == m_core_modules.end()) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-        return;
-    }
-    err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
-    itr->second->on_callback(index, err, nullptr);
 }
 
 void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
@@ -791,11 +788,21 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
         LOG_ERROR("find module failed! module id: %llu.", index->module_id);
         return;
     }
-    itr->second->on_callback(index, ERR_REDIS_DISCONNECT, nullptr);
+
+    for (const auto& it : m_cmd_index_datas) {
+        index = it.second;
+        auto itr = m_core_modules.find(index->module_id);
+        if (itr == m_core_modules.end()) {
+            LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+            return;
+        }
+        itr->second->on_callback(index, ERR_REDIS_DISCONNECT, nullptr);
+    }
 }
 
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+
     int err;
     std::string identity;
     cmd_index_data_t* index;
@@ -822,8 +829,12 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
 
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;
-        LOG_DEBUG("redis callback data: %s, err: %d, error: %s",
-                  r->str, c->err, c->errstr);
+        if (c->err) {
+            LOG_DEBUG("redis callback data: %s, err: %d, error: %s",
+                      r->str, c->err, c->errstr);
+        } else {
+            LOG_DEBUG("redis callback data: %s, err: %d", r->str, c->err);
+        }
     }
 
     err = (c->err == REDIS_OK) ? ERR_OK : ERR_REDIS_CALLBACK;

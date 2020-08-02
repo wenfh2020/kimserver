@@ -36,6 +36,8 @@ class Cmd {
     virtual Cmd::STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds);
 
     uint64_t get_id() { return m_id; }
+    uint64_t get_module_id() { return m_module_id; }
+    INet* get_net() { return m_net; }
     void set_cmd_name(_cstr& name) { m_cmd_name = name; }
     _cstr& get_cmd_name() const { return m_cmd_name; }
     int set_max_timeout_cnt() { return m_max_timeout_cnt; }

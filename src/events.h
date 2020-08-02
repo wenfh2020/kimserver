@@ -14,7 +14,7 @@ typedef void (*timer_cb)(struct ev_loop*, ev_timer*, int);
 
 class Events {
    public:
-    Events(Log* logger, INet* net);
+    Events(Log* logger);
     virtual ~Events();
 
     bool create();
@@ -60,7 +60,6 @@ class Events {
 
    private:
     Log* m_logger = nullptr;
-    INet* m_net = nullptr;
     struct ev_loop* m_ev_loop = nullptr;
 };
 

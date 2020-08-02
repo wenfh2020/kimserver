@@ -64,6 +64,7 @@ Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
     } else if (status == E_RDS_STATUS::WAITING) {
         return Cmd::STATUS::RUNNING;
     } else {
+        m_net->del_cmd_index_data(m_id);
         return Cmd::STATUS::ERROR;
     }
 }

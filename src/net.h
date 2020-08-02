@@ -11,11 +11,12 @@
 
 namespace kim {
 
+class Cmd;
 class INet;
 
 // privdata for cmd callback.
 typedef struct cmd_index_data_s {
-    cmd_index_data_s(int mid, int cid, INet* n)
+    cmd_index_data_s(uint64_t mid, uint64_t cid, INet* n)
         : module_id(mid), cmd_id(cid), net(n) {
     }
     uint64_t module_id = 0;

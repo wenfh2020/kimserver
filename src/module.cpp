@@ -27,12 +27,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        cmd_index_data_t* data = m_net->add_cmd_index_data(get_id(), cmd->get_id());
-        if (data == nullptr) {
-            LOG_ERROR("alloc cmd_index_data_t failed!");
-            return Cmd::STATUS::ERROR;
-        }
-        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), data);
+        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), this);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
             return Cmd::STATUS::ERROR;
@@ -59,19 +54,7 @@ bool Module::del_cmd(Cmd* cmd) {
     return true;
 }
 
-Cmd::STATUS Module::on_timeout(cmd_index_data_t* index) {
-    if (index == nullptr) {
-        LOG_WARN("invalid timer for cmd!");
-        return Cmd::STATUS::ERROR;
-    }
-
-    auto it = m_cmds.find(index->cmd_id);
-    if (it == m_cmds.end() || it->second == nullptr) {
-        LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
-        return Cmd::STATUS::ERROR;
-    }
-
-    Cmd* cmd = it->second;
+Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     Cmd::STATUS status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
         del_cmd(cmd);
