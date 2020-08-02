@@ -27,7 +27,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), this);
+        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), cmd);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
             return Cmd::STATUS::ERROR;
