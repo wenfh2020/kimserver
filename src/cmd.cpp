@@ -7,6 +7,7 @@ Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t cid)
 }
 
 Cmd::~Cmd() {
+    LOG_DEBUG("~Cmd()");
 }
 
 Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {

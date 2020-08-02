@@ -16,7 +16,7 @@ namespace kim {
 #define TCP_BACK_LOG 511
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
-#define CORE_MODULE "core-module"
+#define CORE_TEST "core-test"
 #define REPEAT_TIMER_VAL 1.0
 
 Network::Network(Log* logger, TYPE type)
@@ -379,8 +379,8 @@ void Network::on_repeat_timer(void* privdata) {
 
 void Network::on_cmd_timer(void* privdata) {
     Cmd* cmd = static_cast<Cmd*>(privdata);
-    auto it = m_core_modules.find(cmd->get_module_id());
-    if (it != m_core_modules.end()) {
+    auto it = m_modules.find(cmd->get_module_id());
+    if (it != m_modules.end()) {
         it->second->on_timeout(cmd);
     }
 }
@@ -432,7 +432,7 @@ bool Network::read_query_from_client(int fd) {
 
         if (status == Codec::STATUS::OK) {
             // find path in modules and process message.
-            for (const auto& it : m_core_modules) {
+            for (const auto& it : m_modules) {
                 module = it.second;
                 LOG_DEBUG("module name: %s", module->get_name().c_str());
                 cmd_stat = module->process_message(req);
@@ -611,10 +611,10 @@ bool Network::load_modules() {
         return false;
     }
     m->init(m_logger, this);
-    m->set_name(CORE_MODULE);
+    m->set_name(CORE_TEST);
     m->set_id(get_new_seq());
     m->register_handle_func();
-    m_core_modules[m->get_id()] = m;
+    m_modules[m->get_id()] = m;
     LOG_DEBUG("module id: %llu", m->get_id());
     return true;
 }
@@ -753,10 +753,9 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
     }
 
     for (const auto& it : m_cmd_index_datas) {
-        // callback connect.
         index = it.second;
-        auto itr = m_core_modules.find(index->module_id);
-        if (itr == m_core_modules.end()) {
+        auto itr = m_modules.find(index->module_id);
+        if (itr == m_modules.end()) {
             LOG_ERROR("find module failed! module id: %llu.", index->module_id);
             return;
         }
@@ -783,16 +782,16 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
         return;
     }
 
-    auto itr = m_core_modules.find(index->module_id);
-    if (itr == m_core_modules.end()) {
+    auto itr = m_modules.find(index->module_id);
+    if (itr == m_modules.end()) {
         LOG_ERROR("find module failed! module id: %llu.", index->module_id);
         return;
     }
 
     for (const auto& it : m_cmd_index_datas) {
         index = it.second;
-        auto itr = m_core_modules.find(index->module_id);
-        if (itr == m_core_modules.end()) {
+        auto itr = m_modules.find(index->module_id);
+        if (itr == m_modules.end()) {
             LOG_ERROR("find module failed! module id: %llu.", index->module_id);
             return;
         }
@@ -821,8 +820,8 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         return;
     }
 
-    auto itr = m_core_modules.find(index->module_id);
-    if (itr == m_core_modules.end()) {
+    auto itr = m_modules.find(index->module_id);
+    if (itr == m_modules.end()) {
         LOG_ERROR("find module failed! module id: %llu.", index->module_id);
         return;
     }

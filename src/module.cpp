@@ -49,6 +49,7 @@ bool Module::del_cmd(Cmd* cmd) {
         cmd->set_timer(nullptr);
         LOG_DEBUG("del timer!")
     }
+    LOG_DEBUG("delete cmd index data!");
     m_net->del_cmd_index_data(cmd->get_id());
     SAFE_DELETE(cmd);
     return true;

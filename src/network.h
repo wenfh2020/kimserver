@@ -120,7 +120,7 @@ class Network : public INet {
     int m_keep_alive = IO_TIMER_VAL;                                // io timeout time.
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;  // gate codec type.
-    std::unordered_map<uint64_t, Module*> m_core_modules;   // modules.
+    std::unordered_map<uint64_t, Module*> m_modules;        // modules.
 
     ev_timer* m_timer = nullptr;                       // repeat timer for idle handle.
     std::list<chanel_resend_data_t*> m_wait_send_fds;  // sendmsg maybe return -1 and errno == EAGAIN.
