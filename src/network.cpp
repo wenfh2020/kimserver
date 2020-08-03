@@ -46,11 +46,6 @@ void Network::destory() {
         SAFE_DELETE(c);
     }
     m_redis_conns.clear();
-
-    for (const auto& it : m_cmd_index_datas) {
-        delete it.second;
-    }
-    m_cmd_index_datas.clear();
 }
 
 void Network::run() {
@@ -669,34 +664,52 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-E_RDS_STATUS Network::redis_send_to(
-    _cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) {
+E_RDS_STATUS Network::redis_send_to(_cstr& host, int port, uint64_t module_id,
+                                    uint64_t cmd_id, _csvector& rds_cmds) {
     LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
     RdsConnection* c;
     std::string identity;
 
     identity = format_addr(host, port);
     auto it = m_redis_conns.find(identity);
-    if (it != m_redis_conns.end()) {
-        c = it->second;
-    } else {
+    if (it == m_redis_conns.end()) {
         LOG_DEBUG("find redis conn failed! host: %s, port: %d.", host.c_str(), port);
         c = redis_connect(host, port, this);
         if (c == nullptr) {
             LOG_ERROR("create redis conn failed! host: %s, port: %d.", host.c_str(), port);
             return E_RDS_STATUS::ERROR;
         }
+        if (c->add_wait_cmd_info(module_id, cmd_id) == nullptr) {
+            LOG_ERROR("add wait cmd info failed! module id: %llu, cmd id: %llu",
+                      module_id, cmd_id);
+            return E_RDS_STATUS::ERROR;
+        }
         return E_RDS_STATUS::WAITING;
     }
+
+    c = it->second;
 
     if (c->is_connecting()) {
         LOG_DEBUG("redis is connecting. host: %s, port: %d.", host.c_str(), port);
+        if (c->add_wait_cmd_info(module_id, cmd_id) == nullptr) {
+            LOG_ERROR("add wait cmd info failed! module id: %llu, cmd id: %llu",
+                      module_id, cmd_id);
+            return E_RDS_STATUS::ERROR;
+        }
         return E_RDS_STATUS::WAITING;
     }
 
-    // send.
-    if (!m_events->redis_send_to(c->get_ctx(), rds_cmds, index)) {
+    // delete info when callback.
+    wait_cmd_info_t* info = new wait_cmd_info_t(this, module_id, cmd_id);
+    if (info == nullptr) {
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
+                  cmd_id, module_id);
+        return E_RDS_STATUS::ERROR;
+    }
+
+    if (!m_events->redis_send_to(c->get_ctx(), rds_cmds, info)) {
         LOG_ERROR("redis send data failed! host: %s, port: %d.", host.c_str(), port);
+        SAFE_DELETE(info);
         return E_RDS_STATUS::ERROR;
     }
 
@@ -720,7 +733,7 @@ RdsConnection* Network::redis_connect(_cstr& host, int port, void* privdata) {
         return nullptr;
     }
 
-    c = new RdsConnection(host, port, ctx);
+    c = new RdsConnection(m_logger, this, host, port, ctx);
     if (c == nullptr) {
         LOG_ERROR("alloc redis conn failed! host: %s, port: %d.",
                   host.c_str(), port);
@@ -733,9 +746,12 @@ RdsConnection* Network::redis_connect(_cstr& host, int port, void* privdata) {
 
 void Network::on_redis_connect(const redisAsyncContext* c, int status) {
     LOG_INFO("redis connected!, host: %s, port: %d", c->c.tcp.host, c->c.tcp.port);
+
     int err;
+    Module* module;
     std::string identity;
-    cmd_index_data_t* index;
+    wait_cmd_info_t* info;
+    RdsConnection* rc;
 
     identity = format_addr(c->c.tcp.host, c->c.tcp.port);
     auto it = m_redis_conns.find(identity);
@@ -744,30 +760,37 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
                  c->c.tcp.host, c->c.tcp.port);
         return;
     }
+    rc = it->second;
 
     if (status != REDIS_OK) {
         SAFE_DELETE(it->second);
         m_redis_conns.erase(it);
     } else {
-        it->second->set_state(RdsConnection::STATE::OK);
+        rc->set_state(RdsConnection::STATE::OK);
     }
 
-    for (const auto& it : m_cmd_index_datas) {
-        index = it.second;
-        auto itr = m_modules.find(index->module_id);
+    const auto& infos = rc->get_wait_cmd_infos();
+    for (const auto& it : infos) {
+        info = it.second;
+        auto itr = m_modules.find(info->module_id);
         if (itr == m_modules.end()) {
-            LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-            return;
+            LOG_ERROR("find module failed! module id: %llu.", info->module_id);
+            continue;
         }
+        module = itr->second;
         err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
-        itr->second->on_callback(index, err, nullptr);
+        module->on_callback(info, err, nullptr);
     }
+    rc->clear_wait_cmd_infos();
 }
 
 void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
     LOG_INFO("redis disconnect. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+
+    Module* module;
+    RdsConnection* rc;
     std::string identity;
-    cmd_index_data_t* index;
+    wait_cmd_info_t* info;
 
     identity = format_addr(c->c.tcp.host, c->c.tcp.port);
     auto it = m_redis_conns.find(identity);
@@ -775,36 +798,30 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
         SAFE_DELETE(it->second);
         m_redis_conns.erase(it);
     }
+    rc = it->second;
 
-    index = static_cast<cmd_index_data_t*>(c->data);
-    if (index == nullptr) {
-        LOG_ERROR("invalid callback index data!");
-        return;
-    }
-
-    auto itr = m_modules.find(index->module_id);
-    if (itr == m_modules.end()) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-        return;
-    }
-
-    for (const auto& it : m_cmd_index_datas) {
-        index = it.second;
-        auto itr = m_modules.find(index->module_id);
+    const auto& infos = rc->get_wait_cmd_infos();
+    for (const auto& it : infos) {
+        info = it.second;
+        auto itr = m_modules.find(info->module_id);
         if (itr == m_modules.end()) {
-            LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-            return;
+            LOG_ERROR("find module failed! module id: %llu.", info->module_id);
+            continue;
         }
-        itr->second->on_callback(index, ERR_REDIS_DISCONNECT, nullptr);
+        module = itr->second;
+        module->on_callback(info, ERR_REDIS_DISCONNECT, nullptr);
     }
+    rc->clear_wait_cmd_infos();
 }
 
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
 
     int err;
+    Module* module;
+    RdsConnection* rc;
     std::string identity;
-    cmd_index_data_t* index;
+    wait_cmd_info_t* info;
 
     identity = format_addr(c->c.tcp.host, c->c.tcp.port);
     auto it = m_redis_conns.find(identity);
@@ -814,65 +831,29 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         return;
     }
 
-    index = static_cast<cmd_index_data_t*>(privdata);
-    if (index == nullptr) {
-        LOG_ERROR("invalid callback index data!");
-        return;
-    }
+    rc = it->second;
+    info = static_cast<wait_cmd_info_t*>(privdata);
 
-    auto itr = m_modules.find(index->module_id);
+    auto itr = m_modules.find(info->module_id);
     if (itr == m_modules.end()) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        LOG_ERROR("find module failed! module id: %llu.", info->module_id);
+        SAFE_DELETE(info);
         return;
     }
+    module = itr->second;
 
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;
-        if (c->err) {
-            LOG_DEBUG("redis callback data: %s, err: %d, error: %s",
-                      r->str, c->err, c->errstr);
+        if (c->err != 0) {
+            LOG_ERROR("redis callback data: %s, err: %d, error: %s", r->str, c->err, c->errstr);
         } else {
             LOG_DEBUG("redis callback data: %s, err: %d", r->str, c->err);
         }
     }
 
     err = (c->err == REDIS_OK) ? ERR_OK : ERR_REDIS_CALLBACK;
-    itr->second->on_callback(index, err, reply);
-}
-
-cmd_index_data_t* Network::add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) {
-    LOG_DEBUG("add cmd index, module id: %llu, cmd id: %d", module_id, cmd_id)
-    cmd_index_data_t* index = get_cmd_index_data(cmd_id);
-    if (index != nullptr) {
-        return index;
-    }
-
-    index = new cmd_index_data_t(module_id, cmd_id, this);
-    if (index == nullptr) {
-        LOG_ERROR("alloc cmd_index_data_t failed!");
-        return nullptr;
-    }
-    m_cmd_index_datas[cmd_id] = index;
-    return index;
-}
-
-cmd_index_data_t* Network::get_cmd_index_data(uint64_t cmd_id) {
-    cmd_index_data_t* index = nullptr;
-    auto it = m_cmd_index_datas.find(cmd_id);
-    if (it != m_cmd_index_datas.end()) {
-        index = it->second;
-    }
-    return index;
-}
-
-bool Network::del_cmd_index_data(uint64_t cmd_id) {
-    auto it = m_cmd_index_datas.find(cmd_id);
-    if (it == m_cmd_index_datas.end()) {
-        return false;
-    }
-    SAFE_DELETE(it->second);
-    m_cmd_index_datas.erase(it);
-    return true;
+    module->on_callback(info, err, reply);
+    SAFE_DELETE(info);
 }
 
 }  // namespace kim

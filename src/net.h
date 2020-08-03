@@ -6,23 +6,21 @@
 #include <hiredis/hiredis.h>
 
 #include "context.h"
-#include "redis_context.h"
 #include "util/json/CJsonObject.hpp"
 
 namespace kim {
 
-class Cmd;
 class INet;
 
 // privdata for cmd callback.
-typedef struct cmd_index_data_s {
-    cmd_index_data_s(uint64_t mid, uint64_t cid, INet* n)
-        : module_id(mid), cmd_id(cid), net(n) {
+typedef struct wait_cmd_info_s {
+    wait_cmd_info_s(INet* n, uint64_t mid, uint64_t cid)
+        : net(n), module_id(mid), cmd_id(cid) {
     }
+    INet* net = nullptr;
     uint64_t module_id = 0;
     uint64_t cmd_id = 0;
-    INet* net = nullptr;
-} cmd_index_data_t;
+} wait_cmd_info_t;
 
 class INet {
    public:
@@ -31,9 +29,6 @@ class INet {
 
    public:
     virtual uint64_t get_new_seq() { return 0; }
-    virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) { return nullptr; }
-    virtual bool del_cmd_index_data(uint64_t cmd_id) { return false; }
-    virtual cmd_index_data_t* get_cmd_index_data(uint64_t cmd_id) { return nullptr; }
     virtual bool get_redis_config(_cstr& key, CJsonObject& config) { return false; }
 
     // libev callback.
@@ -62,7 +57,7 @@ class INet {
    public:
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) {
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, uint64_t module_id, uint64_t cmd_id, _csvector& rds_cmds) {
         return E_RDS_STATUS::ERROR;
     }
 

@@ -58,11 +58,6 @@ class Network : public INet {
     void set_keep_alive(int keep_alive) { m_keep_alive = keep_alive; }
     int get_keep_alive() { return m_keep_alive; }
 
-    // for cmd callback.
-    virtual cmd_index_data_t* add_cmd_index_data(uint64_t cmd_id, uint64_t module_id) override;
-    virtual cmd_index_data_t* get_cmd_index_data(uint64_t cmd_id) override;
-    virtual bool del_cmd_index_data(uint64_t cmd_id) override;
-
    public:
     // io callback.
     virtual void on_io_read(int fd) override;
@@ -81,7 +76,8 @@ class Network : public INet {
 
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds, cmd_index_data_t* index) override;
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, uint64_t module_id,
+                                       uint64_t cmd_id, _csvector& rds_cmds) override;
 
    private:
     void check_wait_send_fds();
@@ -122,11 +118,9 @@ class Network : public INet {
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;  // gate codec type.
     std::unordered_map<uint64_t, Module*> m_modules;        // modules.
 
-    ev_timer* m_timer = nullptr;                       // repeat timer for idle handle.
-    std::list<chanel_resend_data_t*> m_wait_send_fds;  // sendmsg maybe return -1 and errno == EAGAIN.
-
-    std::unordered_map<std::string, RdsConnection*> m_redis_conns;      // redis connections.
-    std::unordered_map<uint64_t, cmd_index_data_t*> m_cmd_index_datas;  // cmd's privdata for callback.
+    ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
+    std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.
+    std::unordered_map<std::string, RdsConnection*> m_redis_conns;  // redis connections.
 };
 
 }  // namespace kim

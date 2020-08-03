@@ -50,7 +50,6 @@ bool Module::del_cmd(Cmd* cmd) {
         LOG_DEBUG("del timer!")
     }
     LOG_DEBUG("delete cmd index data!");
-    m_net->del_cmd_index_data(cmd->get_id());
     SAFE_DELETE(cmd);
     return true;
 }
@@ -63,7 +62,7 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     return status;
 }
 
-Cmd::STATUS Module::on_callback(cmd_index_data_t* index, int err, void* data) {
+Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
     LOG_DEBUG("callback, module id: %llu, cmd id: %llu, err: %d",
               index->module_id, index->cmd_id, err);
     if (index == nullptr) {

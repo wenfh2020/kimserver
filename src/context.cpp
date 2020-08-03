@@ -68,8 +68,7 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
               m_fd, read_len, m_recv_buf->get_readable_len());
     if (read_len == 0) {
-        LOG_DEBUG("connection closed! fd: %d, err: %d, error: %s",
-                  m_fd, errno, strerror(errno));
+        LOG_DEBUG("connection closed! fd: %d!", m_fd);
         return Codec::STATUS::ERR;
     }
 

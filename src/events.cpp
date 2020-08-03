@@ -301,7 +301,7 @@ void Events::on_redis_disconnect(const redisAsyncContext* c, int status) {
 }
 
 void Events::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
-    cmd_index_data_t* index = static_cast<cmd_index_data_t*>(privdata);
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(privdata);
     index->net->on_redis_callback(c, reply, privdata);
 }
 
