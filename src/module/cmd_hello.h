@@ -1,18 +1,32 @@
 #ifndef __CMD_HELLO_H__
 #define __CMD_HELLO_H__
 
-#include "../cmd.h"
+#include "cmd.h"
 
 namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id);
-    virtual ~CmdHello();
+    CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id)
+        : Cmd(logger, net, mid, id) {
+    }
+    virtual ~CmdHello() {
+        LOG_DEBUG("delete cmd hello");
+    }
 
    public:
-    virtual Cmd::STATUS on_timeout() override;
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) override;
+    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {
+        const HttpMsg* msg = req->get_http_msg();
+        if (msg == nullptr) {
+            return Cmd::STATUS::ERROR;
+        }
+        LOG_DEBUG("cmd hello, http path: %s, data: %s",
+                  msg->path().c_str(), msg->body().c_str());
+        CJsonObject data;
+        data.Add("id", "123");
+        data.Add("name", "kimserver");
+        return response_http(0, "success", data);
+    }
 };
 
 }  // namespace kim

@@ -88,7 +88,7 @@ Cmd::STATUS Cmd::on_timeout() {
     if (m_cur_timeout_cnt++ < CMD_MAX_TIME_OUT_CNT) {
         return Cmd::STATUS::RUNNING;
     }
-    return Cmd::STATUS::COMPLETED;
+    return response_http(ERR_EXEC_SETP_TIMEUOT, "request timeout", 408);
 }
 
 };  // namespace kim

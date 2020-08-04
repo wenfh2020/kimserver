@@ -458,7 +458,7 @@ bool Network::read_query_from_client(int fd) {
 
             // no path in modules.
             if (cmd_stat == Cmd::STATUS::UNKOWN) {
-                LOG_DEBUG("can not find the path: %s, ", msg->path().c_str());
+                LOG_DEBUG("can not find the path: %s", msg->path().c_str());
                 if (c->get_keep_alive() == 0) {
                     close_conn(c);
                 }
@@ -619,6 +619,7 @@ bool Network::load_modules() {
         return false;
     }
     m->init(m_logger, this, get_new_seq());
+    m->register_handle_func();
     m->set_name(CORE_TEST);
     m_modules[m->get_id()] = m;
     LOG_DEBUG("module id: %llu", m->get_id());

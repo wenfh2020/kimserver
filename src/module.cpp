@@ -64,7 +64,7 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     if (status != Cmd::STATUS::RUNNING) {
         del_cmd(cmd);
     } else {
-        // check timeout count.
+        // check cmd timeout count.
         if (old == cmd->get_cur_time_out_cnt()) {
             cmd->refresh_cur_time_out_cnt();
         }
