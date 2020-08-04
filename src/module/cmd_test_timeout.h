@@ -7,9 +7,10 @@ namespace kim {
 
 class CmdTestTimeout : public Cmd {
    public:
-    CmdTestTimeout(Log* logger, INet* net, uint64_t mid, uint64_t id)
-        : Cmd(logger, net, mid, id) {
+    CmdTestTimeout(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "")
+        : Cmd(logger, net, mid, id, name) {
     }
+
     virtual ~CmdTestTimeout() {
         LOG_DEBUG("~CmdTestTimeout");
     }

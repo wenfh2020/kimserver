@@ -7,8 +7,8 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id)
-        : Cmd(logger, net, mid, id) {
+    CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "")
+        : Cmd(logger, net, mid, id, name) {
     }
     virtual ~CmdHello() {
         LOG_DEBUG("delete cmd hello");

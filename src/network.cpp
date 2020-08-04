@@ -442,7 +442,7 @@ bool Network::read_query_from_client(int fd) {
             // find path in modules and process message.
             for (const auto& it : m_modules) {
                 module = it.second;
-                LOG_DEBUG("module name: %s", module->get_name().c_str());
+                LOG_DEBUG("module name: %s", module->get_name());
                 cmd_stat = module->process_message(req);
                 if (cmd_stat != Cmd::STATUS::UNKOWN) {
                     LOG_DEBUG("cmd status: %d", cmd_stat);
@@ -614,13 +614,11 @@ bool Network::set_gate_codec_type(Codec::TYPE type) {
 }
 
 bool Network::load_modules() {
-    Module* m = new MoudleTest;
+    Module* m = new MoudleTest(m_logger, this, get_new_seq(), CORE_TEST);
     if (m == nullptr) {
         return false;
     }
-    m->init(m_logger, this, get_new_seq());
     m->register_handle_func();
-    m->set_name(CORE_TEST);
     m_modules[m->get_id()] = m;
     LOG_DEBUG("module id: %llu", m->get_id());
     return true;

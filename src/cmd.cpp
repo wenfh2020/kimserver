@@ -4,13 +4,13 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t cid)
-    : m_id(cid), m_module_id(mid), m_logger(logger), m_net(net) {
+Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name)
+    : Base(id, logger, net, name), m_module_id(mid) {
     set_keep_alive(CMD_TIME_OUT_VAL);
 }
 
 Cmd::~Cmd() {
-    LOG_DEBUG("~Cmd()");
+    LOG_DEBUG("~Cmd");
 }
 
 Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {

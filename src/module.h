@@ -1,15 +1,17 @@
 #ifndef __MODULE_H__
 #define __MODULE_H__
 
+#include "base.h"
 #include "cmd.h"
 #include "error.h"
 #include "request.h"
 
 namespace kim {
 
-class Module {
+class Module : public Base {
    public:
     Module() {}
+    Module(Log* logger, INet* net, uint64_t id, _cstr& name);
     virtual ~Module();
     virtual void register_handle_func() {}
 
@@ -17,13 +19,8 @@ class Module {
         return Cmd::STATUS::UNKOWN;
     }
 
-    void set_id(uint64_t id) { m_id = id; }
-    uint64_t get_id() { return m_id; }
-
     bool init(Log* logger, INet* net, uint64_t id);
     void set_version(int ver) { m_version = ver; }
-    void set_name(_cstr& name) { m_name = name; }
-    _cstr& get_name() { return m_name; }
     void set_file_path(_cstr& path) { m_file_path = path; }
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
     Cmd::STATUS on_timeout(Cmd* cmd);
@@ -33,18 +30,16 @@ class Module {
     bool del_cmd(Cmd* cmd);
 
    protected:
-    uint64_t m_id = 0;
-    Log* m_logger = nullptr;
-    INet* m_net = nullptr;
-    std::unordered_map<uint64_t, Cmd*> m_cmds;
-
     int m_version = 1;
-    std::string m_name;
     std::string m_file_path;
+    std::unordered_map<uint64_t, Cmd*> m_cmds;
 };
 
 #define REGISTER_HANDLER(class_name)                                           \
    public:                                                                     \
+    class_name(Log* logger, INet* net, uint64_t id, _cstr& name = "")          \
+        : Module(logger, net, id, name) {                                      \
+    }                                                                          \
     typedef Cmd::STATUS (class_name::*cmd_func)(std::shared_ptr<Request> req); \
     virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) {        \
         const HttpMsg* msg = req->get_http_msg();                              \
@@ -64,19 +59,18 @@ class Module {
 #define REGISTER_FUNC(path, func) \
     m_cmd_funcs[path] = &func;
 
-#define HANDLE_CMD(_cmd)                                                 \
-    const HttpMsg* msg = req->get_http_msg();                            \
-    if (msg == nullptr) {                                                \
-        return Cmd::STATUS::ERROR;                                       \
-    }                                                                    \
-    std::string path = msg->path();                                      \
-    _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq()); \
-    p->set_req(req);                                                     \
-    p->set_cmd_name(#_cmd);                                              \
-    Cmd::STATUS status = execute_cmd(p, req);                            \
-    if (status != Cmd::STATUS::RUNNING) {                                \
-        SAFE_DELETE(p);                                                  \
-    }                                                                    \
+#define HANDLE_CMD(_cmd)                                                        \
+    const HttpMsg* msg = req->get_http_msg();                                   \
+    if (msg == nullptr) {                                                       \
+        return Cmd::STATUS::ERROR;                                              \
+    }                                                                           \
+    std::string path = msg->path();                                             \
+    _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq(), #_cmd); \
+    p->set_req(req);                                                            \
+    Cmd::STATUS status = execute_cmd(p, req);                                   \
+    if (status != Cmd::STATUS::RUNNING) {                                       \
+        SAFE_DELETE(p);                                                         \
+    }                                                                           \
     return status;
 
 }  // namespace kim

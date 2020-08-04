@@ -15,9 +15,10 @@ class CmdTestRedis : public Cmd {
         ES_REDIS_GET_CALLBACK,
     };
 
-    CmdTestRedis(Log* logger, INet* net, uint64_t mid, uint64_t id)
-        : Cmd(logger, net, mid, id) {
+    CmdTestRedis(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "")
+        : Cmd(logger, net, mid, id, name) {
     }
+
     virtual ~CmdTestRedis() {
         LOG_DEBUG("~CmdTestRedis");
     }

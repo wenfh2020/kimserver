@@ -5,6 +5,10 @@
 
 namespace kim {
 
+Module::Module(Log* logger, INet* net, uint64_t id, _cstr& name)
+    : Base(id, logger, net, name) {
+}
+
 Module::~Module() {
     for (const auto& it : m_cmds) {
         delete it.second;
@@ -30,7 +34,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
         }
         ev_timer* w = m_net->add_cmd_timer(CMD_TIME_OUT_VAL, cmd->get_timer(), cmd);
         if (w == nullptr) {
-            LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name());
+            LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_name());
             return Cmd::STATUS::ERROR;
         }
         cmd->set_timer(w);
@@ -70,7 +74,7 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
         }
         if (cmd->get_cur_time_out_cnt() > 100) {
             LOG_ERROR("too many timeout! module id: %llu, cmd id: %llu, cmd name: %s",
-                      cmd->get_module_id(), cmd->get_id(), cmd->get_cmd_name());
+                      cmd->get_module_id(), cmd->get_id(), cmd->get_name());
         }
     }
     return status;
