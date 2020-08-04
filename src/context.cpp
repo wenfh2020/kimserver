@@ -6,8 +6,6 @@
 
 namespace kim {
 
-#define PROTO_IOBUF_LEN (1024 * 16) /* Generic I/O buffer size */
-
 Connection::Connection(Log* logger, int fd, uint64_t id)
     : m_id(id), m_logger(logger), m_fd(fd) {
 }
@@ -42,7 +40,7 @@ bool Connection::init(Codec::TYPE code_type) {
     }
 
     if (m_codec != nullptr) {
-        set_active_time(mstime());
+        set_active_time(time_now());
         m_codec->set_codec_type(code_type);
     }
 
@@ -84,7 +82,7 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
             m_recv_buf->get_readable_len() < m_recv_buf->capacity() / 2) {
             m_recv_buf->compact(m_recv_buf->get_readable_len() * 2);
         }
-        m_active_time = mstime();
+        m_active_time = time_now();
     }
 
     codec = dynamic_cast<CodecHttp*>(m_codec);
@@ -129,13 +127,13 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
             m_send_buf->get_readable_len() < m_send_buf->capacity() / 2) {
             m_send_buf->compact(m_send_buf->get_readable_len() * 2);
         }
-        m_active_time = mstime();
+        m_active_time = time_now();
         return (m_send_buf->get_readable_len() > 0)
                    ? Codec::STATUS::PAUSE
                    : Codec::STATUS::OK;
     } else {
         if (m_errno == EAGAIN) {
-            m_active_time = mstime();
+            m_active_time = time_now();
             return Codec::STATUS::PAUSE;
         }
 
@@ -156,7 +154,7 @@ bool Connection::is_need_alive_check() {
     return true;
 }
 
-int Connection::get_keep_alive() {
+double Connection::get_keep_alive() {
     if (is_http_codec()) {  // http codec has it's own keep alive.
         CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
         if (codec != nullptr) {

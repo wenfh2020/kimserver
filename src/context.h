@@ -7,6 +7,7 @@
 
 #include "codec/codec_http.h"
 #include "proto/http.pb.h"
+#include "timer.h"
 #include "util/log.h"
 #include "util/socket_buffer.h"
 
@@ -19,7 +20,7 @@ class ConnectionData {
     std::shared_ptr<Connection> m_conn = nullptr;
 };
 
-class Connection {
+class Connection : public Timer {
    public:
     enum class STATE {
         NONE = 0,
@@ -54,39 +55,28 @@ class Connection {
     void set_ev_io(ev_io* w) { m_ev_io = w; }
     ev_io* get_ev_io() const { return m_ev_io; }
 
-    void set_timer(ev_timer* w) { m_timer = w; }
-    ev_timer* get_timer() { return m_timer; }
-
-    void set_active_time(long long t) { m_active_time = t; }
-    long long get_active_time() const { return m_active_time; }
-
-    bool is_need_alive_check();
-    void set_keep_alive(int val) { m_keep_alive = val; }
-    int get_keep_alive();
-
     bool is_http_codec();
 
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);
 
+    virtual bool is_need_alive_check();
+    virtual double get_keep_alive();
+
    private:
     uint64_t m_id = 0;               // sequence.
     Log* m_logger = nullptr;         // logger.
     void* m_private_data = nullptr;  // private data.
+    ev_io* m_ev_io = nullptr;        // libev io event obj.
+    Codec* m_codec = nullptr;
 
     int m_fd = -1;                // socket fd.
     STATE m_state = STATE::NONE;  // connection status.
     int m_errno = 0;              // error number.
 
-    ev_io* m_ev_io = nullptr;     // libev io event obj.
-    long long m_active_time = 0;  // connection last active (read/write) time.
-    ev_timer* m_timer = nullptr;
-    int m_keep_alive = 0;
-
     SocketBuffer* m_recv_buf;
     SocketBuffer* m_send_buf;
     SocketBuffer* m_wait_send_buf;
-    Codec* m_codec = nullptr;
 };
 
 }  // namespace kim

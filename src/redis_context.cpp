@@ -20,13 +20,13 @@ void RdsConnection::clear_wait_cmd_infos() {
     m_wait_cmds.clear();
 }
 
-wait_cmd_info_t* RdsConnection::add_wait_cmd_info(uint64_t module_id, uint64_t cmd_id) {
+wait_cmd_info_t* RdsConnection::add_wait_cmd_info(uint64_t module_id, uint64_t cmd_id, int step) {
     LOG_DEBUG("add cmd info, module id: %llu, cmd id: %d", module_id, cmd_id)
+
     wait_cmd_info_t* info = find_wait_cmd_info(cmd_id);
     if (info != nullptr) {
         return info;
     }
-
     info = new wait_cmd_info_t(m_net, module_id, cmd_id);
     if (info == nullptr) {
         LOG_ERROR("alloc wait_cmd_info_t failed!");

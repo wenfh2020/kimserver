@@ -181,7 +181,6 @@ bool Events::restart_timer(double secs, ev_timer* w, void* privdata) {
     ev_timer_set(w, secs + ev_time() - ev_now(m_ev_loop), 0);
     ev_timer_start(m_ev_loop, w);
     w->data = privdata;
-
     LOG_DEBUG("restart timer, seconds: %f", secs);
     return true;
 }
@@ -205,6 +204,7 @@ bool Events::del_timer_event(ev_timer* w) {
     }
 
     LOG_DEBUG("delete timer event");
+
     ev_timer_stop(m_ev_loop, w);
     w->data = nullptr;
     SAFE_FREE(w);
@@ -254,8 +254,8 @@ void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int rev
 }
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Cmd* p = static_cast<Cmd*>(w->data);
-    p->get_net()->on_cmd_timer(p);
+    Cmd* cmd = static_cast<Cmd*>(w->data);
+    cmd->get_net()->on_cmd_timer(cmd);
 }
 
 redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) {

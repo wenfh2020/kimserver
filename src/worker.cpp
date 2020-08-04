@@ -1,12 +1,14 @@
 #include "worker.h"
 
+#include <random>
+
 #include "util/set_proc_title.h"
 #include "util/util.h"
-#define MAX_CLIENTS 10000
 
 namespace kim {
 
 Worker::Worker(_cstr& name) {
+    srand((unsigned)time(NULL));
     set_proc_title("%s", name.c_str());
 }
 
@@ -99,7 +101,6 @@ void Worker::on_terminated(ev_signal* s) {
     SAFE_DELETE(s);
     LOG_CRIT("worker terminated by signal: %d", signum);
     exit(signum);
-    return;
 }
 
 }  // namespace kim

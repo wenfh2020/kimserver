@@ -55,8 +55,8 @@ class Network : public INet {
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
     bool set_gate_codec_type(Codec::TYPE type);
-    void set_keep_alive(int keep_alive) { m_keep_alive = keep_alive; }
-    int get_keep_alive() { return m_keep_alive; }
+    void set_keep_alive(double secs) { m_keep_alive = secs; }
+    double get_keep_alive() { return m_keep_alive; }
 
    public:
     // io callback.
@@ -76,8 +76,7 @@ class Network : public INet {
 
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, uint64_t module_id,
-                                       uint64_t cmd_id, _csvector& rds_cmds) override;
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) override;
 
    private:
     void check_wait_send_fds();
@@ -113,7 +112,7 @@ class Network : public INet {
     TYPE m_type = TYPE::UNKNOWN;                                    // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
-    int m_keep_alive = IO_TIMER_VAL;                                // io timeout time.
+    double m_keep_alive = IO_TIME_OUT_VAL;                          // io timeout time.
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;  // gate codec type.
     std::unordered_map<uint64_t, Module*> m_modules;        // modules.

@@ -5,12 +5,11 @@
 #include "error.h"
 #include "net.h"
 #include "request.h"
-
-#define MAX_TIMER_CNT 3
+#include "timer.h"
 
 namespace kim {
 
-class Cmd {
+class Cmd : public Timer {
    public:
     enum class STATUS {
         UNKOWN = 0,
@@ -40,13 +39,10 @@ class Cmd {
     INet* get_net() { return m_net; }
     void set_cmd_name(_cstr& name) { m_cmd_name = name; }
     _cstr& get_cmd_name() const { return m_cmd_name; }
-    int set_max_timeout_cnt() { return m_max_timeout_cnt; }
+    const char* get_cmd_name() { return m_cmd_name.c_str(); }
 
     void set_req(std::shared_ptr<Request> req) { m_req = req; }
     std::shared_ptr<Request> get_req() const { return m_req; }
-
-    ev_timer* get_timer() { return m_timer; }
-    void set_timer(ev_timer* w) { m_timer = w; }
 
     // async step. -- status machine.
     void set_exec_step(int step) { m_step = step; }
@@ -66,10 +62,7 @@ class Cmd {
     std::shared_ptr<Request> m_req = nullptr;
     std::string m_cmd_name;
 
-    ev_timer* m_timer = nullptr;
     int m_step = 0;  // async step.
-    int m_cur_timeout_cnt = 0;
-    int m_max_timeout_cnt = MAX_TIMER_CNT;
 };
 
 };  // namespace kim

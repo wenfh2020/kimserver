@@ -20,7 +20,7 @@ class Module {
     void set_id(uint64_t id) { m_id = id; }
     uint64_t get_id() { return m_id; }
 
-    bool init(Log* logger, INet* net);
+    bool init(Log* logger, INet* net, uint64_t id);
     void set_version(int ver) { m_version = ver; }
     void set_name(_cstr& name) { m_name = name; }
     _cstr& get_name() { return m_name; }
@@ -33,7 +33,7 @@ class Module {
     bool del_cmd(Cmd* cmd);
 
    protected:
-    uint64_t m_id;
+    uint64_t m_id = 0;
     Log* m_logger = nullptr;
     INet* m_net = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds;

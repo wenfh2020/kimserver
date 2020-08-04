@@ -13,11 +13,7 @@
 
 namespace kim {
 
-#define TCP_BACK_LOG 511
-#define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
-#define MAX_ACCEPTS_PER_CALL 1000
-#define CORE_TEST "core-test"
-#define REPEAT_TIMER_VAL 1.0
+#define CORE_TEST "module-test"
 
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
@@ -109,7 +105,6 @@ bool Network::create(INet* s, int ctrl_fd, int data_fd) {
         LOG_ERROR("load module failed!");
         return false;
     }
-
     return true;
 }
 
@@ -149,17 +144,17 @@ error:
 
 std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
     if (anet_no_block(m_errstr, fd) != ANET_OK) {
-        LOG_ERROR("set socket no block failed! fd: %d, error: %s", fd, m_errstr);
+        LOG_ERROR("set socket no block failed! fd: %d, errstr: %s", fd, m_errstr);
         return nullptr;
     }
 
     if (!is_chanel) {
         if (anet_keep_alive(m_errstr, fd, 100) != ANET_OK) {
-            LOG_ERROR("set socket keep alive failed! fd: %d, error: %s", fd, m_errstr);
+            LOG_ERROR("set socket keep alive failed! fd: %d, errstr: %s", fd, m_errstr);
             return nullptr;
         }
         if (anet_set_tcp_no_delay(m_errstr, fd, 1) != ANET_OK) {
-            LOG_ERROR("set socket no delay failed! fd: %d, error: %s", fd, m_errstr);
+            LOG_ERROR("set socket no delay failed! fd: %d, errstr: %s", fd, m_errstr);
             return nullptr;
         }
     }
@@ -174,7 +169,7 @@ std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_ty
     }
     c->init(codec_type);
     c->set_private_data(this);
-    c->set_active_time(mstime());
+    c->set_active_time(time_now());
     c->set_state(Connection::STATE::CONNECTED);
 
     w = m_events->add_read_event(fd, c->get_ev_io(), this);
@@ -249,19 +244,19 @@ bool Network::close_conn(int fd) {
 
 int Network::listen_to_port(const char* bind, int port) {
     int fd = -1;
-    char err[256] = {0};
+    char errstr[256];
 
     if (strchr(bind, ':')) {
         /* Bind IPv6 address. */
-        fd = anet_tcp6_server(err, port, bind, TCP_BACK_LOG);
+        fd = anet_tcp6_server(errstr, port, bind, TCP_BACK_LOG);
         if (fd == -1) {
-            LOG_ERROR("bind tcp ipv6 fail! %s", err);
+            LOG_ERROR("bind tcp ipv6 fail! %s", errstr);
         }
     } else {
         /* Bind IPv4 address. */
-        fd = anet_tcp_server(err, port, bind, TCP_BACK_LOG);
+        fd = anet_tcp_server(errstr, port, bind, TCP_BACK_LOG);
         if (fd == -1) {
-            LOG_ERROR("bind tcp ipv4 fail! %s", err);
+            LOG_ERROR("bind tcp ipv4 fail! %s", errstr);
         }
     }
 
@@ -287,7 +282,6 @@ void Network::close_chanel(int* fds) {
 
 void Network::close_conns() {
     LOG_DEBUG("close_conns(), cnt: %d", m_conns.size());
-
     for (const auto& it : m_conns) {
         close_conn(it.second);
     }
@@ -373,32 +367,51 @@ void Network::on_repeat_timer(void* privdata) {
 }
 
 void Network::on_cmd_timer(void* privdata) {
-    Cmd* cmd = static_cast<Cmd*>(privdata);
-    auto it = m_modules.find(cmd->get_module_id());
-    if (it != m_modules.end()) {
-        it->second->on_timeout(cmd);
+    Cmd* cmd;
+    double secs;
+
+    cmd = static_cast<Cmd*>(privdata);
+    secs = cmd->get_keep_alive() - (time_now() - cmd->get_active_time());
+    if (secs > 0) {
+        LOG_DEBUG("cmd timer restart, cmd id: %llu, restart timer secs: %f",
+                  cmd->get_id(), secs);
+        m_events->restart_timer(secs, cmd->get_timer(), privdata);
+        return;
+    } else {
+        auto it = m_modules.find(cmd->get_module_id());
+        if (it == m_modules.end()) {
+            LOG_ERROR("find module failed!, module id: %llu", cmd->get_module_id());
+            return;
+        }
+        /* note: cmd will be deleted, when status != Cmd::STATUS::RUNNING.
+         * and the same to cmd's timer.*/
+        if (it->second->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
+            LOG_DEBUG("cmd timer reset, cmd id: %llu, restart timer secs: %f",
+                      cmd->get_id(), secs);
+            m_events->restart_timer(CMD_TIME_OUT_VAL, cmd->get_timer(), privdata);
+        }
     }
 }
 
 void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
-        int secs;
+        double secs;
         ConnectionData* conn_data;
         std::shared_ptr<Connection> c;
 
         conn_data = static_cast<ConnectionData*>(privdata);
         c = conn_data->m_conn;
-        secs = c->get_keep_alive() - (mstime() - c->get_active_time()) / 1000;
+        secs = c->get_keep_alive() - (time_now() - c->get_active_time());
         if (secs > 0) {
-            LOG_DEBUG("timer restart, fd: %d, restart timer secs: %d", c->get_fd(), secs);
-            m_events->restart_timer(secs, c->get_timer(), conn_data);
+            LOG_DEBUG("io timer restart, fd: %d, restart timer secs: %f",
+                      c->get_fd(), secs);
+            m_events->restart_timer(secs, c->get_timer(), privdata);
             return;
         }
 
-        LOG_INFO("time up, close connection! secs: %d, fd: %d, seq: %llu",
+        LOG_INFO("time up, close connection! secs: %f, fd: %d, seq: %llu",
                  secs, c->get_fd(), c->get_id());
         close_conn(c);
-    } else {
     }
 }
 
@@ -422,7 +435,7 @@ bool Network::read_query_from_client(int fd) {
         std::shared_ptr<Request> req;
 
         req = std::make_shared<Request>(c, true);
-        msg = req->get_http_msg_alloc();
+        msg = req->http_msg_alloc();
         status = c->conn_read(*msg);
 
         if (status == Codec::STATUS::OK) {
@@ -476,7 +489,7 @@ void Network::accept_server_conn(int fd) {
         cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK) {
-                LOG_ERROR("accepting client connection failed: fd: %d, error %s",
+                LOG_ERROR("accepting client connection failed: fd: %d, errstr %s",
                           fd, m_errstr);
             }
             return;
@@ -605,10 +618,8 @@ bool Network::load_modules() {
     if (m == nullptr) {
         return false;
     }
-    m->init(m_logger, this);
+    m->init(m_logger, this, get_new_seq());
     m->set_name(CORE_TEST);
-    m->set_id(get_new_seq());
-    m->register_handle_func();
     m_modules[m->get_id()] = m;
     LOG_DEBUG("module id: %llu", m->get_id());
     return true;
@@ -618,7 +629,7 @@ bool Network::load_timer(INet* net) {
     if (m_events == nullptr || net == nullptr) {
         return false;
     }
-    m_timer = m_events->add_repeat_timer(REPEAT_TIMER_VAL, m_timer, net);
+    m_timer = m_events->add_repeat_timer(REPEAT_TIME_OUT_VAL, m_timer, net);
     return (m_timer != nullptr);
 }
 
@@ -664,11 +675,15 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-E_RDS_STATUS Network::redis_send_to(_cstr& host, int port, uint64_t module_id,
-                                    uint64_t cmd_id, _csvector& rds_cmds) {
+E_RDS_STATUS Network::redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) {
     LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
+
     RdsConnection* c;
+    uint64_t module_id, cmd_id;
     std::string identity;
+
+    cmd_id = cmd->get_id();
+    module_id = cmd->get_module_id();
 
     identity = format_addr(host, port);
     auto it = m_redis_conns.find(identity);
@@ -700,7 +715,7 @@ E_RDS_STATUS Network::redis_send_to(_cstr& host, int port, uint64_t module_id,
     }
 
     // delete info when callback.
-    wait_cmd_info_t* info = new wait_cmd_info_t(this, module_id, cmd_id);
+    wait_cmd_info_t* info = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
     if (info == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
                   cmd_id, module_id);
@@ -845,7 +860,7 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;
         if (c->err != 0) {
-            LOG_ERROR("redis callback data: %s, err: %d, error: %s", r->str, c->err, c->errstr);
+            LOG_ERROR("redis callback data: %s, err: %d, errstr: %s", r->str, c->err, c->errstr);
         } else {
             LOG_DEBUG("redis callback data: %s, err: %d", r->str, c->err);
         }

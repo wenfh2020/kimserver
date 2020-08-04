@@ -1,10 +1,9 @@
 #include "module.h"
 
 #include "../server.h"
+#include "util/util.h"
 
 namespace kim {
-
-#define CMD_TIMEOUT 1.0
 
 Module::~Module() {
     for (const auto& it : m_cmds) {
@@ -13,9 +12,11 @@ Module::~Module() {
     m_cmds.clear();
 }
 
-bool Module::init(Log* logger, INet* net) {
+bool Module::init(Log* logger, INet* net, uint64_t id) {
     m_net = net;
     m_logger = logger;
+    m_id = id;
+    register_handle_func();
     return true;
 }
 
@@ -23,13 +24,13 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     Cmd::STATUS status = cmd->execute(req);
     if (status == Cmd::STATUS::RUNNING) {
         auto it = m_cmds.insert({cmd->get_id(), cmd});
-        if (!it.second) {
+        if (it.second == false) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT, cmd->get_timer(), cmd);
+        ev_timer* w = m_net->add_cmd_timer(CMD_TIME_OUT_VAL, cmd->get_timer(), cmd);
         if (w == nullptr) {
-            LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name().c_str());
+            LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_cmd_name());
             return Cmd::STATUS::ERROR;
         }
         cmd->set_timer(w);
@@ -55,9 +56,22 @@ bool Module::del_cmd(Cmd* cmd) {
 }
 
 Cmd::STATUS Module::on_timeout(Cmd* cmd) {
-    Cmd::STATUS status = cmd->on_timeout();
+    int old;
+    Cmd::STATUS status;
+
+    old = cmd->get_cur_time_out_cnt();
+    status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
         del_cmd(cmd);
+    } else {
+        // check timeout count.
+        if (old == cmd->get_cur_time_out_cnt()) {
+            cmd->refresh_cur_time_out_cnt();
+        }
+        if (cmd->get_cur_time_out_cnt() > 100) {
+            LOG_ERROR("too many timeout! module id: %llu, cmd id: %llu, cmd name: %s",
+                      cmd->get_module_id(), cmd->get_id(), cmd->get_cmd_name());
+        }
     }
     return status;
 }
@@ -77,11 +91,13 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
     }
 
     Cmd* cmd = it->second;
+    cmd->set_active_time(time_now());
     Cmd::STATUS status = cmd->on_callback(err, data);
     if (status != Cmd::STATUS::RUNNING) {
         del_cmd(cmd);
     }
-    return Cmd::STATUS::OK;
+
+    return status;
 }
 
 Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, _cstr& data, int status_code) {

@@ -1,9 +1,12 @@
 #include "cmd.h"
 
+#include "util/util.h"
+
 namespace kim {
 
 Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t cid)
     : m_id(cid), m_module_id(mid), m_logger(logger), m_net(net) {
+    set_keep_alive(CMD_TIME_OUT_VAL);
 }
 
 Cmd::~Cmd() {
@@ -52,7 +55,7 @@ Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
         return Cmd::STATUS::ERROR;
     }
 
-    E_RDS_STATUS status = m_net->redis_send_to(host, port, m_module_id, m_id, rds_cmds);
+    E_RDS_STATUS status = m_net->redis_send_to(host, port, this, rds_cmds);
     if (status == E_RDS_STATUS::OK) {
         set_next_step();
         return Cmd::STATUS::RUNNING;
@@ -82,7 +85,7 @@ Cmd::STATUS Cmd::on_callback(int err, void* data) {
 
 Cmd::STATUS Cmd::on_timeout() {
     LOG_DEBUG("time out!");
-    if (m_cur_timeout_cnt++ < MAX_TIMER_CNT) {
+    if (m_cur_timeout_cnt++ < CMD_MAX_TIME_OUT_CNT) {
         return Cmd::STATUS::RUNNING;
     }
     return Cmd::STATUS::COMPLETED;

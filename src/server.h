@@ -12,16 +12,33 @@
 
 namespace kim {
 
-typedef const std::string _cstr;
-typedef const std::vector<std::string> _csvector;
-
-#define MAX_PATH 256
-
+// exit code.
 #define EXIT_SUCCESS 0
 #define EXIT_FAIL -1
 #define EXIT_CHILD -2
 #define EXIT_CHILD_INIT_FAIL -3
 #define EXIT_FD_TRANSFER -4
+
+typedef const std::string _cstr;
+typedef const std::vector<std::string> _csvector;
+
+// redis operation return status.
+enum class E_RDS_STATUS {
+    OK = 0,
+    WAITING = 2,
+    ERROR = 3,
+};
+
+// time out info.
+#define CMD_MAX_TIME_OUT_CNT 3   // default max cmd time out count.
+#define IO_TIME_OUT_VAL 15.0     // connection time out value.
+#define CMD_TIME_OUT_VAL 3.0     // cmd time out value.
+#define REPEAT_TIME_OUT_VAL 1.0  // repeat time out value.
+
+#define MAX_PATH 256
+#define TCP_BACK_LOG 511
+#define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
+#define MAX_ACCEPTS_PER_CALL 1000
 
 #define SAFE_FREE(x)               \
     {                              \
@@ -41,7 +58,7 @@ typedef const std::vector<std::string> _csvector;
         x = nullptr;                  \
     }
 
-// new m_logger obj, before using.
+// logger macro.
 #define LOG_FORMAT(level, args...)                                           \
     if (m_logger != nullptr) {                                               \
         m_logger->log_data(__FILE__, __LINE__, __FUNCTION__, level, ##args); \
@@ -55,14 +72,6 @@ typedef const std::vector<std::string> _csvector;
 #define LOG_NOTICE(args...) LOG_FORMAT((Log::LL_NOTICE), ##args)
 #define LOG_INFO(args...) LOG_FORMAT((Log::LL_INFO), ##args)
 #define LOG_DEBUG(args...) LOG_FORMAT((Log::LL_DEBUG), ##args)
-
-enum class E_RDS_STATUS {
-    OK = 0,
-    WAITING = 2,
-    ERROR = 3,
-};
-
-#define IO_TIMER_VAL 15
 
 }  // namespace kim
 

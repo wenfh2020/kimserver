@@ -17,8 +17,10 @@ extern "C" {
 void daemonize();
 bool adjust_files_limit(int& max_clients);
 const char* to_lower(const char* s, int len);
-long long mstime();  // millisecond
-long long ustime();  // microseconds
+long long mstime();     // millisecond
+long long ustime();     // microseconds
+double time_now();      // seconds (double)
+double decimal_rand();  // [0, 1.0) double random.
 
 // }  // namespace kim
 

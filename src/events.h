@@ -38,7 +38,7 @@ class Events {
     ev_timer* add_repeat_timer(double secs, ev_timer* w, void* privdata);
     ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata);
     ev_timer* add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs = 0);
-    bool restart_timer(double secs, ev_timer* w, void* privdat);
+    bool restart_timer(double secs, ev_timer* w, void* privdata);
     bool del_timer_event(ev_timer* w);
 
     // redis

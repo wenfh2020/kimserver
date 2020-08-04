@@ -7,6 +7,7 @@ enum E_ERROR {
     // common.
     ERR_OK = 0,
     ERR_FAILED = 1,
+    ERR_EXEC_SETP = 2,
 
     // redis.
     ERR_REDIS_CONNECT_FAILED = 11001,

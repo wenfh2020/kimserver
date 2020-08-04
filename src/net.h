@@ -10,16 +10,18 @@
 
 namespace kim {
 
+class Cmd;
 class INet;
 
 // privdata for cmd callback.
 typedef struct wait_cmd_info_s {
-    wait_cmd_info_s(INet* n, uint64_t mid, uint64_t cid)
-        : net(n), module_id(mid), cmd_id(cid) {
+    wait_cmd_info_s(INet* n, uint64_t mid, uint64_t cid, int step = 0)
+        : net(n), module_id(mid), cmd_id(cid), exec_step(step) {
     }
     INet* net = nullptr;
     uint64_t module_id = 0;
     uint64_t cmd_id = 0;
+    int exec_step = 0;
 } wait_cmd_info_t;
 
 class INet {
@@ -57,7 +59,7 @@ class INet {
    public:
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, uint64_t module_id, uint64_t cmd_id, _csvector& rds_cmds) {
+    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd*, _csvector& rds_cmds) {
         return E_RDS_STATUS::ERROR;
     }
 

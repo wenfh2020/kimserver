@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <random>
 #include <sstream>
 
 #define CONFIG_MIN_RESERVED_FDS 32
@@ -141,4 +142,14 @@ long long ustime() {
     ust = ((long)tv.tv_sec) * 1000000;
     ust += tv.tv_usec;
     return ust;
+}
+
+double time_now() {
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    return ((tv).tv_sec + (tv).tv_usec * 1e-6);
+}
+
+double decimal_rand() {
+    return double(rand()) / (double(RAND_MAX) + 1.0);
 }

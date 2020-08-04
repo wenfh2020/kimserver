@@ -16,11 +16,11 @@ class Request {
     virtual ~Request();
 
     MsgHead* get_msg_head();
-    MsgHead* get_msg_head_alloc();
+    MsgHead* msg_head_alloc();
     MsgBody* get_msg_body();
-    MsgBody* get_msg_body_alloc();
+    MsgBody* msg_body_alloc();
     HttpMsg* get_http_msg();
-    HttpMsg* get_http_msg_alloc();
+    HttpMsg* http_msg_alloc();
 
     void set_conn(std::shared_ptr<Connection> c) { m_conn = c; }
     std::shared_ptr<Connection> get_conn() { return m_conn; }
