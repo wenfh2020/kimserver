@@ -20,8 +20,6 @@ class Cmd : public Timer, public Base {
         ERROR = 4,
     };
     Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "");
-    Cmd(const Cmd&) = delete;
-    Cmd& operator=(const Cmd&) = delete;
     virtual ~Cmd();
 
    public:

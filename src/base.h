@@ -10,7 +10,10 @@ class Base {
    public:
     Base() {}
     Base(uint64_t id, Log* logger, INet* net, _cstr& name = "")
-        : m_id(id), m_logger(logger), m_net(net), m_name(name) {}
+        : m_id(id), m_logger(logger), m_net(net), m_name(name) {
+    }
+    Base(const Base&) = delete;
+    Base& operator=(const Base&) = delete;
     virtual ~Base() {}
 
    public:
