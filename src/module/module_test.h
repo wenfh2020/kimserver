@@ -1,5 +1,5 @@
-#ifndef __MODULE_HELLO_H__
-#define __MODULE_HELLO_H__
+#ifndef __MODULE_TEST_H__
+#define __MODULE_TEST_H__
 
 #include "../module.h"
 #include "cmd_hello.h"
@@ -29,4 +29,4 @@ class MoudleTest : public Module {
 
 }  // namespace kim
 
-#endif  //__MODULE_HELLO_H__
+#endif  //__MODULE_TEST_H__
