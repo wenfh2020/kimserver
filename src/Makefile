@@ -1,7 +1,7 @@
 CC = gcc
 CXX = $(shell command -v ccache >/dev/null 2>&1 && echo "ccache g++" || echo "g++")
 CFLAGS = -g -O0 -Wall -m64 -D__GUNC__ -fPIC
-CPP_VERSION=$(shell g++ -dumpversion | awk '{if ($$NF > 5.0) print "c++14"; else print "c++11";}')
+CPP_VERSION=$(shell g++ -dumpversion | awk '{if ($NF > 5.0) print "c++14"; else print "c++11";}')
 CXXFLAG = -std=$(CPP_VERSION) -g -O0 -Wall -Wno-unused-function -Wno-noexcept-type -m64 -D_GNU_SOURCE=1 -D_REENTRANT -D__GUNC__ -fPIC -DNODE_BEAT=10.0
 
 VPATH = .

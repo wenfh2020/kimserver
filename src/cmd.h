@@ -1,5 +1,5 @@
-#ifndef __CMD_H__
-#define __CMD_H__
+#ifndef __KIM_CMD_H__
+#define __KIM_CMD_H__
 
 #include "../util/json/CJsonObject.hpp"
 #include "base.h"
@@ -55,4 +55,4 @@ class Cmd : public Timer, public Base {
 
 };  // namespace kim
 
-#endif  //__CMD_H__
+#endif  //__KIM_CMD_H__

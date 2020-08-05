@@ -19,10 +19,6 @@ class CmdTestRedis : public Cmd {
         : Cmd(logger, net, mid, id, name) {
     }
 
-    virtual ~CmdTestRedis() {
-        LOG_DEBUG("~CmdTestRedis");
-    }
-
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
         int port = 6379;

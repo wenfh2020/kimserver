@@ -1,5 +1,5 @@
-#ifndef __MODULE_H__
-#define __MODULE_H__
+#ifndef __KIM_MODULE_H__
+#define __KIM_MODULE_H__
 
 #include "base.h"
 #include "cmd.h"
@@ -75,4 +75,4 @@ class Module : public Base {
 
 }  // namespace kim
 
-#endif  //__MODULE_H__
+#endif  //__KIM_MODULE_H__

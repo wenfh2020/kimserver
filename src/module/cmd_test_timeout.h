@@ -11,10 +11,6 @@ class CmdTestTimeout : public Cmd {
         : Cmd(logger, net, mid, id, name) {
     }
 
-    virtual ~CmdTestTimeout() {
-        LOG_DEBUG("~CmdTestTimeout");
-    }
-
    public:
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {
         const HttpMsg* msg = m_req->get_http_msg();

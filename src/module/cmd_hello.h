@@ -10,9 +10,6 @@ class CmdHello : public Cmd {
     CmdHello(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "")
         : Cmd(logger, net, mid, id, name) {
     }
-    virtual ~CmdHello() {
-        LOG_DEBUG("delete cmd hello");
-    }
 
    public:
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {

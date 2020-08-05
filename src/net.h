@@ -1,5 +1,5 @@
-#ifndef __EVENTS_CALLBAK_H__
-#define __EVENTS_CALLBAK_H__
+#ifndef __KIM_NET_H__
+#define __KIM_NET_H__
 
 #include <ev.h>
 #include <hiredis/async.h>
@@ -70,4 +70,4 @@ class INet {
 
 }  // namespace kim
 
-#endif  //__EVENTS_CALLBAK_H__
+#endif  //__KIM_NET_H__

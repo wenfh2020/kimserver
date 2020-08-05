@@ -10,7 +10,7 @@ Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name)
 }
 
 Cmd::~Cmd() {
-    LOG_DEBUG("~Cmd");
+    LOG_DEBUG("destory %s", get_name());
 }
 
 Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {

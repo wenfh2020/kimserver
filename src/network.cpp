@@ -833,7 +833,6 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
 
     int err;
     Module* module;
-    RdsConnection* rc;
     std::string identity;
     wait_cmd_info_t* info;
 
@@ -845,7 +844,6 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         return;
     }
 
-    rc = it->second;
     info = static_cast<wait_cmd_info_t*>(privdata);
 
     auto itr = m_modules.find(info->module_id);
