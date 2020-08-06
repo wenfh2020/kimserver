@@ -25,21 +25,21 @@ class Codec {
         PAUSE = 2,
     };
 
-    Codec(Log* logger, Codec::TYPE type) : m_logger(logger), m_codec_type(type) {}
+    Codec(Log* logger, Codec::TYPE type) : m_logger(logger), m_codec(type) {}
     virtual ~Codec() {}
 
     virtual Codec::STATUS encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf);
     virtual Codec::STATUS decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBody& body);
 
-    bool set_codec_type(Codec::TYPE type);
-    Codec::TYPE get_codec_type() { return m_codec_type; }
+    bool set_codec(Codec::TYPE type);
+    Codec::TYPE get_codec() { return m_codec; }
 
     bool gzip(_cstr& src, std::string& dst);
     bool ungzip(_cstr& src, std::string& dst);
 
    protected:
     Log* m_logger = nullptr;
-    Codec::TYPE m_codec_type = Codec::TYPE::PROTOBUF;
+    Codec::TYPE m_codec = Codec::TYPE::PROTOBUF;
 };
 
 };  // namespace kim

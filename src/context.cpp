@@ -18,20 +18,20 @@ Connection::~Connection() {
     SAFE_DELETE(m_codec);
 }
 
-bool Connection::init(Codec::TYPE code_type) {
-    LOG_DEBUG("connection init fd: %d, codec type: %d", m_fd, (int)code_type);
+bool Connection::init(Codec::TYPE codec) {
+    LOG_DEBUG("connection init fd: %d, codec type: %d", m_fd, (int)codec);
 
     try {
         m_recv_buf = new SocketBuffer;
         m_send_buf = new SocketBuffer;
         m_wait_send_buf = new SocketBuffer;
-        switch (code_type) {
+        switch (codec) {
             case Codec::TYPE::HTTP:
-                m_codec = new CodecHttp(m_logger, code_type);
+                m_codec = new CodecHttp(m_logger, codec);
                 break;
 
             default:
-                LOG_ERROR("invalid codec type: %d", (int)code_type);
+                LOG_ERROR("invalid codec type: %d", (int)codec);
                 break;
         }
     } catch (std::bad_alloc& e) {
@@ -41,7 +41,7 @@ bool Connection::init(Codec::TYPE code_type) {
 
     if (m_codec != nullptr) {
         set_active_time(time_now());
-        m_codec->set_codec_type(code_type);
+        m_codec->set_codec(codec);
     }
 
     return true;
@@ -51,7 +51,7 @@ bool Connection::is_http_codec() {
     if (m_codec == nullptr) {
         return false;
     }
-    return (m_codec->get_codec_type() == Codec::TYPE::HTTP);
+    return (m_codec->get_codec() == Codec::TYPE::HTTP);
 }
 
 Codec::STATUS Connection::conn_read(HttpMsg& msg) {
@@ -147,7 +147,7 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
 
 bool Connection::is_need_alive_check() {
     if (m_codec != nullptr) {
-        if (m_codec->get_codec_type() == Codec::TYPE::HTTP) {
+        if (m_codec->get_codec() == Codec::TYPE::HTTP) {
             return false;
         }
     }

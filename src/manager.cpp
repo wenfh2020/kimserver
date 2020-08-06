@@ -116,25 +116,10 @@ bool Manager::load_network() {
         return false;
     }
 
-    int codec = 0;
-    if (m_conf.Get("gate_codec", codec)) {
-        if (!m_net->set_gate_codec_type(static_cast<Codec::TYPE>(codec))) {
-            LOG_ERROR("invalid codec: %d", codec);
-            return false;
-        }
-    }
-    LOG_DEBUG("gate codec: %d", codec);
-
-    if (!m_net->create(&m_node_info.addr_info,
-                       static_cast<Codec::TYPE>(codec), this, &m_worker_data_mgr)) {
+    if (!m_net->create(&m_node_info.addr_info, this, m_conf, &m_worker_data_mgr)) {
         SAFE_DELETE(m_net);
         LOG_ERROR("init network fail!");
         return false;
-    }
-
-    double secs = 0;
-    if (m_conf.Get("keep_alive", secs)) {
-        m_net->set_keep_alive(secs);
     }
 
     return true;

@@ -31,7 +31,7 @@ class INet {
 
    public:
     virtual uint64_t get_new_seq() { return 0; }
-    virtual bool get_redis_config(_cstr& key, CJsonObject& config) { return false; }
+    virtual CJsonObject& get_config() { return m_conf; }
 
     // libev callback.
     /////////////////////////////////
@@ -66,6 +66,9 @@ class INet {
     // events
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) { return nullptr; }
     virtual bool del_cmd_timer(ev_timer*) { return false; }
+
+   protected:
+    CJsonObject m_conf;
 };
 
 }  // namespace kim

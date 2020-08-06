@@ -2,6 +2,7 @@
 #define __CMD_TEST_REDIS_H__
 
 #include "../cmd.h"
+#include "../util/json/CJsonObject.hpp"
 
 namespace kim {
 
@@ -19,11 +20,15 @@ class CmdTestRedis : public Cmd {
         : Cmd(logger, net, mid, id, name) {
     }
 
+    bool init() {
+        m_redis_host = config()["redis"]["test"]("host");
+        m_redis_port = atoi(config()["redis"]["test"]("port").c_str());
+        LOG_DEBUG("redis host: %s, port: %d", m_redis_host.c_str(), m_redis_port);
+        return true;
+    }
+
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
-        int port = 6379;
-        std::string host("127.0.0.1");
-
         switch (get_exec_step()) {
             case ES_PARSE_REQUEST: {
                 const HttpMsg* msg = m_req->get_http_msg();
@@ -45,7 +50,7 @@ class CmdTestRedis : public Cmd {
             case ES_REDIS_SET: {
                 LOG_DEBUG("step redis set, key: %s, value: %s", m_key.c_str(), m_value.c_str());
                 std::vector<std::string> rds_cmds{"set", m_key, m_value};
-                Cmd::STATUS status = redis_send_to(host, port, rds_cmds);
+                Cmd::STATUS status = redis_send_to(m_redis_host, m_redis_port, rds_cmds);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }
@@ -63,7 +68,7 @@ class CmdTestRedis : public Cmd {
             }
             case ES_REDIS_GET: {
                 std::vector<std::string> rds_cmds{"get", m_key};
-                Cmd::STATUS status = redis_send_to(host, port, rds_cmds);
+                Cmd::STATUS status = redis_send_to(m_redis_host, m_redis_port, rds_cmds);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }
@@ -90,6 +95,8 @@ class CmdTestRedis : public Cmd {
 
    private:
     std::string m_key, m_value;
+    std::string m_redis_host;
+    int m_redis_port;
 };
 
 }  // namespace kim

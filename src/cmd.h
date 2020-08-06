@@ -23,6 +23,7 @@ class Cmd : public Timer, public Base {
     virtual ~Cmd();
 
    public:
+    virtual bool init() { return true; }
     virtual Cmd::STATUS on_timeout();
     virtual Cmd::STATUS on_callback(int err, void* data);
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
@@ -34,6 +35,7 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds);
 
     uint64_t get_module_id() { return m_module_id; }
+    CJsonObject& config() { return m_net->get_config(); }
 
     void set_req(std::shared_ptr<Request> req) { m_req = req; }
     std::shared_ptr<Request> get_req() const { return m_req; }

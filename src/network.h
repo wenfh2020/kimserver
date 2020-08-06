@@ -14,6 +14,7 @@
 #include "net/chanel.h"
 #include "node_info.h"
 #include "redis_context.h"
+#include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
 
 namespace kim {
@@ -32,16 +33,17 @@ class Network : public INet {
     };
     Network(Log* logger, TYPE type);
     virtual ~Network();
-    bool create(INet* net, int ctrl_fd, int data_fd);                                            // for worker.
-    bool create(const AddrInfo* addr_info, Codec::TYPE code_type, INet* net, WorkerDataMgr* m);  // for manager.
+    bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                     // for worker.
+    bool create(const AddrInfo* addr_info, INet* net, const CJsonObject& config, WorkerDataMgr* m);  // for manager.
     void destory();
+    bool load_config(const CJsonObject& config);
     bool load_timer(INet* net);
     bool load_modules();
 
     // events.
     void run();
     void end_ev_loop();
-    std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel = false);
+    std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
 
@@ -54,11 +56,13 @@ class Network : public INet {
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
-    bool set_gate_codec_type(Codec::TYPE type);
+    bool set_gate_codec(Codec::TYPE type);
     void set_keep_alive(double secs) { m_keep_alive = secs; }
     double get_keep_alive() { return m_keep_alive; }
 
    public:
+    virtual uint64_t get_new_seq() override { return ++m_seq; }
+
     // io callback.
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
@@ -80,8 +84,7 @@ class Network : public INet {
 
    private:
     void check_wait_send_fds();
-    virtual uint64_t get_new_seq() override { return ++m_seq; }
-    bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec_type, bool is_worker);
+    bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker);
 
     // socket.
     int listen_to_port(const char* bind, int port);
@@ -114,8 +117,8 @@ class Network : public INet {
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
     double m_keep_alive = IO_TIMEOUT_VAL;                           // io timeout time.
 
-    Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;  // gate codec type.
-    std::unordered_map<uint64_t, Module*> m_modules;        // modules.
+    Codec::TYPE m_gate_codec = Codec::TYPE::PROTOBUF;  // gate codec type.
+    std::unordered_map<uint64_t, Module*> m_modules;   // modules.
 
     ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
     std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.

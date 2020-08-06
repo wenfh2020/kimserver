@@ -74,14 +74,9 @@ bool Worker::load_network() {
         return false;
     }
 
-    if (!m_net->create(this, m_worker_info.ctrl_fd, m_worker_info.data_fd)) {
+    if (!m_net->create(this, m_conf, m_worker_info.ctrl_fd, m_worker_info.data_fd)) {
         LOG_ERROR("init network fail!");
         return false;
-    }
-
-    double secs = 0;
-    if (m_conf.Get("keep_alive", secs)) {
-        m_net->set_keep_alive(secs);
     }
 
     return true;

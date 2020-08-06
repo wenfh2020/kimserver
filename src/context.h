@@ -34,7 +34,7 @@ class Connection : public Timer {
     Connection(Log* logger, int fd, uint64_t id);
     virtual ~Connection();
 
-    bool init(Codec::TYPE code_type);
+    bool init(Codec::TYPE codec);
 
     void set_fd(int fd) { m_fd = fd; }
     int get_fd() const { return m_fd; }

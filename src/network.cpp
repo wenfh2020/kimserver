@@ -50,10 +50,34 @@ void Network::run() {
     }
 }
 
+bool Network::load_config(const CJsonObject& config) {
+    m_conf = config;
+    int codec = 0;
+    if (m_conf.Get("gate_codec", codec)) {
+        if (!set_gate_codec(static_cast<Codec::TYPE>(codec))) {
+            LOG_ERROR("invalid codec: %d", codec);
+            return false;
+        }
+    }
+    LOG_DEBUG("gate codec: %d", codec);
+
+    double secs = 0;
+    if (m_conf.Get("keep_alive", secs)) {
+        set_keep_alive(secs);
+    }
+
+    return true;
+}
+
 bool Network::create(const AddrInfo* addr_info,
-                     Codec::TYPE code_type, INet* net, WorkerDataMgr* m) {
+                     INet* net, const CJsonObject& config, WorkerDataMgr* m) {
     int fd = -1;
     if (addr_info == nullptr || net == nullptr || m == nullptr) {
+        return false;
+    }
+
+    if (!load_config(config)) {
+        LOG_ERROR("load config failed!");
         return false;
     }
 
@@ -76,10 +100,9 @@ bool Network::create(const AddrInfo* addr_info,
         }
         m_gate_bind_fd = fd;
     }
-
     LOG_INFO("bind fd: %d, gate bind fd: %d", m_bind_fd, m_gate_bind_fd);
 
-    if (!create_events(net, m_bind_fd, m_gate_bind_fd, code_type, false)) {
+    if (!create_events(net, m_bind_fd, m_gate_bind_fd, m_gate_codec, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -92,14 +115,20 @@ bool Network::create(const AddrInfo* addr_info,
     return true;
 }
 
-bool Network::create(INet* s, int ctrl_fd, int data_fd) {
+bool Network::create(INet* s, const CJsonObject& config, int ctrl_fd, int data_fd) {
     if (!create_events(s, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
     }
+    m_conf = config;
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
     LOG_INFO("create network done!");
+
+    if (!load_config(config)) {
+        LOG_ERROR("load config failed!");
+        return false;
+    }
 
     if (!load_modules()) {
         LOG_ERROR("load module failed!");
@@ -109,7 +138,7 @@ bool Network::create(INet* s, int ctrl_fd, int data_fd) {
 }
 
 bool Network::create_events(INet* s, int fd1, int fd2,
-                            Codec::TYPE codec_type, bool is_worker) {
+                            Codec::TYPE codec, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -121,8 +150,8 @@ bool Network::create_events(INet* s, int fd1, int fd2,
         goto error;
     }
 
-    if (!add_read_event(fd1, codec_type, is_worker) ||
-        !add_read_event(fd2, codec_type, is_worker)) {
+    if (!add_read_event(fd1, codec, is_worker) ||
+        !add_read_event(fd2, codec, is_worker)) {
         close_conn(fd1);
         close_conn(fd2);
         LOG_ERROR("add read event failed, fd1: %d, fd2: %d", fd1, fd2);
@@ -142,7 +171,7 @@ error:
     return false;
 }
 
-std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_type, bool is_chanel) {
+std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     if (anet_no_block(m_errstr, fd) != ANET_OK) {
         LOG_ERROR("set socket no block failed! fd: %d, errstr: %s", fd, m_errstr);
         return nullptr;
@@ -167,7 +196,7 @@ std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec_ty
         LOG_ERROR("add chanel event failed! fd: %d", fd);
         return nullptr;
     }
-    c->init(codec_type);
+    c->init(codec);
     c->set_private_data(this);
     c->set_active_time(time_now());
     c->set_state(Connection::STATE::CONNECTED);
@@ -448,7 +477,7 @@ bool Network::read_query_from_client(int fd) {
                     LOG_DEBUG("cmd status: %d", cmd_stat);
                     if (cmd_stat != Cmd::STATUS::RUNNING) {
                         if (c->get_keep_alive() == 0) {  // Connection : close
-                            LOG_DEBUG("short connection! fd: %d", fd);
+                            LOG_DEBUG("close short connection! fd: %d", fd);
                             close_conn(c);
                         }
                     }
@@ -466,7 +495,7 @@ bool Network::read_query_from_client(int fd) {
         } else {
             if (status == Codec::STATUS::PAUSE) {
                 LOG_DEBUG("decode next time. fd: %d", fd);
-                return true;  // not enough data, and decode next time.
+                return true;  // not enough data, then decode next time.
             } else {
                 LOG_DEBUG("read failed. fd: %d", fd);
                 close_conn(c);
@@ -523,7 +552,7 @@ void Network::accept_and_transfer_fd(int fd) {
     int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd > 0) {
         LOG_DEBUG("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
-        channel_t ch = {cfd, family, static_cast<int>(m_gate_codec_type)};
+        channel_t ch = {cfd, family, static_cast<int>(m_gate_codec)};
         int err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
             if (err == EAGAIN) {
@@ -604,12 +633,12 @@ void Network::end_ev_loop() {
     }
 }
 
-bool Network::set_gate_codec_type(Codec::TYPE type) {
+bool Network::set_gate_codec(Codec::TYPE type) {
     if (type < Codec::TYPE::UNKNOWN ||
         type >= Codec::TYPE::COUNT) {
         return false;
     }
-    m_gate_codec_type = type;
+    m_gate_codec = type;
     return true;
 }
 
