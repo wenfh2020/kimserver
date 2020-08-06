@@ -32,7 +32,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
             LOG_ERROR("cmd duplicate in m_cmds!");
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = m_net->add_cmd_timer(CMD_TIME_OUT_VAL, cmd->get_timer(), cmd);
+        ev_timer* w = m_net->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), cmd);
         if (w == nullptr) {
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_name());
             return Cmd::STATUS::ERROR;
@@ -63,18 +63,23 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     int old;
     Cmd::STATUS status;
 
-    old = cmd->get_cur_time_out_cnt();
+    old = cmd->get_cur_timeout_cnt();
     status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
         del_cmd(cmd);
     } else {
-        // check cmd timeout count.
-        if (old == cmd->get_cur_time_out_cnt()) {
-            cmd->refresh_cur_time_out_cnt();
+        if (cmd->get_req()->get_conn()->is_closed()) {
+            LOG_DEBUG("connection is closed, stop timeout!");
+            del_cmd(cmd);
+            return Cmd::STATUS::ERROR;
         }
-        if (cmd->get_cur_time_out_cnt() > 100) {
-            LOG_ERROR("too many timeout! module id: %llu, cmd id: %llu, cmd name: %s",
-                      cmd->get_module_id(), cmd->get_id(), cmd->get_name());
+        if (old == cmd->get_cur_timeout_cnt()) {
+            cmd->refresh_cur_timeout_cnt();
+        }
+        if (cmd->get_cur_timeout_cnt() >= cmd->get_max_timeout_cnt()) {
+            LOG_WARN("pls check timeout logic! %s", cmd->get_name());
+            del_cmd(cmd);
+            return Cmd::STATUS::ERROR;
         }
     }
     return status;

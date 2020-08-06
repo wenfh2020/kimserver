@@ -388,7 +388,7 @@ void Network::on_cmd_timer(void* privdata) {
         if (it->second->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
             LOG_DEBUG("cmd timer reset, cmd id: %llu, restart timer secs: %f",
                       cmd->get_id(), secs);
-            m_events->restart_timer(CMD_TIME_OUT_VAL, cmd->get_timer(), privdata);
+            m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), privdata);
         }
     }
 }
@@ -628,7 +628,7 @@ bool Network::load_timer(INet* net) {
     if (m_events == nullptr || net == nullptr) {
         return false;
     }
-    m_timer = m_events->add_repeat_timer(REPEAT_TIME_OUT_VAL, m_timer, net);
+    m_timer = m_events->add_repeat_timer(REPEAT_TIMEOUT_VAL, m_timer, net);
     return (m_timer != nullptr);
 }
 

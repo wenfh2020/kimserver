@@ -6,7 +6,8 @@ namespace kim {
 
 Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name)
     : Base(id, logger, net, name), m_module_id(mid) {
-    set_keep_alive(CMD_TIME_OUT_VAL);
+    set_keep_alive(CMD_TIMEOUT_VAL);
+    set_max_timeout_cnt(CMD_MAX_TIMEOUT_CNT);
 }
 
 Cmd::~Cmd() {
@@ -85,10 +86,10 @@ Cmd::STATUS Cmd::on_callback(int err, void* data) {
 
 Cmd::STATUS Cmd::on_timeout() {
     LOG_DEBUG("time out!");
-    if (m_cur_timeout_cnt++ < CMD_MAX_TIME_OUT_CNT) {
+    if (++m_cur_timeout_cnt < get_max_timeout_cnt()) {
         return Cmd::STATUS::RUNNING;
     }
-    return response_http(ERR_EXEC_SETP_TIMEUOT, "request handle timeout");
+    return response_http(ERR_EXEC_CMD_TIMEUOT, "request handle timeout!");
 }
 
 };  // namespace kim

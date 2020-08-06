@@ -112,7 +112,7 @@ class Network : public INet {
     TYPE m_type = TYPE::UNKNOWN;                                    // owner type
     WorkerDataMgr* m_woker_data_mgr = nullptr;                      // manager handle worker data.
     std::unordered_map<int, std::shared_ptr<Connection> > m_conns;  // key: fd, value: connection.
-    double m_keep_alive = IO_TIME_OUT_VAL;                          // io timeout time.
+    double m_keep_alive = IO_TIMEOUT_VAL;                           // io timeout time.
 
     Codec::TYPE m_gate_codec_type = Codec::TYPE::PROTOBUF;  // gate codec type.
     std::unordered_map<uint64_t, Module*> m_modules;        // modules.

@@ -8,7 +8,7 @@ enum E_ERROR {
     ERR_OK = 0,
     ERR_FAILED = 1,
     ERR_EXEC_SETP = 2,
-    ERR_EXEC_SETP_TIMEUOT = 3,
+    ERR_EXEC_CMD_TIMEUOT = 3,
 
     // redis.
     ERR_REDIS_CONNECT_FAILED = 11001,

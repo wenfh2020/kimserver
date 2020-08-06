@@ -22,16 +22,17 @@ class Timer {
     virtual void set_keep_alive(double secs) { m_keep_alive = secs; }
     virtual double get_keep_alive() { return m_keep_alive; }
 
-    int set_max_timeout_cnt() { return m_max_timeout_cnt; }
-    int get_cur_time_out_cnt() { return m_cur_timeout_cnt; }
-    void refresh_cur_time_out_cnt() { ++m_cur_timeout_cnt; }
+    int set_max_timeout_cnt(int cnt) { return m_max_timeout_cnt = cnt; }
+    int get_max_timeout_cnt() { return m_max_timeout_cnt; }
+    int get_cur_timeout_cnt() { return m_cur_timeout_cnt; }
+    void refresh_cur_timeout_cnt() { ++m_cur_timeout_cnt; }
 
    protected:
     ev_timer* m_timer = nullptr;
     double m_active_time = 0;  // connection last active (read/write) time.
     double m_keep_alive = 0;
     int m_cur_timeout_cnt = 0;
-    int m_max_timeout_cnt = CMD_MAX_TIME_OUT_CNT;
+    int m_max_timeout_cnt = 0;
 };
 
 }  // namespace kim
