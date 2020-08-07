@@ -65,21 +65,18 @@ bool Log::set_level(const char* level) {
 }
 
 bool Log::log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...) {
+    if (level < LL_EMERG || level > LL_DEBUG || level > m_cur_level) {
+        return false;
+    }
     va_list ap;
     char msg[LOG_MAX_LEN] = {0};
-
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
-
     return log_raw(file_name, file_line, func_name, level, msg);
 }
 
 bool Log::log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg) {
-    if (level < LL_EMERG || level > LL_DEBUG || level > m_cur_level) {
-        return false;
-    }
-
     FILE* fp;
     fp = m_path.empty() ? stdout : fopen(m_path.c_str(), "a");
     if (!fp) return false;

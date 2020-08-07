@@ -459,9 +459,9 @@ bool Network::read_query_from_client(int fd) {
     if (c->is_http_codec()) {
         HttpMsg* msg;
         Module* module;
-        Cmd::STATUS cmd_stat;
         Codec::STATUS status;
         std::shared_ptr<Request> req;
+        Cmd::STATUS cmd_stat = Cmd::STATUS::UNKOWN;
 
         req = std::make_shared<Request>(c, true);
         msg = req->http_msg_alloc();
@@ -476,7 +476,7 @@ bool Network::read_query_from_client(int fd) {
                 if (cmd_stat != Cmd::STATUS::UNKOWN) {
                     LOG_DEBUG("cmd status: %d", cmd_stat);
                     if (cmd_stat != Cmd::STATUS::RUNNING) {
-                        if (c->get_keep_alive() == 0) {  // Connection : close
+                        if (c->get_keep_alive() == 0.0) {  // Connection : close
                             LOG_DEBUG("close short connection! fd: %d", fd);
                             close_conn(c);
                         }
@@ -524,7 +524,7 @@ void Network::accept_server_conn(int fd) {
             return;
         }
 
-        LOG_DEBUG("accepted %s:%d", cip, cport);
+        LOG_INFO("accepted server %s:%d", cip, cport);
 
         if (!add_read_event(cfd, Codec::TYPE::PROTOBUF)) {
             close_conn(cfd);
@@ -547,7 +547,7 @@ void Network::accept_and_transfer_fd(int fd) {
         return;
     }
 
-    LOG_DEBUG("accepted: %s:%d", cip, cport);
+    LOG_INFO("accepted client: %s:%d", cip, cport);
 
     int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd > 0) {
@@ -601,7 +601,6 @@ void Network::read_transfer_fd(int fd) {
             goto error;
         }
 
-        // add timer.
         if (codec == Codec::TYPE::HTTP) {
             conn_data = new ConnectionData;
             if (conn_data == nullptr) {
@@ -609,6 +608,7 @@ void Network::read_transfer_fd(int fd) {
                 goto error;
             }
             conn_data->m_conn = c;
+            // add timer.
             w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
             if (w == nullptr) {
                 LOG_ERROR("add timer failed! fd: %d", fd);

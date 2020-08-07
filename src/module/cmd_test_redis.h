@@ -24,7 +24,7 @@ class CmdTestRedis : public Cmd {
         m_redis_host = config()["redis"]["test"]("host");
         m_redis_port = atoi(config()["redis"]["test"]("port").c_str());
         LOG_DEBUG("redis host: %s, port: %d", m_redis_host.c_str(), m_redis_port);
-        return true;
+        return (!m_redis_host.empty() && m_redis_port);
     }
 
    protected:

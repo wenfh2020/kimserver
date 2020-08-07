@@ -25,13 +25,13 @@ class Codec {
         PAUSE = 2,
     };
 
-    Codec(Log* logger, Codec::TYPE type) : m_logger(logger), m_codec(type) {}
+    Codec(Log* logger, Codec::TYPE codec) : m_logger(logger), m_codec(codec) {}
     virtual ~Codec() {}
 
     virtual Codec::STATUS encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf);
     virtual Codec::STATUS decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBody& body);
 
-    bool set_codec(Codec::TYPE type);
+    bool set_codec(Codec::TYPE codec);
     Codec::TYPE get_codec() { return m_codec; }
 
     bool gzip(_cstr& src, std::string& dst);

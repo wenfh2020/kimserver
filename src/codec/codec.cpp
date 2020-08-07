@@ -8,11 +8,11 @@ using CryptoPP::byte;
 
 namespace kim {
 
-bool Codec::set_codec(Codec::TYPE type) {
-    if (type < Codec::TYPE::UNKNOWN || type >= Codec::TYPE::COUNT) {
+bool Codec::set_codec(Codec::TYPE codec) {
+    if (codec < Codec::TYPE::UNKNOWN || codec >= Codec::TYPE::COUNT) {
         return false;
     }
-    m_codec = type;
+    m_codec = codec;
     return true;
 }
 
