@@ -8,25 +8,24 @@
 #include "../../src/util/log.h"
 #include "../../src/util/util.h"
 
-#define MAX_CNT 1000000
+#define MAX_CNT 100000
 
 int main() {
     double begin, end;
     kim::Log* m_logger = new kim::Log;
-    std::cerr << "set log path failed" << std::endl;
-    if (!m_logger->set_log_path("./log.txt")) {
+    if (!m_logger->set_log_path("./test.log")) {
         std::cerr << "set log path failed" << std::endl;
         return -1;
     }
 
     begin = time_now();
     for (int i = 0; i < MAX_CNT; i++) {
-        LOG_DEBUG("FDSAFHJDSFHARYEWYREW%s", "helloworld!");
+        LOG_DEBUG("FDSAFHJDSFHARYEWYREW %s", "hello world!");
     }
     end = time_now();
-    std::cout << "start: " << begin << std::endl
-              << "end:   " << end << std::endl
-              << "val:   " << end - begin << std::endl
-              << "avg:   " << MAX_CNT / (end - begin) << std::endl;
+    std::cout << "val: " << end - begin << std::endl
+              << "avg: " << MAX_CNT / (end - begin) << std::endl;
+
+    SAFE_DELETE(m_logger);
     return 0;
 }
