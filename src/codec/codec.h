@@ -29,7 +29,7 @@ class Codec {
     virtual ~Codec() {}
 
     virtual Codec::STATUS encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf);
-    virtual Codec::STATUS decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBody& body);
+    virtual Codec::STATUS decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body);
 
     bool set_codec(Codec::TYPE codec);
     Codec::TYPE get_codec() { return m_codec; }

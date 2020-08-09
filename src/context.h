@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "codec/codec_http.h"
+#include "codec/codec_proto.h"
 #include "proto/http.pb.h"
 #include "timer.h"
 #include "util/log.h"
@@ -60,8 +61,17 @@ class Connection : public Timer {
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);
 
+    Codec::STATUS conn_read(MsgHead& head, MsgBody& body);
+    Codec::STATUS conn_write(const MsgHead& head, const MsgBody& body);
+
     virtual bool is_need_alive_check();
     virtual double get_keep_alive();
+
+   protected:
+    bool conn_read();
+    Codec::STATUS conn_write();
+    Codec::STATUS decode_http(HttpMsg& msg);
+    Codec::STATUS decode_proto(MsgHead& head, MsgBody& body);
 
    private:
     uint64_t m_id = 0;               // sequence.

@@ -80,6 +80,7 @@ class Network : public INet {
 
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
+    virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
     virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) override;
 
    private:

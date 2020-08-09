@@ -21,7 +21,7 @@ Codec::STATUS Codec::encode(const MsgHead& head, const MsgBody& body, SocketBuff
     return Codec::STATUS::ERR;
 }
 
-Codec::STATUS Codec::decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBody& body) {
+Codec::STATUS Codec::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
     LOG_DEBUG("decode");
     return Codec::STATUS::ERR;
 }

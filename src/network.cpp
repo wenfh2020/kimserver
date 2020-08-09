@@ -171,7 +171,8 @@ error:
     return false;
 }
 
-std::shared_ptr<Connection> Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
+std::shared_ptr<Connection>
+Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     if (anet_no_block(m_errstr, fd) != ANET_OK) {
         LOG_ERROR("set socket no block failed! fd: %d, errstr: %s", fd, m_errstr);
         return nullptr;
@@ -456,57 +457,57 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
+    Module* module;
+    Codec::STATUS status;
+    std::shared_ptr<Request> req;
+    Cmd::STATUS cmd_stat = Cmd::STATUS::UNKOWN;
+
     if (c->is_http_codec()) {
-        HttpMsg* msg;
-        Module* module;
-        Codec::STATUS status;
-        std::shared_ptr<Request> req;
-        Cmd::STATUS cmd_stat = Cmd::STATUS::UNKOWN;
-
         req = std::make_shared<Request>(c, true);
-        msg = req->http_msg_alloc();
+        HttpMsg* msg = req->http_msg_alloc();
         status = c->conn_read(*msg);
-
-        if (status == Codec::STATUS::OK) {
-            // find path in modules and process message.
-            for (const auto& it : m_modules) {
-                module = it.second;
-                LOG_DEBUG("module name: %s", module->get_name());
-                cmd_stat = module->process_message(req);
-                if (cmd_stat != Cmd::STATUS::UNKOWN) {
-                    LOG_DEBUG("cmd status: %d", cmd_stat);
-                    if (cmd_stat != Cmd::STATUS::RUNNING) {
-                        if (c->get_keep_alive() == 0.0) {  // Connection : close
-                            LOG_DEBUG("close short connection! fd: %d", fd);
-                            close_conn(c);
-                        }
-                    }
-                    break;
-                }
-            }
-
-            // no path in modules.
-            if (cmd_stat == Cmd::STATUS::UNKOWN) {
-                LOG_DEBUG("can not find the path: %s", msg->path().c_str());
-                if (c->get_keep_alive() == 0) {
-                    close_conn(c);
-                }
-            }
-        } else {
-            if (status == Codec::STATUS::PAUSE) {
-                LOG_DEBUG("decode next time. fd: %d", fd);
-                return true;  // not enough data, then decode next time.
-            } else {
-                LOG_DEBUG("read failed. fd: %d", fd);
-                close_conn(c);
-                return false;
-            }
-        }
-        LOG_DEBUG("connection is http codec type, status: %d", (int)status);
     } else {
-        // LOG_DEBUG("connection is not http codec type, status: %d", (int)status);
+        req = std::make_shared<Request>(c, false);
+        MsgHead* head = req->msg_head_alloc();
+        MsgBody* body = req->msg_body_alloc();
+        status = c->conn_read(*head, *body);
     }
 
+    if (status == Codec::STATUS::OK) {
+        // find path in modules and process message.
+        for (const auto& it : m_modules) {
+            module = it.second;
+            LOG_DEBUG("module name: %s", module->get_name());
+            cmd_stat = module->process_message(req);
+            if (cmd_stat != Cmd::STATUS::UNKOWN) {
+                LOG_DEBUG("cmd status: %d", cmd_stat);
+                if (cmd_stat != Cmd::STATUS::RUNNING) {
+                    if (c->get_keep_alive() == 0.0) {  // Connection : close
+                        LOG_DEBUG("close short connection! fd: %d", fd);
+                        close_conn(c);
+                    }
+                }
+                break;
+            }
+        }
+
+        // no path in modules.
+        if (cmd_stat == Cmd::STATUS::UNKOWN) {
+            if (c->get_keep_alive() == 0) {
+                close_conn(c);
+            }
+        }
+    } else {
+        if (status == Codec::STATUS::PAUSE) {
+            LOG_DEBUG("decode next time. fd: %d", fd);
+            return true;  // not enough data, then decode next time.
+        } else {
+            LOG_DEBUG("read failed. fd: %d", fd);
+            close_conn(c);
+            return false;
+        }
+    }
+    LOG_DEBUG("connection is http codec type, status: %d", (int)status);
     return true;
 }
 
@@ -601,21 +602,20 @@ void Network::read_transfer_fd(int fd) {
             goto error;
         }
 
-        if (codec == Codec::TYPE::HTTP) {
-            conn_data = new ConnectionData;
-            if (conn_data == nullptr) {
-                LOG_ERROR("alloc connection data failed! fd: %d", fd);
-                goto error;
-            }
-            conn_data->m_conn = c;
-            // add timer.
-            w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
-            if (w == nullptr) {
-                LOG_ERROR("add timer failed! fd: %d", fd);
-                goto error;
-            }
-            c->set_timer(w);
+        conn_data = new ConnectionData;
+        if (conn_data == nullptr) {
+            LOG_ERROR("alloc connection data failed! fd: %d", fd);
+            goto error;
         }
+        conn_data->m_conn = c;
+        // add timer.
+        LOG_DEBUG("add io timer, fd: %d, time val: %f", fd, m_keep_alive);
+        w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
+        if (w == nullptr) {
+            LOG_ERROR("add timer failed! fd: %d", fd);
+            goto error;
+        }
+        c->set_timer(w);
 
         LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
                   ch.fd, ch.family, ch.codec);
@@ -695,6 +695,40 @@ bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     return true;
 }
 
+bool Network::send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) {
+    int fd;
+    ev_io* w;
+    Codec::STATUS status;
+
+    fd = c->get_fd();
+    if (c->is_closed()) {
+        LOG_WARN("connection is closed! fd: %d", fd);
+        return false;
+    }
+
+    w = c->get_ev_io();
+    status = c->conn_write(head, body);
+    if (status == Codec::STATUS::OK) {
+        m_events->del_write_event(w);
+        return true;
+    }
+
+    if (status == Codec::STATUS::PAUSE) {
+        w = m_events->add_write_event(fd, w, this);
+        if (w == nullptr) {
+            close_conn(c);
+            LOG_ERROR("add write event failed! fd: %d", fd);
+            return false;
+        }
+        c->set_ev_io(w);
+        return true;
+    }
+
+    // ok remove write event.
+    m_events->del_write_event(w);
+    return true;
+}
+
 ev_timer* Network::add_cmd_timer(double secs, ev_timer* w, void* privdata) {
     return m_events->add_cmd_timer(secs, w, privdata);
 }
@@ -703,7 +737,8 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-E_RDS_STATUS Network::redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) {
+E_RDS_STATUS
+Network::redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) {
     LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
 
     RdsConnection* c;
@@ -886,7 +921,8 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;
         if (c->err != 0) {
-            LOG_ERROR("redis callback data: %s, err: %d, errstr: %s", r->str, c->err, c->errstr);
+            LOG_ERROR("redis callback data: %s, err: %d, errstr: %s",
+                      r->str, c->err, c->errstr);
         } else {
             LOG_DEBUG("redis callback data: %s, err: %d", r->str, c->err);
         }

@@ -22,12 +22,13 @@ bool Connection::init(Codec::TYPE codec) {
     LOG_DEBUG("connection init fd: %d, codec type: %d", m_fd, (int)codec);
 
     try {
-        m_recv_buf = new SocketBuffer;
-        m_send_buf = new SocketBuffer;
-        m_wait_send_buf = new SocketBuffer;
+        // m_wait_send_buf = new SocketBuffer;
         switch (codec) {
             case Codec::TYPE::HTTP:
                 m_codec = new CodecHttp(m_logger, codec);
+                break;
+            case Codec::TYPE::PROTOBUF:
+                m_codec = new CodecProto(m_logger, codec);
                 break;
 
             default:
@@ -54,26 +55,26 @@ bool Connection::is_http_codec() {
     return (m_codec->get_codec() == Codec::TYPE::HTTP);
 }
 
-Codec::STATUS Connection::conn_read(HttpMsg& msg) {
+bool Connection::conn_read() {
     if (m_recv_buf == nullptr) {
-        return Codec::STATUS::ERR;
+        m_recv_buf = new SocketBuffer;
+        if (m_recv_buf == nullptr) {
+            return false;
+        }
     }
 
-    int read_len;
-    CodecHttp* codec;
-
-    read_len = m_recv_buf->read_fd(m_fd, m_errno);
+    int read_len = m_recv_buf->read_fd(m_fd, m_errno);
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
               m_fd, read_len, m_recv_buf->get_readable_len());
     if (read_len == 0) {
         LOG_DEBUG("connection closed! fd: %d!", m_fd);
-        return Codec::STATUS::ERR;
+        return false;
     }
 
     if (read_len < 0 && errno != EAGAIN) {
         LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
                   m_fd, errno, strerror(errno));
-        return Codec::STATUS::ERR;
+        return false;
     }
 
     if (read_len > 0) {
@@ -85,40 +86,34 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
         m_active_time = time_now();
     }
 
-    codec = dynamic_cast<CodecHttp*>(m_codec);
+    return true;
+}
+
+Codec::STATUS Connection::decode_http(HttpMsg& msg) {
+    LOG_DEBUG("decode_http");
+    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
     }
     return codec->decode(m_recv_buf, msg);
 }
 
-Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
-    if (is_closed()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
-        return Codec::STATUS::ERR;
-    }
-
-    int write_len;
-    CodecHttp* codec;
-    Codec::STATUS status;
-
-    codec = dynamic_cast<CodecHttp*>(m_codec);
+Codec::STATUS Connection::decode_proto(MsgHead& head, MsgBody& body) {
+    LOG_DEBUG("decode_proto");
+    CodecProto* codec = dynamic_cast<CodecProto*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
     }
-    status = codec->encode(msg, m_send_buf);
-    if (status != Codec::STATUS::OK) {
-        LOG_DEBUG("encode http packed failed! fd: %d, seq: %llu, status: %d",
-                  m_fd, m_id, (int)status);
-        return status;
-    }
+    return codec->decode(m_recv_buf, head, body);
+}
 
+Codec::STATUS Connection::conn_write() {
     if (!m_send_buf->is_readable()) {
         LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
-        return status;
+        return Codec::STATUS::ERR;
     }
 
-    write_len = m_send_buf->write_fd(m_fd, m_errno);
+    int write_len = m_send_buf->write_fd(m_fd, m_errno);
     LOG_DEBUG("write to fd: %d, seq: %llu, write len: %d, readed data len: %d",
               m_fd, m_id, write_len, m_send_buf->get_readable_len());
     if (write_len >= 0) {
@@ -141,8 +136,78 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
                   m_fd, m_id, m_send_buf->get_readable_len());
         return Codec::STATUS::ERR;
     }
+}
 
-    return status;
+Codec::STATUS Connection::conn_read(MsgHead& head, MsgBody& body) {
+    if (!conn_read()) {
+        return Codec::STATUS::ERR;
+    }
+    return decode_proto(head, body);
+}
+
+Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
+    if (is_closed()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        return Codec::STATUS::ERR;
+    }
+
+    CodecProto* codec = dynamic_cast<CodecProto*>(m_codec);
+    if (codec == nullptr) {
+        return Codec::STATUS::ERR;
+    }
+
+    if (m_send_buf == nullptr) {
+        m_send_buf = new SocketBuffer;
+        if (m_send_buf == nullptr) {
+            LOG_ERROR("alloc send buf failed!");
+            return Codec::STATUS::ERR;
+        }
+    }
+
+    Codec::STATUS status = codec->encode(head, body, m_send_buf);
+    if (status != Codec::STATUS::OK) {
+        LOG_DEBUG("encode packed failed! fd: %d, seq: %llu, status: %d",
+                  m_fd, m_id, (int)status);
+        return status;
+    }
+
+    return conn_write();
+}
+
+Codec::STATUS Connection::conn_read(HttpMsg& msg) {
+    if (!conn_read()) {
+        return Codec::STATUS::ERR;
+    }
+    return decode_http(msg);
+}
+
+Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
+    if (is_closed()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        return Codec::STATUS::ERR;
+    }
+
+    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+    if (codec == nullptr) {
+        return Codec::STATUS::ERR;
+    }
+
+    if (m_send_buf == nullptr) {
+        m_send_buf = new SocketBuffer;
+        if (m_send_buf == nullptr) {
+            LOG_ERROR("alloc send buf failed!");
+            return Codec::STATUS::ERR;
+        }
+    }
+
+    Codec::STATUS status = codec->encode(msg, m_send_buf);
+    if (status != Codec::STATUS::OK) {
+        LOG_DEBUG("encode http packed failed! fd: %d, seq: %llu, status: %d",
+                  m_fd, m_id, (int)status);
+        return status;
+    }
+
+    return conn_write();
 }
 
 bool Connection::is_need_alive_check() {

@@ -42,29 +42,41 @@ class Module : public Base {
     }                                                                          \
     typedef Cmd::STATUS (class_name::*cmd_func)(std::shared_ptr<Request> req); \
     virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) {        \
-        const HttpMsg* msg = req->get_http_msg();                              \
-        if (msg == nullptr) {                                                  \
-            return Cmd::STATUS::ERROR;                                         \
+        if (req->is_http_req()) {                                              \
+            const HttpMsg* msg = req->get_http_msg();                          \
+            if (msg == nullptr) {                                              \
+                return Cmd::STATUS::ERROR;                                     \
+            }                                                                  \
+            auto it = m_http_cmd_funcs.find(msg->path());                      \
+            if (it == m_http_cmd_funcs.end()) {                                \
+                return Cmd::STATUS::UNKOWN;                                    \
+            }                                                                  \
+            return (this->*(it->second))(req);                                 \
+        } else {                                                               \
+            const MsgHead* head = req->get_msg_head();                         \
+            const MsgBody* body = req->get_msg_body();                         \
+            if (head == nullptr || body == nullptr) {                          \
+                return Cmd::STATUS::ERROR;                                     \
+            }                                                                  \
+            auto it = m_cmd_funcs.find(head->cmd());                           \
+            if (it == m_cmd_funcs.end()) {                                     \
+                return Cmd::STATUS::UNKOWN;                                    \
+            }                                                                  \
+            return (this->*(it->second))(req);                                 \
         }                                                                      \
-        auto it = m_cmd_funcs.find(msg->path());                               \
-        if (it == m_cmd_funcs.end()) {                                         \
-            return Cmd::STATUS::UNKOWN;                                        \
-        }                                                                      \
-        return (this->*(it->second))(req);                                     \
     }                                                                          \
                                                                                \
    protected:                                                                  \
-    std::unordered_map<std::string, cmd_func> m_cmd_funcs;
+    std::unordered_map<std::string, cmd_func> m_http_cmd_funcs;                \
+    std::unordered_map<int, cmd_func> m_cmd_funcs;
 
-#define REGISTER_FUNC(path, func) \
-    m_cmd_funcs[path] = &func;
+#define REGISTER_HTTP_FUNC(path, func) \
+    m_http_cmd_funcs[path] = &func;
+
+#define REGISTER_FUNC(id, func) \
+    m_cmd_funcs[id] = &func;
 
 #define HANDLE_CMD(_cmd)                                                        \
-    const HttpMsg* msg = req->get_http_msg();                                   \
-    if (msg == nullptr) {                                                       \
-        return Cmd::STATUS::ERROR;                                              \
-    }                                                                           \
-    std::string path = msg->path();                                             \
     _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq(), #_cmd); \
     p->set_req(req);                                                            \
     if (!p->init()) {                                                           \

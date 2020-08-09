@@ -1,7 +1,6 @@
 #ifndef __CODEC_HTTP_H__
 #define __CODEC_HTTP_H__
 
-#include <iostream>
 #include <unordered_map>
 
 #include "../server.h"
@@ -19,7 +18,7 @@ class CodecHttp : public Codec {
     Codec::STATUS decode(SocketBuffer *sbuf, HttpMsg &msg);
 
     Codec::STATUS encode(const MsgHead &head, const MsgBody &body, SocketBuffer *sbuf);
-    Codec::STATUS decode(SocketBuffer *sbuf, const MsgHead &head, const MsgBody &body);
+    Codec::STATUS decode(SocketBuffer *sbuf, MsgHead &head, MsgBody &body);
 
     std::string to_string(const HttpMsg &oHttpMsg);
     static void decode_params(const std::string &s, std::map<std::string, std::string> &params);

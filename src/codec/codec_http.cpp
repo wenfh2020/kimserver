@@ -82,7 +82,7 @@ Codec::STATUS CodecHttp::encode(const MsgHead& head, const MsgBody& body, Socket
     return Codec::STATUS::ERR;
 }
 
-Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, const MsgHead& head, const MsgBody& body) {
+Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
     return Codec::STATUS::ERR;
 }
 
