@@ -1,3 +1,3 @@
 #!/bin/sh
 
-siege -c 200 -r 200 -H 'Content-Type:application/json' -f ./urls.txt
+siege -c 100 -r 100 -H 'Content-Type:application/json' -f ./urls.txt

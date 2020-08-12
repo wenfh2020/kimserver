@@ -18,8 +18,16 @@ Kimserver is an async tcp multiple processes (one master process and one or more
 <a id="markdown-1-environment" name="1-environment"></a>
 ## 1. environment
 
-* enable c++11.
-* install g++ / libev / protobuf / cryptopp / hiredis / jemalloc .
+enable c++11 and 3rd lib.
+
+| 3rd      | version |
+| :------- | :------ |
+| g++      | 4.2.1   |
+| libev    | 4.27    |
+| protobuf | 4.0.0   |
+| cryptopp | 8.1.0   |
+| hiredis  | 0.14.0  |
+| jemalloc | 5.2.1   |
 
 ---
 
@@ -50,7 +58,16 @@ work on Linux / MacOS
     "gate_codec": 1,
     "keep_alive": 30,
     "log_path": "kimserver.log",
-    "log_level": "debug"
+    "log_level": "debug",
+    "modules": [
+        "module_test.so"
+    ],
+    "redis": {
+        "test": {
+            "host": "127.0.0.1",
+            "port": 6379
+        }
+    }
 }
 ```
 
@@ -108,8 +125,8 @@ class MoudleTest : public Module {
 
    public:
     void register_handle_func() {
-        REGISTER_FUNC("/kim/test/", MoudleTest::func_test_cmd);
-        REGISTER_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
+        REGISTER_HTTP_FUNC("/kim/test/", MoudleTest::func_test_cmd);
+        REGISTER_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
     }
 
    private:

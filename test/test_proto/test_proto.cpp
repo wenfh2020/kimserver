@@ -6,8 +6,8 @@
 #include <iostream>
 #include <sstream>
 
-#include "../../src/proto/msg.pb.h"
-#include "../../src/util/log.h"
+#include "../../src/core/proto/msg.pb.h"
+#include "../../src/core/util/log.h"
 
 #define PROTO_MSG_HEAD_LEN 15
 

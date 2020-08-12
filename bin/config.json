@@ -10,6 +10,9 @@
     "keep_alive": 30,
     "log_path": "kimserver.log",
     "log_level": "debug",
+    "modules": [
+        "module_test.so"
+    ],
     "redis": {
         "test": {
             "host": "127.0.0.1",

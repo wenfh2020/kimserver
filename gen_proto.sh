@@ -11,5 +11,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-cd $work_path/src/proto
+cd $work_path/src/core/proto
 protoc -I. --cpp_out=. http.proto msg.proto

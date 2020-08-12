@@ -25,7 +25,7 @@ kill_process $server
 
 [ $# -gt 0 ] && [ $1 == "kill" ] && exit 1
 
-cd $work_path/src
+cd $work_path/src/core/
 [ $# -gt 0 ] && [ $1 == "all" ] && make clean
 make
 res=$?
