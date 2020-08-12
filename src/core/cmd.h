@@ -1,12 +1,12 @@
 #ifndef __KIM_CMD_H__
 #define __KIM_CMD_H__
 
-#include "../util/json/CJsonObject.hpp"
 #include "base.h"
 #include "error.h"
 #include "net.h"
 #include "request.h"
 #include "timer.h"
+#include "util/json/CJsonObject.hpp"
 
 namespace kim {
 

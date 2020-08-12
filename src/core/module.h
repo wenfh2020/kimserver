@@ -19,9 +19,7 @@ class Module : public Base {
         return Cmd::STATUS::UNKOWN;
     }
 
-    bool init(Log* logger, INet* net, uint64_t id);
-    void set_version(int ver) { m_version = ver; }
-    void set_file_path(_cstr& path) { m_file_path = path; }
+    bool init(Log* logger, INet* net, uint64_t id, _cstr& name = "");
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
     Cmd::STATUS on_timeout(Cmd* cmd);
     Cmd::STATUS on_callback(wait_cmd_info_t* index, int err, void* data);
@@ -29,14 +27,21 @@ class Module : public Base {
 
     bool del_cmd(Cmd* cmd);
 
+    void set_so_handle(void* handle) { m_so_handle = handle; }
+    void* get_so_handle() { return m_so_handle; }
+    void set_so_path(_cstr& path) { m_so_path = path; }
+    _cstr& get_so_path() const { return m_so_path; }
+    const char* get_so_path() { return m_so_path.c_str(); }
+
    protected:
-    int m_version = 1;
-    std::string m_file_path;
     std::unordered_map<uint64_t, Cmd*> m_cmds;
+    std::string m_so_path;        // module so path.
+    void* m_so_handle = nullptr;  // for dlopen ptr.
 };
 
 #define REGISTER_HANDLER(class_name)                                           \
    public:                                                                     \
+    class_name() {}                                                            \
     class_name(Log* logger, INet* net, uint64_t id, _cstr& name = "")          \
         : Module(logger, net, id, name) {                                      \
     }                                                                          \

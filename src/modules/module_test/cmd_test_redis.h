@@ -1,8 +1,8 @@
 #ifndef __CMD_TEST_REDIS_H__
 #define __CMD_TEST_REDIS_H__
 
-#include "../cmd.h"
-#include "../util/json/CJsonObject.hpp"
+#include "cmd.h"
+#include "util/json/CJsonObject.hpp"
 
 namespace kim {
 

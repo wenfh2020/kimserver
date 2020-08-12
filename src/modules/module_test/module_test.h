@@ -1,12 +1,20 @@
 #ifndef __MODULE_TEST_H__
 #define __MODULE_TEST_H__
 
-#include "../module.h"
 #include "cmd_hello.h"
 #include "cmd_test_redis.h"
 #include "cmd_test_timeout.h"
+#include "module.h"
 #include "protocol.h"
 #include "util/json/CJsonObject.hpp"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+kim::Module* create();
+#ifdef __cplusplus
+}
+#endif
 
 namespace kim {
 

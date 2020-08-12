@@ -7,6 +7,7 @@
 std::vector<std::string> split_str(const std::string& s, char delim);
 std::string format_addr(const std::string& host, int port);
 std::string format_str(const char* const fmt, ...);
+std::string get_work_path();
 
 #ifdef __cplusplus
 extern "C" {

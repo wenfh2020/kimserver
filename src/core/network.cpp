@@ -6,7 +6,7 @@
 #include "context.h"
 #include "error.h"
 #include "module.h"
-#include "module/module_test.h"
+// #include "module/module_test.h"
 #include "net/anet.h"
 #include "server.h"
 #include "util/util.h"
@@ -134,6 +134,7 @@ bool Network::create(INet* s, const CJsonObject& config, int ctrl_fd, int data_f
         LOG_ERROR("load module failed!");
         return false;
     }
+    LOG_INFO("load modules ok!");
     return true;
 }
 
@@ -399,6 +400,7 @@ void Network::on_repeat_timer(void* privdata) {
 void Network::on_cmd_timer(void* privdata) {
     Cmd* cmd;
     double secs;
+    Module* module;
 
     cmd = static_cast<Cmd*>(privdata);
     secs = cmd->get_keep_alive() - (time_now() - cmd->get_active_time());
@@ -408,14 +410,14 @@ void Network::on_cmd_timer(void* privdata) {
         m_events->restart_timer(secs, cmd->get_timer(), privdata);
         return;
     } else {
-        auto it = m_modules.find(cmd->get_module_id());
-        if (it == m_modules.end()) {
+        module = m_module_mgr->get_module(cmd->get_module_id());
+        if (module == nullptr) {
             LOG_ERROR("find module failed!, module id: %llu", cmd->get_module_id());
             return;
         }
         /* note: cmd will be deleted, when status != Cmd::STATUS::RUNNING.
          * and the same to cmd's timer.*/
-        if (it->second->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
+        if (module->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
             LOG_DEBUG("cmd timer reset, cmd id: %llu, restart timer secs: %f",
                       cmd->get_id(), secs);
             m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), privdata);
@@ -457,7 +459,6 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
-    Module* module;
     Codec::STATUS status;
     std::shared_ptr<Request> req;
     Cmd::STATUS cmd_stat = Cmd::STATUS::UNKOWN;
@@ -475,24 +476,17 @@ bool Network::read_query_from_client(int fd) {
 
     if (status == Codec::STATUS::OK) {
         // find path in modules and process message.
-        for (const auto& it : m_modules) {
-            module = it.second;
-            LOG_DEBUG("module name: %s", module->get_name());
-            cmd_stat = module->process_message(req);
-            if (cmd_stat != Cmd::STATUS::UNKOWN) {
-                LOG_DEBUG("cmd status: %d", cmd_stat);
-                if (cmd_stat != Cmd::STATUS::RUNNING) {
-                    if (c->get_keep_alive() == 0.0) {  // Connection : close
-                        LOG_DEBUG("close short connection! fd: %d", fd);
-                        close_conn(c);
-                    }
+        cmd_stat = m_module_mgr->process_msg(req);
+        if (cmd_stat != Cmd::STATUS::UNKOWN) {
+            LOG_DEBUG("cmd status: %d", cmd_stat);
+            if (cmd_stat != Cmd::STATUS::RUNNING) {
+                if (c->get_keep_alive() == 0.0) {  // Connection : close
+                    LOG_DEBUG("close short connection! fd: %d", fd);
+                    close_conn(c);
                 }
-                break;
             }
-        }
-
-        // no path in modules.
-        if (cmd_stat == Cmd::STATUS::UNKOWN) {
+        } else {
+            // no cmd in modules.
             if (c->get_keep_alive() == 0) {
                 close_conn(c);
             }
@@ -643,14 +637,12 @@ bool Network::set_gate_codec(Codec::TYPE type) {
 }
 
 bool Network::load_modules() {
-    Module* m = new MoudleTest(m_logger, this, get_new_seq(), CORE_TEST);
-    if (m == nullptr) {
+    m_module_mgr = new ModuleMgr(get_new_seq(), m_logger, this);
+    if (m_module_mgr == nullptr) {
+        LOG_ERROR("alloc module mgr failed!");
         return false;
     }
-    m->register_handle_func();
-    m_modules[m->get_id()] = m;
-    LOG_DEBUG("module id: %llu", m->get_id());
-    return true;
+    return m_module_mgr->init(m_conf);
 }
 
 bool Network::load_timer(INet* net) {
@@ -850,12 +842,11 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
     const auto& infos = rc->get_wait_cmd_infos();
     for (const auto& it : infos) {
         info = it.second;
-        auto itr = m_modules.find(info->module_id);
-        if (itr == m_modules.end()) {
+        module = m_module_mgr->get_module(info->module_id);
+        if (module == nullptr) {
             LOG_ERROR("find module failed! module id: %llu.", info->module_id);
             continue;
         }
-        module = itr->second;
         err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
         module->on_callback(info, err, nullptr);
     }
@@ -881,12 +872,11 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
     const auto& infos = rc->get_wait_cmd_infos();
     for (const auto& it : infos) {
         info = it.second;
-        auto itr = m_modules.find(info->module_id);
-        if (itr == m_modules.end()) {
+        module = m_module_mgr->get_module(info->module_id);
+        if (module == nullptr) {
             LOG_ERROR("find module failed! module id: %llu.", info->module_id);
             continue;
         }
-        module = itr->second;
         module->on_callback(info, ERR_REDIS_DISCONNECT, nullptr);
     }
     rc->clear_wait_cmd_infos();
@@ -910,13 +900,12 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
 
     info = static_cast<wait_cmd_info_t*>(privdata);
 
-    auto itr = m_modules.find(info->module_id);
-    if (itr == m_modules.end()) {
+    module = m_module_mgr->get_module(info->module_id);
+    if (module == nullptr) {
         LOG_ERROR("find module failed! module id: %llu.", info->module_id);
         SAFE_DELETE(info);
         return;
     }
-    module = itr->second;
 
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;

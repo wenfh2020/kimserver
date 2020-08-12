@@ -1,6 +1,6 @@
 #include "module.h"
 
-#include "../server.h"
+#include "server.h"
 #include "util/util.h"
 
 namespace kim {
@@ -16,10 +16,11 @@ Module::~Module() {
     m_cmds.clear();
 }
 
-bool Module::init(Log* logger, INet* net, uint64_t id) {
+bool Module::init(Log* logger, INet* net, uint64_t id, _cstr& name) {
     m_net = net;
     m_logger = logger;
     m_id = id;
+    set_name(name);
     register_handle_func();
     return true;
 }

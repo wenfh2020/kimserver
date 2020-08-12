@@ -8,7 +8,7 @@
 #include "codec/codec.h"
 #include "context.h"
 #include "events.h"
-#include "module.h"
+#include "module_mgr.h"
 #include "net.h"
 #include "net/anet.h"
 #include "net/chanel.h"
@@ -119,7 +119,7 @@ class Network : public INet {
     double m_keep_alive = IO_TIMEOUT_VAL;                           // io timeout time.
 
     Codec::TYPE m_gate_codec = Codec::TYPE::PROTOBUF;  // gate codec type.
-    std::unordered_map<uint64_t, Module*> m_modules;   // modules.
+    ModuleMgr* m_module_mgr = nullptr;
 
     ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
     std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.

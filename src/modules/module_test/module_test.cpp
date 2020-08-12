@@ -1,5 +1,15 @@
 #include "module_test.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+kim::Module* create() {
+    return (new kim::MoudleTest());
+}
+#ifdef __cplusplus
+}
+#endif
+
 namespace kim {
 
 Cmd::STATUS MoudleTest::func_test_cmd(std::shared_ptr<Request> req) {
@@ -20,6 +30,7 @@ Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {
               msg->path().c_str(), msg->body().c_str());
 
     CJsonObject data;
+    CJsonObject data2;
     data.Add("id", "123");
     data.Add("name", "kimserver");
 
@@ -46,6 +57,7 @@ Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
     MsgBody rsp_body;
     rsp_body.set_data("good job!");
     rsp_head.set_len(rsp_body.ByteSizeLong());
+
     if (!m_net->send_to(req->get_conn(), rsp_head, rsp_body)) {
         return Cmd::STATUS::ERROR;
     } else {

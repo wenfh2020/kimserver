@@ -12,6 +12,7 @@
 #include <random>
 #include <sstream>
 
+#define MAX_PATH 256
 #define CONFIG_MIN_RESERVED_FDS 32
 
 std::vector<std::string> split_str(const std::string& s, char delim) {
@@ -42,6 +43,14 @@ std::string format_addr(const std::string& host, int port) {
     char identity[64];
     snprintf(identity, sizeof(identity), "%s:%d", host.c_str(), port);
     return std::string(identity);
+}
+
+std::string get_work_path() {
+    char work_path[MAX_PATH] = {0};
+    if (!getcwd(work_path, sizeof(work_path))) {
+        return "";
+    }
+    return std::string(work_path);
 }
 
 void daemonize(void) {
