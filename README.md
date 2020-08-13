@@ -29,6 +29,8 @@ enable c++11 and install 3rd lib.
 | hiredis  | 0.14.0  |
 | jemalloc | 5.2.1   |
 
+> **[note]** install protobuf use script: [install_protobuf.sh](https://github.com/wenfh2020/kimserver/blob/master/script/install/install_protobuf.sh)
+
 ---
 
 <a id="markdown-2-work" name="2-work"></a>
