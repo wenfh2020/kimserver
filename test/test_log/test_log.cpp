@@ -4,9 +4,9 @@
 
 #include <iostream>
 
-#include "../../src/server.h"
-#include "../../src/util/log.h"
-#include "../../src/util/util.h"
+#include "../../src/core/server.h"
+#include "../../src/core/util/log.h"
+#include "../../src/core/util/util.h"
 
 #define MAX_CNT 100000
 

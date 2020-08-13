@@ -18,7 +18,7 @@ Kimserver is an async tcp multiple processes (one master process and one or more
 <a id="markdown-1-environment" name="1-environment"></a>
 ## 1. environment
 
-enable c++11 and 3rd lib.
+enable c++11 and install 3rd lib.
 
 | 3rd      | version |
 | :------- | :------ |

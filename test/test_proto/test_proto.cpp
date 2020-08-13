@@ -1,4 +1,4 @@
-// g++ -g -std=' c++ 11' test_proto.cpp ../../src/proto/msg.pb.cc -o proto -lprotobuf && ./proto
+// g++ -g -std='c++11' test_proto.cpp ../../src/proto/msg.pb.cc -o proto -lprotobuf && ./proto
 #include <netdb.h>
 #include <sys/socket.h>
 #include <unistd.h>
