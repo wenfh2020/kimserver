@@ -6,10 +6,10 @@ url=https://github.com/protocolbuffers/protobuf/releases/download/v4.0.0-rc2/$fi
 wget -c $url
 [ $? -ne 0 ] && echo 'download failed!' && exit 1
 tar zxf $file
-cp protobuf_configrue protobuf-4.0.0-rc-2
+cp protobuf_configure protobuf-4.0.0-rc-2
 cd protobuf-4.0.0-rc-2
-mv protobuf_configrue configrue
-./configrue --disable-shared
+mv protobuf_configure configure
+./configure --disable-shared
 make clean
 make uninstall
 make -j8 && make install
