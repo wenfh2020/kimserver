@@ -56,6 +56,10 @@ bool Connection::is_http_codec() {
 }
 
 bool Connection::conn_read() {
+    if (!is_active()) {
+        return false;
+    }
+
     if (m_recv_buf == nullptr) {
         m_recv_buf = new SocketBuffer;
         if (m_recv_buf == nullptr) {
@@ -146,8 +150,8 @@ Codec::STATUS Connection::conn_read(MsgHead& head, MsgBody& body) {
 }
 
 Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
-    if (is_closed()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+    if (!is_active()) {
+        LOG_ERROR("conn is invalid! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
 

@@ -84,9 +84,9 @@ class Connection : public Timer {
     STATE m_state = STATE::NONE;  // connection status.
     int m_errno = 0;              // error number.
 
-    SocketBuffer* m_recv_buf;
-    SocketBuffer* m_send_buf;
-    SocketBuffer* m_wait_send_buf;
+    SocketBuffer* m_recv_buf = nullptr;
+    SocketBuffer* m_send_buf = nullptr;
+    SocketBuffer* m_wait_send_buf = nullptr;
 };
 
 }  // namespace kim
