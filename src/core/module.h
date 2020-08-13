@@ -8,6 +8,8 @@
 
 namespace kim {
 
+/* Module is a container, which is used for cmd's route.*/
+
 class Module : public Base {
    public:
     Module() {}
@@ -27,6 +29,7 @@ class Module : public Base {
 
     bool del_cmd(Cmd* cmd);
 
+    // so manager.
     void set_so_handle(void* handle) { m_so_handle = handle; }
     void* get_so_handle() { return m_so_handle; }
     void set_so_path(_cstr& path) { m_so_path = path; }

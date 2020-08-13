@@ -3,6 +3,7 @@
 #include <dlfcn.h>
 
 #define MODULE_DIR "/modules/"
+#define DL_ERROR() (dlerror() != nullptr) ? dlerror() : "unknown error"
 
 namespace kim {
 
@@ -13,15 +14,14 @@ ModuleMgr::ModuleMgr(uint64_t id, Log* logger, INet* net, _cstr& name)
 }
 
 ModuleMgr::~ModuleMgr() {
-    char* errstr;
+    Module* module;
     for (const auto& it : m_modules) {
-        dlclose(it.second->get_so_handle());
-        errstr = dlerror();
-        if (errstr != nullptr) {
+        module = it.second;
+        if (dlclose(module->get_so_handle()) == -1) {
             LOG_ERROR("close so failed! so: %s, errstr: %s",
-                      it.second->get_name(), errstr);
+                      module->get_name(), DL_ERROR());
         }
-        delete it.second;
+        SAFE_DELETE(module);
     }
     m_modules.clear();
 }
@@ -39,20 +39,22 @@ bool ModuleMgr::init(CJsonObject& config) {
             LOG_WARN("%s not exist!", path.c_str());
             return false;
         }
+
         if (!load_so(name, path)) {
             LOG_CRIT("load so: %s failed!", name.c_str());
             return false;
         }
         LOG_INFO("load so: %s ok!", name.c_str());
     }
+
     return true;
 }
 
 bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
     uint64_t id;
-    char* errstr;
     void* handle;
     Module* module;
+    CreateModule* create_module;
 
     // check duplicate.
     for (const auto& it : m_modules) {
@@ -65,25 +67,29 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
 
     // load so.
     handle = dlopen(path.c_str(), RTLD_NOW | RTLD_NODELETE);
-    errstr = dlerror();
-    if (errstr != nullptr) {
-        LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), errstr);
+    if (handle == nullptr) {
+        LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), DL_ERROR());
         return false;
     }
 
-    CreateModule* create_module = (CreateModule*)dlsym(handle, "create");
-    errstr = dlerror();
-    if (errstr != nullptr) {
-        LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), errstr);
-        dlclose(handle);
+    create_module = (CreateModule*)dlsym(handle, "create");
+    if (create_module == nullptr) {
+        LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), DL_ERROR());
+        if (dlclose(handle) == -1) {
+            LOG_ERROR("close so failed! so: %s, errstr: %s",
+                      module->get_name(), DL_ERROR());
+        }
         return false;
     }
 
     module = (Module*)create_module();
     id = m_net->get_new_seq();
     if (!module->init(m_logger, m_net, id, name)) {
-        dlclose(handle);
         LOG_ERROR("init module failed! module: %s", name.c_str());
+        if (dlclose(handle) == -1) {
+            LOG_ERROR("close so failed! so: %s, errstr: %s",
+                      module->get_name(), DL_ERROR());
+        }
         return false;
     }
 
@@ -96,7 +102,6 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
 }
 
 bool ModuleMgr::unload_so(const std::string& name) {
-    char* errstr;
     Module* module = nullptr;
 
     for (const auto& it : m_modules) {
@@ -111,17 +116,15 @@ bool ModuleMgr::unload_so(const std::string& name) {
         return false;
     }
 
-    dlclose(module->get_so_handle());
-    errstr = dlerror();
-    if (errstr != nullptr) {
-        LOG_ERROR("open so failed! so: %s, errstr: %s.", module->get_so_path(), errstr);
+    if (dlclose(module->get_so_handle()) == -1) {
+        LOG_ERROR("close so failed! so: %s, errstr: %s", module->get_name(), DL_ERROR());
     }
 
     auto it = m_modules.find(module->get_id());
     if (it != m_modules.end()) {
         m_modules.erase(it);
     } else {
-        LOG_ERROR("find module: %s in map failed!", name.c_str());
+        LOG_ERROR("find module: %s failed!", name.c_str());
     }
     SAFE_DELETE(module);
 

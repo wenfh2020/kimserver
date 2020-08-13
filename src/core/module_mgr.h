@@ -24,7 +24,6 @@ class ModuleMgr : Base {
     std::unordered_map<uint64_t, Module*> m_modules;  // modules.
 };
 
-// module = m_module_mgr->get_module(info->module_id);
 }  // namespace kim
 
 #endif  //__KIM_MODULE_MGR_H__
