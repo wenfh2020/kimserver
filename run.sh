@@ -28,15 +28,19 @@ cat_process() {
 compile_core() {
     cd $core_path
     [ $1x == 'all'x ] && make clean
-    make
+    make -j8
     [ $? -ne 0 ] && exit 1
 }
 
 compile_so() {
     cd $so_path
-    [ $1x == 'all'x ] && make clean
-    make
-    [ $? -ne 0 ] && exit 1
+    modules_dirs=$(find . -name 'module*' -type d)
+    for dir in $modules_dirs; do
+        cd $dir
+        [ $1x == 'all'x ] && make clean
+        make -j8
+        [ $? -ne 0 ] && exit 1
+    done
 }
 
 if [ $1x == 'help'x ]; then

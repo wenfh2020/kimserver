@@ -10,8 +10,8 @@ CodecProto::CodecProto(Log* logger, Codec::TYPE codec)
 
 Codec::STATUS
 CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf) {
-    int len = 0;
-    int write_len = 0;
+    size_t len = 0;
+    size_t write_len = 0;
 
     write_len = sbuf->_write(head.SerializeAsString().c_str(), PROTO_MSG_HEAD_LEN);
     if (write_len != PROTO_MSG_HEAD_LEN) {
@@ -60,7 +60,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
     }
 
     // parse msg body.
-    if (sbuf->get_readable_len() < PROTO_MSG_HEAD_LEN + head.len()) {
+    if ((int)sbuf->get_readable_len() < PROTO_MSG_HEAD_LEN + head.len()) {
         LOG_DEBUG("wait for enough data to decode msg body.");
         return CodecProto::STATUS::PAUSE;  // wait for more data to decode.
     }

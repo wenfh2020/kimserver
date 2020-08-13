@@ -11,10 +11,10 @@ DIRS := $(SUB_DIRS)
 
 
 INC := $(INC) \
-       -I . 
+       -I .
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
-          -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc \
+          -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
 
 CPP_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))
