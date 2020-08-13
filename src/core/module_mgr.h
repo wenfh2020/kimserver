@@ -15,10 +15,12 @@ class ModuleMgr : Base {
     bool init(CJsonObject& config);
     Module* get_module(uint64_t id);
     Cmd::STATUS process_msg(std::shared_ptr<Request>& req);
+    bool reload_so(_cstr& name);
 
    private:
-    bool load_so(const std::string& name, const std::string& path);
-    bool unload_so(const std::string& name);
+    Module* get_module(_cstr& name);
+    bool load_so(_cstr& name, _cstr& path, uint64_t id = 0);
+    bool unload_so(_cstr& name);
 
    private:
     std::unordered_map<uint64_t, Module*> m_modules;  // modules.

@@ -21,7 +21,7 @@ class CodecHttp : public Codec {
     Codec::STATUS decode(SocketBuffer *sbuf, MsgHead &head, MsgBody &body);
 
     std::string to_string(const HttpMsg &oHttpMsg);
-    static void decode_params(const std::string &s, std::map<std::string, std::string> &params);
+    static void decode_params(_cstr &s, std::map<std::string, std::string> &params);
 
     int get_keep_alive() { return m_keep_alive; }
 

@@ -16,7 +16,8 @@ class Worker : public INet {
     bool init(const WorkerInfo* info, const CJsonObject& conf);
     void run();
 
-    void on_terminated(ev_signal* s) override;
+    virtual void on_terminated(ev_signal* s) override;
+    virtual void on_repeat_timer(void* privdata) override;
 
    private:
     bool load_logger();

@@ -50,23 +50,19 @@ bool ModuleMgr::init(CJsonObject& config) {
     return true;
 }
 
-bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
-    uint64_t id;
+bool ModuleMgr::load_so(_cstr& name, _cstr& path, uint64_t id) {
     void* handle;
     Module* module;
     CreateModule* create_module;
 
-    // check duplicate.
-    for (const auto& it : m_modules) {
-        module = it.second;
-        if (module->get_name() == name) {
-            LOG_ERROR("duplicate load so: %s", name.c_str());
-            return false;
-        }
+    module = get_module(name);
+    if (module != nullptr) {
+        LOG_ERROR("duplicate load so: %s", name.c_str());
+        return false;
     }
 
     // load so.
-    handle = dlopen(path.c_str(), RTLD_NOW | RTLD_NODELETE);
+    handle = dlopen(path.c_str(), RTLD_NOW);
     if (handle == nullptr) {
         LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), DL_ERROR());
         return false;
@@ -83,7 +79,7 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
     }
 
     module = (Module*)create_module();
-    id = m_net->get_new_seq();
+    id = (id != 0) ? id : m_net->get_new_seq();
     if (!module->init(m_logger, m_net, id, name)) {
         LOG_ERROR("init module failed! module: %s", name.c_str());
         if (dlclose(handle) == -1) {
@@ -101,23 +97,36 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path) {
     return true;
 }
 
-bool ModuleMgr::unload_so(const std::string& name) {
+bool ModuleMgr::reload_so(_cstr& name) {
+    uint64_t id = 0;
     Module* module = nullptr;
+    std::string path = get_work_path() + MODULE_DIR + name;
+    LOG_DEBUG("reloading so: %s, path: %s!", name.c_str(), path.c_str());
 
-    for (const auto& it : m_modules) {
-        module = it.second;
-        if (module->get_name() == name) {
-            break;
-        }
+    if (0 != access(path.c_str(), F_OK)) {
+        LOG_WARN("%s not exist!", path.c_str());
+        return false;
     }
 
+    module = get_module(name);
+    if (module != nullptr) {
+        id = module->get_id();
+    }
+
+    unload_so(name);
+    return load_so(name, path, id);
+}
+
+bool ModuleMgr::unload_so(_cstr& name) {
+    Module* module = get_module(name);
     if (module == nullptr) {
         LOG_ERROR("find so: %s failed!", name.c_str());
         return false;
     }
 
     if (dlclose(module->get_so_handle()) == -1) {
-        LOG_ERROR("close so failed! so: %s, errstr: %s", module->get_name(), DL_ERROR());
+        LOG_ERROR("close so failed! so: %s, errstr: %s",
+                  module->get_name(), DL_ERROR());
     }
 
     auto it = m_modules.find(module->get_id());
@@ -135,6 +144,17 @@ bool ModuleMgr::unload_so(const std::string& name) {
 Module* ModuleMgr::get_module(uint64_t id) {
     auto it = m_modules.find(id);
     return (it != m_modules.end()) ? it->second : nullptr;
+}
+
+Module* ModuleMgr::get_module(_cstr& name) {
+    Module* module = nullptr;
+    for (const auto& it : m_modules) {
+        module = it.second;
+        if (module->get_name() == name) {
+            break;
+        }
+    }
+    return module;
 }
 
 Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Request>& req) {

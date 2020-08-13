@@ -27,8 +27,6 @@ class Module : public Base {
     Cmd::STATUS on_callback(wait_cmd_info_t* index, int err, void* data);
     Cmd::STATUS response_http(std::shared_ptr<Connection> c, _cstr& data, int status_code = 200);
 
-    bool del_cmd(Cmd* cmd);
-
     // so manager.
     void set_so_handle(void* handle) { m_so_handle = handle; }
     void* get_so_handle() { return m_so_handle; }
@@ -37,7 +35,6 @@ class Module : public Base {
     const char* get_so_path() { return m_so_path.c_str(); }
 
    protected:
-    std::unordered_map<uint64_t, Cmd*> m_cmds;
     std::string m_so_path;        // module so path.
     void* m_so_handle = nullptr;  // for dlopen ptr.
 };

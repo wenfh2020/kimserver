@@ -6,7 +6,6 @@
 #include "context.h"
 #include "error.h"
 #include "module.h"
-// #include "module/module_test.h"
 #include "net/anet.h"
 #include "server.h"
 #include "util/util.h"
@@ -42,6 +41,11 @@ void Network::destory() {
         SAFE_DELETE(c);
     }
     m_redis_conns.clear();
+
+    for (const auto& it : m_cmds) {
+        delete it.second;
+    }
+    m_cmds.clear();
 }
 
 void Network::run() {
@@ -115,8 +119,8 @@ bool Network::create(const AddrInfo* addr_info,
     return true;
 }
 
-bool Network::create(INet* s, const CJsonObject& config, int ctrl_fd, int data_fd) {
-    if (!create_events(s, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
+bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd) {
+    if (!create_events(net, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -135,6 +139,11 @@ bool Network::create(INet* s, const CJsonObject& config, int ctrl_fd, int data_f
         return false;
     }
     LOG_INFO("load modules ok!");
+
+    // if (!load_timer(net)) {
+    //     LOG_ERROR("load timer failed!");
+    //     return false;
+    // }
     return true;
 }
 
@@ -268,7 +277,7 @@ bool Network::close_conn(int fd) {
         m_conns.erase(it);
     }
 
-    close(fd);
+    close_fd(fd);
     LOG_DEBUG("close fd: %d", fd);
     return true;
 }
@@ -302,13 +311,8 @@ int Network::listen_to_port(const char* bind, int port) {
 void Network::close_chanel(int* fds) {
     LOG_DEBUG("close chanel, fd0: %d, fd1: %d", fds[0], fds[1]);
 
-    if (close(fds[0]) == -1) {
-        LOG_WARN("close channel failed, fd: %d.", fds[0]);
-    }
-
-    if (close(fds[1]) == -1) {
-        LOG_WARN("close channel failed, fd: %d.", fds[1]);
-    }
+    close_fd(fds[0]);
+    close_fd(fds[1]);
 }
 
 void Network::close_conns() {
@@ -322,7 +326,7 @@ void Network::close_fds() {
     for (const auto& it : m_conns) {
         int fd = it.second->get_fd();
         if (fd != -1) {
-            close(fd);
+            close_fd(fd);
             it.second->set_fd(-1);
         }
     }
@@ -372,7 +376,7 @@ void Network::check_wait_send_fds() {
             if (err != 0) {
                 LOG_ERROR("resend chanel failed! fd: %d, errno: %d", data->ch.fd, err);
             }
-            close(data->ch.fd);
+            close_fd(data->ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
             continue;
@@ -381,7 +385,7 @@ void Network::check_wait_send_fds() {
         //  err == EAGAIN)
         if (++data->count >= 3) {
             LOG_INFO("resend chanel too much! fd: %d, errno: %d", err, data->ch.fd);
-            close(data->ch.fd);
+            close_fd(data->ch.fd);
             free(data);
             m_wait_send_fds.erase(it++);
             continue;
@@ -395,6 +399,9 @@ void Network::check_wait_send_fds() {
 
 void Network::on_repeat_timer(void* privdata) {
     check_wait_send_fds();
+    // if (m_module_mgr != nullptr) {
+    //     m_module_mgr->reload_so("module_test.so");
+    // }
 }
 
 void Network::on_cmd_timer(void* privdata) {
@@ -451,11 +458,13 @@ bool Network::read_query_from_client(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end() || it->second == nullptr) {
         LOG_WARN("find connection failed, fd: %d", fd);
+        close_conn(fd);
         return false;
     }
 
     std::shared_ptr<Connection> c = it->second;
     if (!c->is_active()) {
+        close_conn(fd);
         return false;
     }
 
@@ -565,7 +574,7 @@ void Network::accept_and_transfer_fd(int fd) {
         LOG_ERROR("find next worker chanel failed!");
     }
 
-    close(cfd);
+    close_fd(cfd);
 }
 
 // worker send fd which transfered from manager.
@@ -581,12 +590,13 @@ void Network::read_transfer_fd(int fd) {
         // read fd from manager.
         err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
-            if (err != EAGAIN) {
+            if (err == EAGAIN) {
+                return;
+            } else {
                 destory();
                 LOG_ERROR("read channel failed!, exit!");
                 exit(EXIT_FD_TRANSFER);
             }
-            return;
         }
 
         codec = static_cast<Codec::TYPE>(ch.codec);
@@ -598,15 +608,15 @@ void Network::read_transfer_fd(int fd) {
 
         conn_data = new ConnectionData;
         if (conn_data == nullptr) {
-            LOG_ERROR("alloc connection data failed! fd: %d", fd);
+            LOG_ERROR("alloc connection data failed! fd: %d", ch.fd);
             goto error;
         }
         conn_data->m_conn = c;
         // add timer.
-        LOG_DEBUG("add io timer, fd: %d, time val: %f", fd, m_keep_alive);
+        LOG_DEBUG("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
         w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
         if (w == nullptr) {
-            LOG_ERROR("add timer failed! fd: %d", fd);
+            LOG_ERROR("add timer failed! fd: %d", ch.fd);
             goto error;
         }
         c->set_timer(w);
@@ -833,7 +843,7 @@ void Network::on_redis_connect(const redisAsyncContext* c, int status) {
     rc = it->second;
 
     if (status != REDIS_OK) {
-        SAFE_DELETE(it->second);
+        SAFE_DELETE(rc);
         m_redis_conns.erase(it);
     } else {
         rc->set_state(RdsConnection::STATE::OK);
@@ -920,6 +930,55 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
     err = (c->err == REDIS_OK) ? ERR_OK : ERR_REDIS_CALLBACK;
     module->on_callback(info, err, reply);
     SAFE_DELETE(info);
+}
+
+bool Network::add_cmd(Cmd* cmd) {
+    if (cmd == nullptr) {
+        return false;
+    }
+    auto it = m_cmds.insert({cmd->get_id(), cmd});
+    if (it.second == false) {
+        LOG_ERROR("cmd: %s duplicate!", cmd->get_name());
+        return false;
+    }
+    return true;
+}
+
+Cmd* Network::get_cmd(uint64_t id) {
+    auto it = m_cmds.find(id);
+    if (it == m_cmds.end() || it->second == nullptr) {
+        LOG_WARN("find cmd failed! seq: %llu", id);
+        return nullptr;
+    }
+    return it->second;
+}
+
+bool Network::del_cmd(Cmd* cmd) {
+    if (cmd == nullptr) {
+        return false;
+    }
+    auto it = m_cmds.find(cmd->get_id());
+    if (it == m_cmds.end()) {
+        return false;
+    }
+
+    m_cmds.erase(it);
+    if (cmd->get_timer() != nullptr) {
+        del_cmd_timer(cmd->get_timer());
+        cmd->set_timer(nullptr);
+        LOG_DEBUG("del timer!")
+    }
+    LOG_DEBUG("delete cmd index data!");
+    SAFE_DELETE(cmd);
+    return true;
+}
+
+void Network::close_fd(int fd) {
+    if (close(fd) == -1) {
+        LOG_WARN("close channel failed, fd: %d. errno: %d, errstr: %s",
+                 fd, errno, strerror(errno));
+    }
+    LOG_DEBUG("close fd: %d.", fd);
 }
 
 }  // namespace kim

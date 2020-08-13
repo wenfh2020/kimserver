@@ -62,6 +62,9 @@ class Network : public INet {
 
    public:
     virtual uint64_t get_new_seq() override { return ++m_seq; }
+    virtual bool add_cmd(Cmd* cmd) override;
+    virtual Cmd* get_cmd(uint64_t id) override;
+    virtual bool del_cmd(Cmd* cmd) override;
 
     // io callback.
     virtual void on_io_read(int fd) override;
@@ -84,6 +87,7 @@ class Network : public INet {
     virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) override;
 
    private:
+    void close_fd(int fd);
     void check_wait_send_fds();
     bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker);
 
@@ -120,6 +124,7 @@ class Network : public INet {
 
     Codec::TYPE m_gate_codec = Codec::TYPE::PROTOBUF;  // gate codec type.
     ModuleMgr* m_module_mgr = nullptr;
+    std::unordered_map<uint64_t, Cmd*> m_cmds;
 
     ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
     std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.

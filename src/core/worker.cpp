@@ -99,4 +99,10 @@ void Worker::on_terminated(ev_signal* s) {
     exit(signum);
 }
 
+void Worker::on_repeat_timer(void* privdata) {
+    if (m_net != nullptr) {
+        m_net->on_repeat_timer(privdata);
+    }
+}
+
 }  // namespace kim
