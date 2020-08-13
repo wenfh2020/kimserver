@@ -153,30 +153,28 @@ void Manager::on_child_terminated(ev_signal* s) {
 }
 
 bool Manager::restart_worker(pid_t pid) {
-    m_restart_workers.push_back(pid);
+    int chs[2];
+    if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
+        m_net->close_conn(chs[0]);
+        m_net->close_conn(chs[1]);
+    }
+
+    int worker_index;
+    if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
+        LOG_ERROR("can not find pid: %d work info.");
+        return false;
+    }
+
+    m_worker_data_mgr.remove_worker_info(pid);
+    m_restart_workers.push_back(worker_index);
     return true;
 }
 
 void Manager::restart_workers() {
     auto it = m_restart_workers.begin();
     for (; it != m_restart_workers.end();) {
-        pid_t pid = *it;
-        LOG_DEBUG("restart worker, pid: %d", pid);
-
-        int chs[2];
-        if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
-            m_net->close_conn(chs[0]);
-            m_net->close_conn(chs[1]);
-        }
-
-        int worker_index;
-        if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
-            LOG_ERROR("can not find pid: %d work info.");
-            return;
-        }
-
-        // clear worker data.
-        m_worker_data_mgr.remove_worker_info(pid);
+        int worker_index = *it;
+        LOG_DEBUG("restart worker, index: %d", worker_index);
 
         bool ret = create_worker(worker_index);
         if (ret) {
