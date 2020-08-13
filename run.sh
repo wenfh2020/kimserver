@@ -8,6 +8,7 @@ server=kimserver
 server_file=$work_path/bin/$server
 core_path=$work_path/src/core/
 so_path=$work_path/src/modules/
+core_proto_path=$core_path/proto/
 
 kill_process() {
     name=$1
@@ -42,6 +43,17 @@ compile_so() {
         [ $? -ne 0 ] && exit 1
     done
 }
+
+gen_proto() {
+    cd $core_proto_path
+    if [ ! -f http.pb.cc ]; then
+        [ ! -x gen_proto.sh ] && chmod +x gen_proto.sh
+        ./gen_proto.sh
+        [ $? -ne 0 ] && echo 'gen protobuf file failed!' && exit 1
+    fi
+}
+
+gen_proto
 
 if [ $1x == 'help'x ]; then
     echo './run.sh'
