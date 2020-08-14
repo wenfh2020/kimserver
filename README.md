@@ -36,10 +36,9 @@ enable c++11 and install 3rd lib.
 <a id="markdown-2-work" name="2-work"></a>
 ## 2. work
 
-work on Linux / MacOS
+run on Linux / MacOS
 
 ```shell
-./gen_proto.sh
 ./run.sh
 ```
 

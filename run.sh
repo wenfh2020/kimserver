@@ -12,7 +12,7 @@ core_proto_path=$core_path/proto/
 
 kill_process() {
     name=$1
-    processes=$(ps -ef | grep $name | grep -v 'grep\|log\|vim' | awk '{if ($2 > 1) print $2;}')
+    local processes=$(ps -ef | grep $name | grep -v 'grep\|log\|vim' | awk '{if ($2 > 1) print $2;}')
     for p in $processes; do
         echo "kill pid: $p."
         kill $p
@@ -22,7 +22,7 @@ kill_process() {
 
 cat_process() {
     sleep 1
-    name=$1
+    local name=$1
     ps -ef | grep -i $name | grep -v 'grep\|log\|vim' | awk '{ print $2, $8 }'
 }
 
@@ -35,7 +35,7 @@ compile_core() {
 
 compile_so() {
     cd $so_path
-    modules_dirs=$(find . -name 'module*' -type d)
+    local modules_dirs=$(find . -name 'module*' -type d)
     for dir in $modules_dirs; do
         cd $dir
         [ $1x == 'all'x ] && make clean
@@ -51,6 +51,11 @@ gen_proto() {
         ./gen_proto.sh
         [ $? -ne 0 ] && echo 'gen protobuf file failed!' && exit 1
     fi
+}
+
+run() {
+    cd $work_path/bin
+    ./$server config.json
 }
 
 gen_proto
@@ -92,6 +97,5 @@ fi
 kill_process $server
 
 echo '------------'
-cd $work_path/bin
-./$server config.json
+run
 cat_process $server

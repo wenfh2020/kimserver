@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "context.h"
+#include "connection.h"
 #include "module.h"
 #include "util/util.h"
 

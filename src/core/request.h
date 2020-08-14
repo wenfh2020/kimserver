@@ -1,7 +1,7 @@
 #ifndef __REQUEST_H__
 #define __REQUEST_H__
 
-#include "context.h"
+#include "connection.h"
 #include "proto/http.pb.h"
 #include "proto/msg.pb.h"
 

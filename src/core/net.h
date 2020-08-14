@@ -5,7 +5,7 @@
 #include <hiredis/async.h>
 #include <hiredis/hiredis.h>
 
-#include "context.h"
+#include "connection.h"
 #include "util/json/CJsonObject.hpp"
 
 namespace kim {

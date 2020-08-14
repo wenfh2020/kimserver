@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "context.h"
+#include "connection.h"
 #include "error.h"
 #include "module.h"
 #include "net/anet.h"
