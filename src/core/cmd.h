@@ -19,7 +19,7 @@ class Cmd : public Timer, public Base {
         COMPLETED = 3,
         ERROR = 4,
     };
-    Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name = "");
+    Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name = "");
     virtual ~Cmd();
 
    public:
@@ -29,10 +29,10 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
 
    public:
-    virtual Cmd::STATUS response_http(_cstr& data, int status_code = 200);
-    virtual Cmd::STATUS response_http(int err, _cstr& errstr, const CJsonObject& data, int status_code = 200);
-    virtual Cmd::STATUS response_http(int err, _cstr& errstr, int status_code = 200);
-    virtual Cmd::STATUS redis_send_to(_cstr& host, int port, _csvector& rds_cmds);
+    virtual Cmd::STATUS response_http(const std::string& data, int status_code = 200);
+    virtual Cmd::STATUS response_http(int err, const std::string& errstr, const CJsonObject& data, int status_code = 200);
+    virtual Cmd::STATUS response_http(int err, const std::string& errstr, int status_code = 200);
+    virtual Cmd::STATUS redis_send_to(const std::string& host, int port, const std::vector<std::string>& rds_cmds);
 
     uint64_t get_module_id() { return m_module_id; }
     CJsonObject& config() { return m_net->get_config(); }

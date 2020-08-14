@@ -42,8 +42,8 @@ class Events {
     bool del_timer_event(ev_timer* w);
 
     // redis
-    redisAsyncContext* redis_connect(_cstr& host, int port, void* privdata);
-    bool redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* privdata);
+    redisAsyncContext* redis_connect(const std::string& host, int port, void* privdata);
+    bool redis_send_to(redisAsyncContext* c, const std::vector<std::string>& rds_cmds, void* privdata);
 
    private:
     // libev callback.

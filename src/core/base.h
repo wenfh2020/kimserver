@@ -9,7 +9,7 @@ namespace kim {
 class Base {
    public:
     Base() {}
-    Base(uint64_t id, Log* logger, INet* net, _cstr& name = "")
+    Base(uint64_t id, Log* logger, INet* net, const std::string& name = "")
         : m_id(id), m_logger(logger), m_net(net), m_name(name) {
     }
     Base(const Base&) = delete;
@@ -25,8 +25,8 @@ class Base {
     INet* get_net() { return m_net; }
     void set_net(INet* net) { m_net = net; }
 
-    void set_name(_cstr& name) { m_name = name; }
-    _cstr& get_name() const { return m_name; }
+    void set_name(const std::string& name) { m_name = name; }
+    const std::string& get_name() const { return m_name; }
     const char* get_name() { return m_name.c_str(); }
 
    protected:

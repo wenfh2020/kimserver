@@ -63,7 +63,7 @@ class INet {
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd*, _csvector& rds_cmds) {
+    virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd*, const std::vector<std::string>& rds_cmds) {
         return E_RDS_STATUS::ERROR;
     }
 

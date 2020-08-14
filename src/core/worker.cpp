@@ -7,7 +7,7 @@
 
 namespace kim {
 
-Worker::Worker(_cstr& name) {
+Worker::Worker(const std::string& name) {
     srand((unsigned)time(NULL));
     set_proc_title("%s", name.c_str());
 }

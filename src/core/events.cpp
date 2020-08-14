@@ -258,7 +258,7 @@ void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revent
     cmd->get_net()->on_cmd_timer(cmd);
 }
 
-redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) {
+redisAsyncContext* Events::redis_connect(const std::string& host, int port, void* privdata) {
     redisAsyncContext* c = redisAsyncConnect(host.c_str(), port);
     if (c == nullptr || c->err) {
         LOG_ERROR("connect redis failed! errno: %d, error: %s, host: %s, port: %d",
@@ -272,7 +272,8 @@ redisAsyncContext* Events::redis_connect(_cstr& host, int port, void* privdata) 
     return c;
 }
 
-bool Events::redis_send_to(redisAsyncContext* c, _csvector& rds_cmds, void* privdata) {
+bool Events::redis_send_to(redisAsyncContext* c,
+                           const std::vector<std::string>& rds_cmds, void* privdata) {
     if (c == nullptr || rds_cmds.empty()) {
         return false;
     }

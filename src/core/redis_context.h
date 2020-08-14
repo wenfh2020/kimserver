@@ -19,7 +19,7 @@ class RdsConnection {
         CLOSED,
         ERROR
     };
-    RdsConnection(Log* logger, INet* net, _cstr& host, int port, redisAsyncContext* c);
+    RdsConnection(Log* logger, INet* net, const std::string& host, int port, redisAsyncContext* c);
     virtual ~RdsConnection();
 
     bool is_active() { return m_state == STATE::OK; }
@@ -29,7 +29,7 @@ class RdsConnection {
 
     redisAsyncContext* get_ctx() { return m_conn; }
     int get_port() { return m_port; }
-    _cstr& get_host() { return m_host; }
+    const std::string& get_host() { return m_host; }
 
     wait_cmd_info_t* add_wait_cmd_info(uint64_t module_id, uint64_t cmd_id, int step = 0);
     bool del_wait_cmd_info(uint64_t cmd_id);

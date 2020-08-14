@@ -84,7 +84,7 @@ class Network : public INet {
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
-    virtual E_RDS_STATUS redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) override;
+    virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd* cmd, const std::vector<std::string>& rds_cmds) override;
 
    private:
     void close_fd(int fd);
@@ -104,7 +104,7 @@ class Network : public INet {
     void close_conns();
 
     // redis.
-    RdsConnection* redis_connect(_cstr& host, int port, void* privdata);
+    RdsConnection* redis_connect(const std::string& host, int port, void* privdata);
 
    private:
     Log* m_logger = nullptr;      // logger.

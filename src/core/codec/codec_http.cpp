@@ -471,7 +471,7 @@ std::string CodecHttp::to_string(const HttpMsg& msg) {
     return data;
 }
 
-void CodecHttp::decode_params(_cstr& s, std::map<std::string, std::string>& params) {
+void CodecHttp::decode_params(const std::string& s, std::map<std::string, std::string>& params) {
     params.clear();
     bool is_value = false;
     std::string key, value;

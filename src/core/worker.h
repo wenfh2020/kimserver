@@ -10,7 +10,7 @@ namespace kim {
 
 class Worker : public INet {
    public:
-    Worker(_cstr& name);
+    Worker(const std::string& name);
     virtual ~Worker();
 
     bool init(const WorkerInfo* info, const CJsonObject& conf);

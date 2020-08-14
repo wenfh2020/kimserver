@@ -4,7 +4,7 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, _cstr& name)
+Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name)
     : Base(id, logger, net, name), m_module_id(mid) {
     LOG_DEBUG("%s", get_name());
     set_keep_alive(CMD_TIMEOUT_VAL);
@@ -15,7 +15,7 @@ Cmd::~Cmd() {
     LOG_DEBUG("destory %s", get_name());
 }
 
-Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {
+Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     const HttpMsg* req_msg = m_req->get_http_msg();
     if (req_msg == nullptr) {
         LOG_ERROR("http msg is null! pls alloc!");
@@ -35,14 +35,15 @@ Cmd::STATUS Cmd::response_http(_cstr& data, int status_code) {
     return Cmd::STATUS::OK;
 }
 
-Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, int status_code) {
+Cmd::STATUS Cmd::response_http(int err, const std::string& errstr, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, const CJsonObject& data, int status_code) {
+Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
+                               const CJsonObject& data, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
@@ -50,7 +51,8 @@ Cmd::STATUS Cmd::response_http(int err, _cstr& errstr, const CJsonObject& data, 
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::redis_send_to(_cstr& host, int port, _csvector& rds_cmds) {
+Cmd::STATUS Cmd::redis_send_to(const std::string& host,
+                               int port, const std::vector<std::string>& rds_cmds) {
     LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
     if (host.empty() || port == 0) {
         LOG_ERROR("invalid addr info: host: %s, port: %d", host.c_str(), port);

@@ -4,7 +4,8 @@
 
 namespace kim {
 
-RdsConnection::RdsConnection(Log* logger, INet* net, _cstr& host, int port, redisAsyncContext* c)
+RdsConnection::RdsConnection(
+    Log* logger, INet* net, const std::string& host, int port, redisAsyncContext* c)
     : m_logger(logger), m_net(net), m_host(host), m_port(port), m_conn(c) {
     m_identity = format_addr(host, port);
 }

@@ -19,9 +19,6 @@ namespace kim {
 #define EXIT_CHILD_INIT_FAIL -3
 #define EXIT_FD_TRANSFER -4
 
-typedef const std::string _cstr;
-typedef const std::vector<std::string> _csvector;
-
 // redis operation return status.
 enum class E_RDS_STATUS {
     OK = 0,

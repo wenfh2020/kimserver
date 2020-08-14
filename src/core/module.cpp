@@ -5,14 +5,14 @@
 
 namespace kim {
 
-Module::Module(Log* logger, INet* net, uint64_t id, _cstr& name)
+Module::Module(Log* logger, INet* net, uint64_t id, const std::string& name)
     : Base(id, logger, net, name) {
 }
 
 Module::~Module() {
 }
 
-bool Module::init(Log* logger, INet* net, uint64_t id, _cstr& name) {
+bool Module::init(Log* logger, INet* net, uint64_t id, const std::string& name) {
     set_id(id);
     set_net(net);
     set_name(name);
@@ -87,7 +87,7 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
     return status;
 }
 
-Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, _cstr& data, int status_code) {
+Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, const std::string& data, int status_code) {
     HttpMsg msg;
     msg.set_type(HTTP_RESPONSE);
     msg.set_status_code(status_code);

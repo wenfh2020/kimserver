@@ -9,18 +9,18 @@ namespace kim {
 
 class ModuleMgr : Base {
    public:
-    ModuleMgr(uint64_t id, Log* logger, INet* net, _cstr& name = "");
+    ModuleMgr(uint64_t id, Log* logger, INet* net, const std::string& name = "");
     virtual ~ModuleMgr();
 
     bool init(CJsonObject& config);
     Module* get_module(uint64_t id);
     Cmd::STATUS process_msg(std::shared_ptr<Request>& req);
-    bool reload_so(_cstr& name);
+    bool reload_so(const std::string& name);
 
    private:
-    Module* get_module(_cstr& name);
-    bool load_so(_cstr& name, _cstr& path, uint64_t id = 0);
-    bool unload_so(_cstr& name);
+    Module* get_module(const std::string& name);
+    bool load_so(const std::string& name, const std::string& path, uint64_t id = 0);
+    bool unload_so(const std::string& name);
 
    private:
     std::unordered_map<uint64_t, Module*> m_modules;  // modules.

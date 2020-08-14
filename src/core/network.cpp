@@ -739,8 +739,8 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-E_RDS_STATUS
-Network::redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) {
+E_RDS_STATUS Network::redis_send_to(const std::string& host, int port,
+                                    Cmd* cmd, const std::vector<std::string>& rds_cmds) {
     LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
 
     RdsConnection* c;
@@ -796,7 +796,7 @@ Network::redis_send_to(_cstr& host, int port, Cmd* cmd, _csvector& rds_cmds) {
     return E_RDS_STATUS::OK;
 }
 
-RdsConnection* Network::redis_connect(_cstr& host, int port, void* privdata) {
+RdsConnection* Network::redis_connect(const std::string& host, int port, void* privdata) {
     RdsConnection* c;
     redisAsyncContext* ctx;
     std::string identity;

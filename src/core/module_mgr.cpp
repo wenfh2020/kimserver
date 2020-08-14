@@ -9,7 +9,7 @@ namespace kim {
 
 typedef Module* CreateModule();
 
-ModuleMgr::ModuleMgr(uint64_t id, Log* logger, INet* net, _cstr& name)
+ModuleMgr::ModuleMgr(uint64_t id, Log* logger, INet* net, const std::string& name)
     : Base(id, logger, net, name) {
 }
 
@@ -50,7 +50,7 @@ bool ModuleMgr::init(CJsonObject& config) {
     return true;
 }
 
-bool ModuleMgr::load_so(_cstr& name, _cstr& path, uint64_t id) {
+bool ModuleMgr::load_so(const std::string& name, const std::string& path, uint64_t id) {
     void* handle;
     Module* module;
     CreateModule* create_module;
@@ -97,7 +97,7 @@ bool ModuleMgr::load_so(_cstr& name, _cstr& path, uint64_t id) {
     return true;
 }
 
-bool ModuleMgr::reload_so(_cstr& name) {
+bool ModuleMgr::reload_so(const std::string& name) {
     uint64_t id = 0;
     Module* module = nullptr;
     std::string path = get_work_path() + MODULE_DIR + name;
@@ -117,7 +117,7 @@ bool ModuleMgr::reload_so(_cstr& name) {
     return load_so(name, path, id);
 }
 
-bool ModuleMgr::unload_so(_cstr& name) {
+bool ModuleMgr::unload_so(const std::string& name) {
     Module* module = get_module(name);
     if (module == nullptr) {
         LOG_ERROR("find so: %s failed!", name.c_str());
@@ -146,7 +146,7 @@ Module* ModuleMgr::get_module(uint64_t id) {
     return (it != m_modules.end()) ? it->second : nullptr;
 }
 
-Module* ModuleMgr::get_module(_cstr& name) {
+Module* ModuleMgr::get_module(const std::string& name) {
     Module* module = nullptr;
     for (const auto& it : m_modules) {
         module = it.second;

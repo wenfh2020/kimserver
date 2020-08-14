@@ -43,7 +43,7 @@ $(SERVER_NAME): $(OBJS)
 	cp -f $@ ../../bin/
 
 %.o:%.cpp
-	$(SERVER_CPP) $(INC) -c -o $@ $< 
+	$(SERVER_CPP) $(INC) -c -o $@ $<
 %.o:%.cc
 	$(SERVER_CPP) $(INC) -c -o $@ $<
 %.o:%.c
