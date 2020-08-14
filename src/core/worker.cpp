@@ -79,7 +79,7 @@ bool Worker::load_network() {
         return false;
     }
 
-    LOG_INFO("load net work success!");
+    LOG_INFO("load net work done!");
     return true;
 }
 

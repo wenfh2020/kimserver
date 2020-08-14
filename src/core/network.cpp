@@ -55,8 +55,10 @@ void Network::run() {
 }
 
 bool Network::load_config(const CJsonObject& config) {
+    int codec;
+    double secs;
     m_conf = config;
-    int codec = 0;
+
     if (m_conf.Get("gate_codec", codec)) {
         if (!set_gate_codec(static_cast<Codec::TYPE>(codec))) {
             LOG_ERROR("invalid codec: %d", codec);
@@ -65,7 +67,6 @@ bool Network::load_config(const CJsonObject& config) {
     }
     LOG_DEBUG("gate codec: %d", codec);
 
-    double secs = 0;
     if (m_conf.Get("keep_alive", secs)) {
         set_keep_alive(secs);
     }

@@ -85,7 +85,7 @@ class CmdTestRedis : public Cmd {
                 CJsonObject rsp_data;
                 rsp_data.Add("key", m_key);
                 rsp_data.Add("value", m_value);
-                return response_http(ERR_OK, "success", rsp_data);
+                return response_http(ERR_OK, "ok", rsp_data);
             }
             default: {
                 LOG_ERROR("invalid step");

@@ -30,7 +30,7 @@ void Manager::run() {
 }
 
 bool Manager::init(const char* conf_path) {
-    char work_path[MAX_PATH] = {0};
+    char work_path[MAX_PATH];
     if (!getcwd(work_path, sizeof(work_path))) {
         return false;
     }
@@ -53,7 +53,7 @@ bool Manager::init(const char* conf_path) {
 
     create_workers();
     set_proc_title("%s", m_conf("server_name").c_str());
-    LOG_INFO("init manager success!");
+    LOG_INFO("init manager done!");
     return true;
 }
 
@@ -154,12 +154,13 @@ void Manager::on_child_terminated(ev_signal* s) {
 
 bool Manager::restart_worker(pid_t pid) {
     int chs[2];
+    int worker_index;
+
     if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
         m_net->close_conn(chs[0]);
         m_net->close_conn(chs[1]);
     }
 
-    int worker_index;
     if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
         LOG_ERROR("can not find pid: %d work info.");
         return false;
@@ -178,7 +179,7 @@ void Manager::restart_workers() {
 
         bool ret = create_worker(worker_index);
         if (ret) {
-            LOG_INFO("restart worker success! index: %d", worker_index);
+            LOG_INFO("restart worker ok! index: %d", worker_index);
             m_restart_workers.erase(it++);
         } else {
             LOG_ERROR("create worker failed! index: %d", worker_index);

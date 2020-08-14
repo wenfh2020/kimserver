@@ -93,7 +93,7 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path, uint64
     module->set_so_path(path);
     module->set_so_handle(handle);
     m_modules[id] = module;
-    LOG_INFO("load so: %s success!", name.c_str());
+    LOG_INFO("load so: %s done!", name.c_str());
     return true;
 }
 

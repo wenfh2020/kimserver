@@ -50,7 +50,7 @@ Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {
 
     CJsonObject obj;
     obj.Add("code", 0);
-    obj.Add("msg", "success");
+    obj.Add("msg", "ok");
     obj.Add("data", data);
     return response_http(req->get_conn(), obj.ToString());
 }

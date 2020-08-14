@@ -23,7 +23,7 @@ class CmdHello : public Cmd {
         CJsonObject data;
         data.Add("id", "123");
         data.Add("name", "kimserver");
-        return response_http(0, "success", data);
+        return response_http(0, "ok", data);
     }
 };
 

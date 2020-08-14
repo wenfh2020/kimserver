@@ -105,7 +105,7 @@ curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/helloworld/ | pytho
 ```json
 {
     "code": 0,
-    "msg": "success",
+    "msg": "ok",
     "data": {
         "id": "123",
         "name": "kimserver"
@@ -151,7 +151,7 @@ class MoudleTest : public Module {
 
         CJsonObject obj;
         obj.Add("code", 0);
-        obj.Add("msg", "success");
+        obj.Add("msg", "ok");
         obj.Add("data", data);
         return response_http(req->get_conn(), obj.ToString());
     }
