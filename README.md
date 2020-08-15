@@ -1,6 +1,6 @@
 # kimserver
 
-Kimserver is an async tcp multiple processes (one master process and one or more worker processes) high performance server.
+Kimserver is an async tcp multiple processes (master and workers) high-performance server.
 
 > **resources**:  [Nebula](https://github.com/Bwar/Nebula) / [thunder](https://github.com/doerjiayi/thunder) / [redis](https://github.com/antirez/redis) / [hiredis](https://github.com/redis/hiredis) / [nginx](https://github.com/nginx/nginx) / [http-parser](https://github.com/nodejs/http-parser) / [jemalloc](https://github.com/jemalloc/jemalloc) .
 

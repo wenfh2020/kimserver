@@ -1,4 +1,5 @@
 #!/bin/bash
+# https://blog.csdn.net/linyushan11/article/details/10378419/
 
 work_path=$(dirname $0)
 cd $work_path
@@ -16,7 +17,7 @@ if test \"x${ac_cv_env_CXXFLAGS_set}\" = \"x\"; then : \
 fi
 '
 
-insert_func() {
+update_configure() {
     if [ $(uname -s) == "Darwin" ]; then
         sed -i "" "2665,2670d" configure
         sed -i "" "2665$insert" configure
@@ -31,7 +32,7 @@ wget -c $url
 tar zxf $file
 cd protobuf-4.0.0-rc-2
 ./configure --disable-shared
-insert_func
+update_configure
 make clean && make uninstall && make -j8 && make install
 [ $? -ne 0 ] && exit 1
 [ $(uname -s) == "Linux" ] && ldconfig
