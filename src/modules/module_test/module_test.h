@@ -40,12 +40,12 @@ class MoudleTest : public Module {
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif  // __cplusplus
 kim::Module* create() {
     return (new kim::MoudleTest());
 }
 #ifdef __cplusplus
 }
-#endif
+#endif  // __cplusplus
 
 #endif  //__MODULE_TEST_H__

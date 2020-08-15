@@ -83,8 +83,10 @@ run on Linux / MacOS
 | gate_port        | gate_bind's port.                                                                                 |
 | gate_codec       | protobuf:1, http: 2, private: 3.                                                                  |
 | keep_alive       | connection keep alive time (seconds).                                                             |
-| log_path         | log file path.                                                                                    |
+| log_path         | log file. path.                                                                                   |
 | log_level        | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |
+| modules          | protocol route container, work as so.                                                             |
+| redis            | redis addr config.                                                                                |
 
 ---
 
@@ -117,6 +119,8 @@ curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/helloworld/ | pytho
 
 <a id="markdown-32-module" name="32-module"></a>
 ### 3.2. module
+
+[demo.](https://github.com/wenfh2020/kimserver/blob/master/src/modules/module_test/module_test.h)
 
 ```c++
 namespace kim {

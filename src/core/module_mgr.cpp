@@ -44,7 +44,6 @@ bool ModuleMgr::init(CJsonObject& config) {
             LOG_CRIT("load so: %s failed!", name.c_str());
             return false;
         }
-        LOG_INFO("load so: %s ok!", name.c_str());
     }
 
     return true;
