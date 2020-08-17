@@ -12,8 +12,6 @@
 
 namespace kim {
 
-#define CORE_TEST "module-test"
-
 Network::Network(Log* logger, TYPE type)
     : m_logger(logger), m_type(type) {
 }
@@ -335,13 +333,41 @@ void Network::close_fds() {
 
 void Network::on_io_write(int fd) {
     auto it = m_conns.find(fd);
-    if (it == m_conns.end()) {
+    if (it == m_conns.end() || it->second == nullptr) {
+        LOG_ERROR("find connection failed! fd: %d", fd);
         return;
     }
+
     std::shared_ptr<Connection> c = it->second;
-    if (c == nullptr || !c->is_active()) {
+    if (!c->is_connected() && !c->is_connecting()) {
+        LOG_ERROR("invalid connection, fd: %d, id: %llu", fd, c->get_id());
+        close_conn(fd);
         return;
     }
+
+    ev_io* w;
+    Codec::STATUS status;
+
+    w = c->get_ev_io();
+    status = c->conn_write();
+    if (status == Codec::STATUS::OK) {
+        m_events->del_write_event(w);
+        return;
+    }
+
+    if (status == Codec::STATUS::PAUSE) {
+        w = m_events->add_write_event(fd, w, this);
+        if (w == nullptr) {
+            close_conn(c);
+            LOG_ERROR("add write event failed! fd: %d", fd);
+            return;
+        }
+        c->set_ev_io(w);
+        return;
+    }
+
+    // ok remove write event.
+    m_events->del_write_event(w);
 }
 
 void Network::on_io_error(int fd) {
@@ -356,14 +382,12 @@ void Network::on_io_read(int fd) {
         } else {
             read_query_from_client(fd);
         }
-    } else if (is_worker()) {
+    } else {
         if (fd == m_manager_data_fd) {
             read_transfer_fd(fd);
         } else {
             read_query_from_client(fd);
         }
-    } else {
-        read_query_from_client(fd);
     }
 }
 
@@ -464,7 +488,7 @@ bool Network::read_query_from_client(int fd) {
     }
 
     std::shared_ptr<Connection> c = it->second;
-    if (!c->is_active()) {
+    if (c->is_closed()) {
         close_conn(fd);
         return false;
     }
@@ -503,8 +527,9 @@ bool Network::read_query_from_client(int fd) {
         }
     } else {
         if (status == Codec::STATUS::PAUSE) {
+            // not enough data, then decode next time.
             LOG_DEBUG("decode next time. fd: %d", fd);
-            return true;  // not enough data, then decode next time.
+            return true;
         } else {
             LOG_DEBUG("read failed. fd: %d", fd);
             close_conn(c);

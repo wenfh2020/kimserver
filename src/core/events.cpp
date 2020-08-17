@@ -134,6 +134,7 @@ bool Events::del_write_event(ev_io* w) {
         ev_io_set(w, w->fd, w->events & (~EV_WRITE));
         ev_io_start(m_ev_loop, w);
     }
+    LOG_DEBUG("del write event, fd: %d", w->fd);
     return true;
 }
 

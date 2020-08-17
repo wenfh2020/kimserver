@@ -24,8 +24,7 @@ class ConnectionData {
 class Connection : public Timer {
    public:
     enum class STATE {
-        NONE = 0,
-        CONNECTING,
+        CONNECTING = 0,
         ACCEPTING,
         CONNECTED,
         CLOSED,
@@ -47,8 +46,10 @@ class Connection : public Timer {
 
     void set_state(STATE state) { m_state = state; }
     STATE get_state() const { return m_state; }
-    bool is_active() { return m_state == STATE::CONNECTED; }
+    bool is_connected() { return m_state == STATE::CONNECTED; }
     bool is_closed() { return m_state == STATE::CLOSED; }
+    bool is_connecting() { return m_state == STATE::CONNECTING; }
+    bool is_active() { return (m_state == STATE::CONNECTING || m_state == STATE::CONNECTED); }
 
     void set_errno(int err) { m_errno = err; }
     int get_errno() const { return m_errno; }
@@ -63,13 +64,13 @@ class Connection : public Timer {
 
     Codec::STATUS conn_read(MsgHead& head, MsgBody& body);
     Codec::STATUS conn_write(const MsgHead& head, const MsgBody& body);
+    Codec::STATUS conn_write();
 
     virtual bool is_need_alive_check();
     virtual double get_keep_alive();
 
    protected:
     bool conn_read();
-    Codec::STATUS conn_write();
     Codec::STATUS decode_http(HttpMsg& msg);
     Codec::STATUS decode_proto(MsgHead& head, MsgBody& body);
 
@@ -80,9 +81,9 @@ class Connection : public Timer {
     ev_io* m_ev_io = nullptr;        // libev io event obj.
     Codec* m_codec = nullptr;
 
-    int m_fd = -1;                // socket fd.
-    STATE m_state = STATE::NONE;  // connection status.
-    int m_errno = 0;              // error number.
+    int m_fd = -1;                     // socket fd.
+    STATE m_state = STATE::CONNECTED;  // connection status.
+    int m_errno = 0;                   // error number.
 
     SocketBuffer* m_recv_buf = nullptr;
     SocketBuffer* m_send_buf = nullptr;

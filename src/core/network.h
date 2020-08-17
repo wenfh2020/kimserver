@@ -19,11 +19,6 @@
 
 namespace kim {
 
-typedef struct chanel_resend_data_s {
-    channel_t ch;
-    int count = 0;
-} chanel_resend_data_t;
-
 class Network : public INet {
    public:
     enum class TYPE {
@@ -31,6 +26,14 @@ class Network : public INet {
         MANAGER,
         WORKER,
     };
+
+    /* manager aync send fd to worker by sendmsg, 
+     * return -1, errno == EAGIN, and then resend it again. */
+    typedef struct chanel_resend_data_s {
+        channel_t ch;
+        int count = 0;
+    } chanel_resend_data_t;
+
     Network(Log* logger, TYPE type);
     virtual ~Network();
     bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                     // for worker.

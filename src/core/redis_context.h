@@ -22,7 +22,7 @@ class RdsConnection {
     RdsConnection(Log* logger, INet* net, const std::string& host, int port, redisAsyncContext* c);
     virtual ~RdsConnection();
 
-    bool is_active() { return m_state == STATE::OK; }
+    bool is_connected() { return m_state == STATE::OK; }
     bool is_connecting() { return m_state == STATE::CONNECTING; }
     void set_state(RdsConnection::STATE s) { m_state = s; }
     RdsConnection::STATE get_state() { return m_state; }

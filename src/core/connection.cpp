@@ -56,7 +56,8 @@ bool Connection::is_http_codec() {
 }
 
 bool Connection::conn_read() {
-    if (!is_active()) {
+    if (!is_connecting() && !is_connected()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
         return false;
     }
 
@@ -150,7 +151,7 @@ Codec::STATUS Connection::conn_read(MsgHead& head, MsgBody& body) {
 }
 
 Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
-    if (!is_active()) {
+    if (!is_connected()) {
         LOG_ERROR("conn is invalid! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
@@ -186,7 +187,7 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
 }
 
 Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
-    if (is_closed()) {
+    if (!is_connecting() && !is_connected()) {
         LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
