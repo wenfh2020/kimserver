@@ -16,4 +16,3 @@ message HttpMsg {
     string path                     = 14;       // url path.
     bool is_decoding                = 15;       // is encoding.
 }
- 

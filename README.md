@@ -1,4 +1,4 @@
-# kimserver
+# Kimserver
 
 Kimserver is an async tcp multiple processes (master and workers) high-performance server.
 
@@ -7,18 +7,18 @@ Kimserver is an async tcp multiple processes (master and workers) high-performan
 ---
 <!-- TOC -->
 
-1. [1. environment](#1-environment)
-2. [2. work](#2-work)
-    1. [2.1. config](#21-config)
-3. [3. usage](#3-usage)
-    1. [3.1. test](#31-test)
-    2. [3.2. module](#32-module)
+1. [1. Environment](#1-environment)
+2. [2. Work](#2-work)
+    1. [2.1. Config](#21-config)
+3. [3. Usage](#3-usage)
+    1. [3.1. Test](#31-test)
+    2. [3.2. Module](#32-module)
 
 <!-- /TOC -->
 <a id="markdown-1-environment" name="1-environment"></a>
-## 1. environment
+## 1. Environment
 
-enable c++11 and install 3rd lib.
+Enable C++11 and install third party libs.
 
 | 3rd      | version |
 | :------- | :------ |
@@ -29,14 +29,14 @@ enable c++11 and install 3rd lib.
 | hiredis  | 0.14.0  |
 | jemalloc | 5.2.1   |
 
-> **[note]** install protobuf use script: [install_protobuf.sh](https://github.com/wenfh2020/kimserver/blob/master/script/install/install_protobuf.sh)
+> **[note]** Install protobuf use script: [install_protobuf.sh](https://github.com/wenfh2020/kimserver/blob/master/script/install/install_protobuf.sh)
 
 ---
 
 <a id="markdown-2-work" name="2-work"></a>
-## 2. work
+## 2. Work
 
-run on Linux / MacOS
+Run on Linux / MacOS
 
 ```shell
 ./run.sh
@@ -45,7 +45,7 @@ run on Linux / MacOS
 ---
 
 <a id="markdown-21-config" name="21-config"></a>
-### 2.1. config
+### 2.1. Config
 
 ```json
 {
@@ -91,10 +91,10 @@ run on Linux / MacOS
 ---
 
 <a id="markdown-3-usage" name="3-usage"></a>
-## 3. usage
+## 3. Usage
 
 <a id="markdown-31-test" name="31-test"></a>
-### 3.1. test
+### 3.1. Test
 
 * request
 
@@ -118,7 +118,7 @@ curl -v -d '{"uid":"hello world"}' http://127.0.0.1:3355/kim/helloworld/ | pytho
 ---
 
 <a id="markdown-32-module" name="32-module"></a>
-### 3.2. module
+### 3.2. Module
 
 [demo.](https://github.com/wenfh2020/kimserver/blob/master/src/modules/module_test/module_test.h)
 

@@ -81,19 +81,21 @@ class Module : public Base {
 #define REGISTER_FUNC(id, func) \
     m_cmd_funcs[id] = &func;
 
-#define HANDLE_CMD(_cmd)                                                        \
-    _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq(), #_cmd); \
-    p->set_req(req);                                                            \
-    if (!p->init()) {                                                           \
-        LOG_ERROR("init cmd failed! %s", p->get_name());                        \
-        SAFE_DELETE(p);                                                         \
-        return Cmd::STATUS::ERROR;                                              \
-    }                                                                           \
-    Cmd::STATUS status = execute_cmd(p, req);                                   \
-    if (status != Cmd::STATUS::RUNNING) {                                       \
-        SAFE_DELETE(p);                                                         \
-    }                                                                           \
-    return status;
+#define HANDLE_CMD(_cmd)                                                            \
+    do {                                                                            \
+        _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq(), #_cmd); \
+        p->set_req(req);                                                            \
+        if (!p->init()) {                                                           \
+            LOG_ERROR("init cmd failed! %s", p->get_name());                        \
+            SAFE_DELETE(p);                                                         \
+            return Cmd::STATUS::ERROR;                                              \
+        }                                                                           \
+        Cmd::STATUS status = execute_cmd(p, req);                                   \
+        if (status != Cmd::STATUS::RUNNING) {                                       \
+            SAFE_DELETE(p);                                                         \
+        }                                                                           \
+        return status;                                                              \
+    } while (0);
 
 }  // namespace kim
 
