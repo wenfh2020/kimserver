@@ -11,6 +11,7 @@ so_path=$work_path/src/modules/
 core_proto_path=$core_path/proto/
 
 kill_process() {
+    echo '\n<------------------'
     name=$1
     local processes=$(ps -ef | grep $name | grep -v 'grep\|log\|vim' | awk '{if ($2 > 1) print $2;}')
     for p in $processes; do
@@ -56,6 +57,7 @@ gen_proto() {
 run() {
     cd $work_path/bin
     ./$server config.json
+    echo '<------------------'
 }
 
 gen_proto
@@ -96,6 +98,5 @@ fi
 
 kill_process $server
 
-echo '------------'
 run
 cat_process $server
