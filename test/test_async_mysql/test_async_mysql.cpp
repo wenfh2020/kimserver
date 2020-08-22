@@ -10,10 +10,10 @@
 #include "util/util.h"
 
 ev_timer timer;
+int g_callback_cnt = 0;
+double g_begin_time;
+int g_test_cnt = 0;
 const char* g_userdata = "123456";
-#define MAX_CALLBACK_CNT 50000
-int callback_cnt = 0;
-double begin_time;
 
 // close task. leak.
 
@@ -27,16 +27,17 @@ CREATE TABLE `test_async_mysql` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4; 
  */
 
-static void timeout_cb(EV_P_ ev_timer* w, int revents) {
+static void
+timeout_cb(EV_P_ ev_timer* w, int revents) {
     std::cout << "timer hit. data: "
               << static_cast<char*>(w->data)
               << std::endl;
 }
 
 static void mysql_exec_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* task) {
-    if (++callback_cnt == MAX_CALLBACK_CNT) {
-        std::cout << "spend time: " << time_now() - begin_time << std::endl
-                  << "write avg:  " << MAX_CALLBACK_CNT / (time_now() - begin_time)
+    if (++g_callback_cnt == g_test_cnt) {
+        std::cout << "spend time: " << time_now() - g_begin_time << std::endl
+                  << "write avg:  " << g_test_cnt / (time_now() - g_begin_time)
                   << std::endl;
     }
     if (task != nullptr) {
@@ -48,9 +49,9 @@ static void mysql_exec_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* t
 
 static void mysql_query_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* task, MYSQL_RES* res) {
     // std::cout << "query callback, sql: [" << task->sql << "]" << std::endl;
-    if (++callback_cnt == MAX_CALLBACK_CNT) {
-        std::cout << "spend time: " << time_now() - begin_time << std::endl
-                  << "read avg:   " << MAX_CALLBACK_CNT / (time_now() - begin_time)
+    if (++g_callback_cnt == g_test_cnt) {
+        std::cout << "spend time: " << time_now() - g_begin_time << std::endl
+                  << "read avg:   " << g_test_cnt / (time_now() - g_begin_time)
                   << std::endl;
     }
     if (task != nullptr) {
@@ -64,7 +65,7 @@ int main(int args, char** argv) {
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
 
-    if (args < 1) {
+    if (args < 2) {
         std::cerr << "invalid args! './amysql read' or './amysql write'"
                   << std::endl;
         return 1;
@@ -74,6 +75,12 @@ int main(int args, char** argv) {
     if (!strcasecmp(argv[1], "write")) {
         is_write = true;
         std::cout << "write" << std::endl;
+    }
+
+    g_test_cnt = atoi(argv[2]);
+    if (g_test_cnt == 0) {
+        std::cerr << "invalid test cnt: " << argv[2] << std::endl;
+        return 1;
     }
 
     kim::Log* m_logger = new kim::Log;
@@ -110,8 +117,8 @@ int main(int args, char** argv) {
         {"database":{"test":{"host":"127.0.0.1","port":3306,"user":"root",
                "password":"1234567","charset":"utf8mb4","connection_count":10}}} 
     */
-    begin_time = time_now();
-    for (int i = 0; i < MAX_CALLBACK_CNT; i++) {
+    g_begin_time = time_now();
+    for (int i = 0; i < g_test_cnt; i++) {
         if (is_write) {
             std::string sql = format_str("insert into mytest.test_async_mysql (value) values ('%s');", "hello+world");
             pool->sql_exec("test", &mysql_exec_callback, sql);
