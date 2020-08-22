@@ -70,6 +70,7 @@ bool DBMgr::init(CJsonObject& config) {
 }
 
 MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
+    LOG_DEBUG("dsfdsfds");
     auto itr = m_dbs.find(node);
     if (itr == m_dbs.end()) {
         LOG_ERROR("invalid db node : %s!", node.c_str());
@@ -80,6 +81,7 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
     std::string identity = format_identity(
         db_info->host, db_info->port, db_info->db_name);
     MysqlAsyncConn* c = nullptr;
+    LOG_DEBUG("connection identity: %s", identity.c_str());
 
     // get connection.
     auto it = m_conns.find(identity);
@@ -91,8 +93,10 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
             return nullptr;
         }
         std::list<MysqlAsyncConn*> conns({c});
-        conns.push_back(c);
         m_conns.insert({identity, {conns.begin(), conns}});
+        MysqlConnPair& pair = m_conns.begin()->second;
+        pair.first = pair.second.begin();
+        LOG_DEBUG("list_itr %p, %p", conns.begin(), pair.first);
     } else {
         auto& list = it->second.second;
         auto& list_itr = it->second.first;
@@ -104,11 +108,14 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
                 return nullptr;
             }
             list.push_back(c);
+            list_itr++;
+            LOG_DEBUG("list_itr1 %p", list_itr);
         } else {
-            c = *list_itr;
             if (++list_itr == list.end()) {
                 list_itr = list.begin();
             }
+            LOG_DEBUG("list_itr2 %p", list_itr);
+            c = *list_itr;
         }
     }
 
@@ -150,10 +157,10 @@ bool DBMgr::check_query_sql(const std::string& sql) {
 
 bool DBMgr::sql_query(const std::string& node,
                       MysqlQueryCallbackFn* fn, const std::string& sql, void* privdata) {
-    // if (!check_query_sql(sql)) {
-    //     LOG_ERROR("invalid query sql: %s", sql.c_str());
-    //     return false;
-    // }
+    if (!check_query_sql(sql)) {
+        LOG_ERROR("invalid query sql: %s", sql.c_str());
+        return false;
+    }
 
     MysqlAsyncConn* c = get_conn(node);
     if (c == nullptr) {

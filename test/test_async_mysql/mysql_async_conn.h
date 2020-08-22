@@ -40,7 +40,7 @@ typedef struct sql_task_s {
     MysqlExecCallbackFn* fn_exec = nullptr;
     MysqlQueryCallbackFn* fn_query = nullptr;
     void* privdata = nullptr;
-    int error = -1;
+    int error = 0;
     std::string errstr;
 } sql_task_t;
 
