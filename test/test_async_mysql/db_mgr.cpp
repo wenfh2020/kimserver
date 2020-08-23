@@ -70,18 +70,16 @@ bool DBMgr::init(CJsonObject& config) {
 }
 
 MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
-    LOG_DEBUG("dsfdsfds");
     auto itr = m_dbs.find(node);
     if (itr == m_dbs.end()) {
         LOG_ERROR("invalid db node : %s!", node.c_str());
         return nullptr;
     }
 
+    MysqlAsyncConn* c = nullptr;
     db_info_t* db_info = itr->second;
     std::string identity = format_identity(
         db_info->host, db_info->port, db_info->db_name);
-    MysqlAsyncConn* c = nullptr;
-    LOG_DEBUG("connection identity: %s", identity.c_str());
 
     // get connection.
     auto it = m_conns.find(identity);
@@ -96,7 +94,6 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
         m_conns.insert({identity, {conns.begin(), conns}});
         MysqlConnPair& pair = m_conns.begin()->second;
         pair.first = pair.second.begin();
-        LOG_DEBUG("list_itr %p, %p", conns.begin(), pair.first);
     } else {
         auto& list = it->second.second;
         auto& list_itr = it->second.first;
@@ -109,12 +106,10 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
             }
             list.push_back(c);
             list_itr++;
-            LOG_DEBUG("list_itr1 %p", list_itr);
         } else {
             if (++list_itr == list.end()) {
                 list_itr = list.begin();
             }
-            LOG_DEBUG("list_itr2 %p", list_itr);
             c = *list_itr;
         }
     }
@@ -122,20 +117,41 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
     return c;
 }
 
-bool DBMgr::sql_exec(const std::string& node,
-                     MysqlExecCallbackFn* fn, const std::string& sql, void* privdata) {
-    MysqlAsyncConn* c = get_conn(node);
-    if (c == nullptr) {
-        LOG_ERROR("get conn failed! node: %s", node.c_str());
+bool DBMgr::handle_sql(bool is_query, const char* node,
+                       void* fn, const char* sql, void* privdata) {
+    if (node == nullptr || fn == nullptr || sql == nullptr) {
+        LOG_ERROR("invalid params!");
         return false;
     }
+
+    if (is_query && !check_query_sql(sql)) {
+        LOG_ERROR("invalid query sql: %s", sql);
+        return false;
+    }
+
+    MysqlAsyncConn* c = get_conn(node);
+    if (c == nullptr) {
+        LOG_ERROR("get conn failed! node: %s", node);
+        return false;
+    }
+
     sql_task_t* task = new sql_task_t;
-    task->oper = sql_task_t::OPERATE::EXEC;
+    if (is_query) {
+        task->oper = sql_task_t::OPERATE::SELECT;
+        task->fn_query = (MysqlQueryCallbackFn*)fn;
+    } else {
+        task->oper = sql_task_t::OPERATE::EXEC;
+        task->fn_exec = (MysqlExecCallbackFn*)fn;
+    }
     task->sql = sql;
-    task->fn_exec = fn;
     task->privdata = privdata;
     c->add_task(task);
     return true;
+}
+
+bool DBMgr::async_exec(const char* node, MysqlExecCallbackFn* fn,
+                       const char* sql, void* privdata) {
+    return handle_sql(false, node, (void*)fn, sql, privdata);
 }
 
 bool DBMgr::check_query_sql(const std::string& sql) {
@@ -143,7 +159,6 @@ bool DBMgr::check_query_sql(const std::string& sql) {
     std::stringstream ss(sql);
     std::string oper;
     ss >> oper;
-    LOG_DEBUG("query sql, oper: %s", oper.c_str());
 
     // find the select's word.
     const char* select[] = {"select", "show", "explain", "desc"};
@@ -155,25 +170,9 @@ bool DBMgr::check_query_sql(const std::string& sql) {
     return false;
 }
 
-bool DBMgr::sql_query(const std::string& node,
-                      MysqlQueryCallbackFn* fn, const std::string& sql, void* privdata) {
-    if (!check_query_sql(sql)) {
-        LOG_ERROR("invalid query sql: %s", sql.c_str());
-        return false;
-    }
-
-    MysqlAsyncConn* c = get_conn(node);
-    if (c == nullptr) {
-        LOG_ERROR("get conn failed! node: %s", node.c_str());
-        return false;
-    }
-    sql_task_t* task = new sql_task_t;
-    task->oper = sql_task_t::OPERATE::SELECT;
-    task->sql = sql;
-    task->fn_query = fn;
-    task->privdata = privdata;
-    c->add_task(task);
-    return true;
+bool DBMgr::async_query(const char* node, MysqlQueryCallbackFn* fn,
+                        const char* sql, void* privdata) {
+    return handle_sql(true, node, (void*)fn, sql, privdata);
 }
 
 std::string

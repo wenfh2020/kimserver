@@ -166,9 +166,7 @@ bool MysqlAsyncConn::connect_wait(struct ev_loop* loop, ev_io* watcher, int even
         if (check_error_reconnect(m_cur_task)) {
             LOG_INFO("reconnect! host: %s, port: %d.", m_db_info->host.c_str(), m_db_info->port);
         } else {
-            if (m_cur_task->fn_exec != nullptr) {
-                m_cur_task->fn_exec(this, m_cur_task);
-            }
+            callback(false);
             SAFE_DELETE(m_cur_task);
             wait_next_task();
         }
@@ -201,9 +199,7 @@ bool MysqlAsyncConn::query_start() {
             LOG_ERROR("sql reconnect! host: %s, port: %d", m_db_info->host.c_str(), m_db_info->port);
             return false;
         }
-        if (m_cur_task->fn_query != nullptr) {
-            m_cur_task->fn_query(this, m_cur_task, m_query_res);
-        }
+        callback(true);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
         return true;
@@ -235,9 +231,7 @@ bool MysqlAsyncConn::query_wait(struct ev_loop* loop, ev_io* w, int event) {
             LOG_ERROR("sql reconnect! host: %s, port: %d", m_db_info->host.c_str(), m_db_info->port);
             return false;
         }
-        if (m_cur_task->fn_query) {
-            m_cur_task->fn_query(this, m_cur_task, m_query_res);
-        }
+        callback(true);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
         return false;
@@ -265,9 +259,7 @@ int MysqlAsyncConn::store_result_start() {
         active_ev_io(status);
     } else {
         LOG_DEBUG("store_result done.");
-        if (m_cur_task->fn_query != nullptr) {
-            m_cur_task->fn_query(this, m_cur_task, m_query_res);
-        }
+        callback(true);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
     }
@@ -284,18 +276,16 @@ bool MysqlAsyncConn::store_result_wait(struct ev_loop* loop, ev_io* watcher, int
         /* LT mode. it will callback again! */
         set_state(STATE::STORE_WAITING);
     } else {
-        if (m_cur_task && m_cur_task->fn_query) {
-            m_cur_task->fn_query(this, m_cur_task, m_query_res);
-        }
+        callback(true);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
     }
     return true;
 }
 
-int MysqlAsyncConn::exec_sql_start() {
+bool MysqlAsyncConn::exec_sql_start() {
     if (m_cur_task == nullptr) {
-        return 0;
+        return false;
     }
     LOG_DEBUG("exec sql: %s", m_cur_task->sql.c_str());
 
@@ -309,12 +299,10 @@ int MysqlAsyncConn::exec_sql_start() {
             LOG_ERROR("sql reconnect! host: %s, port: %d", m_db_info->host.c_str(), m_db_info->port);
             return 0;
         }
-        if (m_cur_task->fn_exec != nullptr) {
-            m_cur_task->fn_exec(this, m_cur_task);
-        }
+        callback(false);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
-        return 1;
+        return false;
     }
 
     if (status != 0) {
@@ -322,14 +310,12 @@ int MysqlAsyncConn::exec_sql_start() {
         active_ev_io(status);
     } else {
         LOG_DEBUG("exec_sql done, sql: %s", m_cur_task->sql.c_str());
-        if (m_cur_task->fn_exec != nullptr) {
-            m_cur_task->fn_exec(this, m_cur_task);
-        }
+        callback(false);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
     }
 
-    return 0;
+    return true;
 }
 
 bool MysqlAsyncConn::exec_sql_wait(struct ev_loop* loop, ev_io* watcher, int event) {
@@ -347,11 +333,9 @@ bool MysqlAsyncConn::exec_sql_wait(struct ev_loop* loop, ev_io* watcher, int eve
             LOG_INFO("reconnect! host: %s, port: %d.",
                      m_db_info->host.c_str(), m_db_info->port);
         } else {
-            LOG_DEBUG("exec sql failed! sql: %s",
+            LOG_DEBUG("exec sql failed! error: %d, errstr: %s",
                       m_cur_task->error, m_cur_task->errstr.c_str());
-            if (m_cur_task->fn_exec != nullptr) {
-                m_cur_task->fn_exec(this, m_cur_task);
-            }
+            callback(false);
             set_state(STATE::WAIT_OPERATE);
             wait_next_task();
         }
@@ -364,9 +348,7 @@ bool MysqlAsyncConn::exec_sql_wait(struct ev_loop* loop, ev_io* watcher, int eve
         // LOG_DEBUG("wait_for_mysql state: EXECSQL_WAITING");
     } else {
         LOG_DEBUG("exec sql done! sql: %s", m_cur_task->sql.c_str());
-        if (m_cur_task->fn_exec != nullptr) {
-            m_cur_task->fn_exec(this, m_cur_task);
-        }
+        callback(false);
         set_state(STATE::WAIT_OPERATE);
         wait_next_task();
     }
@@ -388,11 +370,12 @@ void MysqlAsyncConn::add_task(sql_task_t* task) {
     }
 }
 
-int MysqlAsyncConn::wait_next_task(int mysql_status) {
+bool MysqlAsyncConn::wait_next_task(int mysql_status) {
     if (task_size() > 0) {
         active_ev_io(mysql_status);
+        return true;
     }
-    return 0;
+    return false;
 }
 
 sql_task_t* MysqlAsyncConn::fetch_next_task() {
@@ -417,6 +400,23 @@ void MysqlAsyncConn::active_ev_io(int mysql_status) {
         ev_io_start(m_loop, &m_watcher);
     }
     m_watcher.data = this;
+}
+
+void MysqlAsyncConn::callback(bool is_query) {
+    if (is_query) {
+        if (m_cur_task && m_cur_task->fn_query) {
+            m_mysql_result.init(&m_mysql, m_query_res);
+            m_cur_task->fn_query(this, m_cur_task, &m_mysql_result);
+            if (m_query_res != nullptr) {
+                mysql_free_result(m_query_res);
+                m_query_res = nullptr;
+            }
+        }
+    } else {
+        if (m_cur_task->fn_exec != nullptr) {
+            m_cur_task->fn_exec(this, m_cur_task);
+        }
+    }
 }
 
 }  // namespace kim
