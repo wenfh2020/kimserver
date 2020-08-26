@@ -35,7 +35,7 @@ Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
     rsp_body.set_data("good job!");
     rsp_head.set_len(rsp_body.ByteSizeLong());
 
-    return m_net->send_to(req->get_conn(), rsp_head, rsp_body)
+    return get_net()->send_to(req->get_conn(), rsp_head, rsp_body)
                ? Cmd::STATUS::ERROR
                : Cmd::STATUS::OK;
 }

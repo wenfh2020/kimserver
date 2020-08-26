@@ -24,9 +24,6 @@
 
 namespace kim {
 
-/**
- * @brief Json管理类
- */
 class CJsonObject {
    public:  // method of ordinary json object or json array
     CJsonObject();
@@ -52,9 +49,9 @@ class CJsonObject {
     void GetKeys(std::vector<std::string>& vecKeys);
     bool AddEmptySubObject(const std::string& strKey);
     bool AddEmptySubArray(const std::string& strKey);
-    CJsonObject& operator[](const std::string& strKey);       //获取成员,没有时会插入
-    std::string operator()(const std::string& strKey);        //只获取成员为原子类型
-    std::string operator()(const std::string& strKey) const;  //只获取成员为原子类型
+    CJsonObject& operator[](const std::string& strKey);
+    std::string operator()(const std::string& strKey);
+    std::string operator()(const std::string& strKey) const;
     bool Get(const std::string& strKey, CJsonObject& oJsonObject) const;
     bool Get(const std::string& strKey, std::string& strValue) const;
     bool Get(const std::string& strKey, int32& iValue) const;
@@ -86,9 +83,9 @@ class CJsonObject {
 
    public:  // method of json array
     int GetArraySize();
-    CJsonObject& operator[](unsigned int uiWhich);       //获取数组中获取,没有时会插入
-    std::string operator()(unsigned int uiWhich);        //只获取成员为原子类型
-    std::string operator()(unsigned int uiWhich) const;  //只获取成员为原子类型
+    CJsonObject& operator[](unsigned int uiWhich);
+    std::string operator()(unsigned int uiWhich);
+    std::string operator()(unsigned int uiWhich) const;
     bool Get(int iWhich, CJsonObject& oJsonObject) const;
     bool Get(int iWhich, std::string& strValue) const;
     bool Get(int iWhich, int32& iValue) const;
