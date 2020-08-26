@@ -19,23 +19,30 @@ CREATE TABLE `test_async_mysql` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4; 
 */
 
-// test disconnect.
-// destory sql_task callback.
-// close task. leak.
 // make all project.
 
 int g_test_cnt = 0;
 int g_cur_callback_cnt = 0;
+int g_err_callback_cnt = 0;
 double g_begin_time;
 bool g_is_write = false;
 const char* g_userdata = "123456";
-#define LOG_LEVEL "info"
+ev_timer m_timer;
+
+void libev_timer_cb(struct ev_loop* loop, ev_timer* w, int events) {
+    std::cout << "------" << std::endl
+              << "callback cnt:     " << g_cur_callback_cnt << std::endl
+              << "err callback cnt: " << g_err_callback_cnt << std::endl;
+}
 
 static void mysql_exec_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* task) {
     if (++g_cur_callback_cnt == g_test_cnt) {
         std::cout << "spend time: " << time_now() - g_begin_time << std::endl
                   << "write avg:  " << g_test_cnt / (time_now() - g_begin_time)
                   << std::endl;
+
+        std::cout << "callback cnt:     " << g_cur_callback_cnt << std::endl
+                  << "err callback cnt: " << g_err_callback_cnt << std::endl;
     }
 
     if (task != nullptr) {
@@ -45,32 +52,52 @@ static void mysql_exec_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* t
     }
 }
 
+bool check_result(kim::sql_task_t* task, kim::MysqlResult* res) {
+    if (task == nullptr || task->error != 0) {
+        g_err_callback_cnt++;
+        std::cout << task->error << " " << task->errstr << std::endl;
+        return false;
+    }
+
+    if (res == nullptr || !res->is_ok()) {
+        g_err_callback_cnt++;
+        std::cout << "invalid result!" << std::endl;
+        return false;
+    }
+
+    kim::vec_row_t data;
+    if (res->get_num_rows() == 0) {
+        g_err_callback_cnt++;
+        return false;
+    }
+
+    return true;
+}
+
 static void mysql_query_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* task, kim::MysqlResult* res) {
     /*  std::cout << "query callback, sql: [" << task->sql << "]" << std::endl; */
+    check_result(task, res);
     if (++g_cur_callback_cnt == g_test_cnt) {
         std::cout << "spend time: " << time_now() - g_begin_time << std::endl
                   << "read avg:   " << g_test_cnt / (time_now() - g_begin_time)
                   << std::endl;
-    }
 
-    if (task == nullptr || task->error != 0) {
-        std::cout << task->error << " " << task->errstr << std::endl;
-        return;
+        std::cout << "callback cnt:     " << g_cur_callback_cnt << std::endl
+                  << "err callback cnt: " << g_err_callback_cnt << std::endl;
     }
-
+    /* 
     kim::vec_row_t data;
-    if (res->get_result_data(data) == 0) {
-        std::cout << "query no data!" << std::endl;
-        return;
-    }
-
-    for (int i = 0; i < data.size(); i++) {
-        kim::map_row_t& items = data[i];
-        for (const auto& it : items) {
-            std::cout << "col: " << it.first << ", "
-                      << "data: " << it.second << std::endl;
+    int size = res->get_result_data(data);
+    if (size != 0) {
+        for (size_t i = 0; i < data.size(); i++) {
+            kim::map_row_t& items = data[i];
+            for (const auto& it : items) {
+                std::cout << "col: " << it.first << ", "
+                          << "data: " << it.second << std::endl;
+            }
         }
     }
+  */
 }
 
 bool check_args(int args, char** argv) {
@@ -106,7 +133,8 @@ int main(int args, char** argv) {
     }
 
     /* "debug", "err", "info", "crit" ... pls set "err" if pressure. */
-    m_logger->set_level(LOG_LEVEL);
+    // m_logger->set_level(kim::Log::LL_DEBUG);
+    m_logger->set_level(kim::Log::LL_INFO);
 
     kim::CJsonObject config;
     if (!config.Load("../../bin/config.json") || config["database"].IsEmpty()) {
@@ -122,6 +150,8 @@ int main(int args, char** argv) {
     */
 
     struct ev_loop* loop = EV_DEFAULT;
+    ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
+    ev_timer_start(loop, &m_timer);
 
     kim::DBMgr* pool = new kim::DBMgr(m_logger, loop);
     if (!pool->init(config["database"])) {
@@ -152,6 +182,8 @@ int main(int args, char** argv) {
             }
         }
     }
+
+    std::cout << "waiting result" << std::endl;
 
     ev_run(loop, 0);
     SAFE_DELETE(pool);

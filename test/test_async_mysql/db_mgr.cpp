@@ -97,7 +97,7 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
     } else {
         auto& list = it->second.second;
         auto& list_itr = it->second.first;
-        if (list.size() < db_info->max_conn_cnt) {
+        if ((int)list.size() < db_info->max_conn_cnt) {
             c = async_connect(db_info);
             if (c == nullptr) {
                 LOG_ERROR("async db connect failed! %s:%d",
@@ -105,12 +105,14 @@ MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
                 return nullptr;
             }
             list.push_back(c);
-            list_itr++;
         } else {
             if (++list_itr == list.end()) {
                 list_itr = list.begin();
             }
             c = *list_itr;
+            if (!c->is_connected()) {
+                return nullptr;
+            }
         }
     }
 
