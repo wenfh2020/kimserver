@@ -19,7 +19,7 @@ SERVER_LD = $(QUIET_LINK) $(CXX) $(CXXFLAG)
 SERVER_CPP = $(QUIET_CPP) $(CXX) $(CXXFLAG)
 SERVER_CLEAN = $(QUIET_CLEAN) rm -f
 
-CORE_PATH = ../../src/core
+CORE_PATH = ../../../src/core
 VPATH = . $(CORE_PATH)
 DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
 

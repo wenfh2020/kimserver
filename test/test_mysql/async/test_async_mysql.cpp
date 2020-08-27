@@ -137,7 +137,7 @@ int main(int args, char** argv) {
     m_logger->set_level(kim::Log::LL_INFO);
 
     kim::CJsonObject config;
-    if (!config.Load("../../bin/config.json") || config["database"].IsEmpty()) {
+    if (!config.Load("../../../bin/config.json") || config["database"].IsEmpty()) {
         LOG_ERROR("load json config failed!");
         SAFE_DELETE(m_logger);
         return 1;
@@ -150,8 +150,8 @@ int main(int args, char** argv) {
     */
 
     struct ev_loop* loop = EV_DEFAULT;
-    ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
-    ev_timer_start(loop, &m_timer);
+    // ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
+    // ev_timer_start(loop, &m_timer);
 
     kim::DBMgr* pool = new kim::DBMgr(m_logger, loop);
     if (!pool->init(config["database"])) {
@@ -162,8 +162,6 @@ int main(int args, char** argv) {
     }
 
     char sql[1024];
-    g_begin_time = time_now();
-
     for (int i = 0; i < g_test_cnt; i++) {
         if (g_is_write) {
             snprintf(sql, sizeof(sql),
@@ -183,6 +181,7 @@ int main(int args, char** argv) {
         }
     }
 
+    g_begin_time = time_now();
     std::cout << "waiting result" << std::endl;
 
     ev_run(loop, 0);
