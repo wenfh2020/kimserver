@@ -55,7 +55,11 @@ gen_proto() {
 }
 
 run() {
-    export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/lib/mariadb/
+    if [ $(uname -s) == "Darwin" ]; then
+        export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/lib/mariadb/
+    else
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/mariadb/
+    fi
     cd $work_path/bin
     ./$server config.json
     echo '<------------------'
