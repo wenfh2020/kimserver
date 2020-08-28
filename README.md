@@ -20,14 +20,15 @@ Kimserver is an async tcp multiple processes (master & workers) high-performance
 
 Enable C++11 and install third party libs.
 
-| 3rd      | version |
-| :------- | :------ |
-| g++      | 4.2.1   |
-| libev    | 4.27    |
-| protobuf | 4.0.0   |
-| cryptopp | 8.1.0   |
-| hiredis  | 0.14.0  |
-| jemalloc | 5.2.1   |
+| 3rd                                                                                                            | version |
+| :------------------------------------------------------------------------------------------------------------- | :------ |
+| g++                                                                                                            | 4.2.1   |
+| libev                                                                                                          | 4.27    |
+| protobuf                                                                                                       | 4.0.0   |
+| cryptopp                                                                                                       | 8.1.0   |
+| hiredis                                                                                                        | 0.14.0  |
+| jemalloc                                                                                                       | 5.2.1   |
+| [mariadb-connector-c](http://mariadb.mirror.iweb.com//connector-c-3.1.9/mariadb-connector-c-3.1.9-src.tar.gz ) | 3.1.9   |
 
 > **[note]** Install protobuf use script: [install_protobuf.sh](https://github.com/wenfh2020/kimserver/blob/master/script/install/install_protobuf.sh)
 

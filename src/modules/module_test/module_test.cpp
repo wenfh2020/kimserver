@@ -1,5 +1,10 @@
 #include "module_test.h"
 
+#include "cmd_hello.h"
+#include "cmd_test_mysql.h"
+#include "cmd_test_redis.h"
+#include "cmd_test_timeout.h"
+
 namespace kim {
 
 Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {
@@ -46,6 +51,10 @@ Cmd::STATUS MoudleTest::func_test_cmd(std::shared_ptr<Request> req) {
 
 Cmd::STATUS MoudleTest::func_test_redis(std::shared_ptr<Request> req) {
     HANDLE_CMD(CmdTestRedis);
+}
+
+Cmd::STATUS MoudleTest::func_test_mysql(std::shared_ptr<Request> req) {
+    HANDLE_CMD(CmdTestMysql);
 }
 
 Cmd::STATUS MoudleTest::func_test_timeout(std::shared_ptr<Request> req) {

@@ -7,6 +7,7 @@
 
 #include "codec/codec.h"
 #include "connection.h"
+#include "db/db_mgr.h"
 #include "events.h"
 #include "module_mgr.h"
 #include "net.h"
@@ -42,6 +43,7 @@ class Network : public INet {
     bool load_config(const CJsonObject& config);
     bool load_timer(INet* net);
     bool load_modules();
+    bool load_db();
 
     // events.
     void run();
@@ -84,10 +86,23 @@ class Network : public INet {
     virtual void on_redis_disconnect(const redisAsyncContext* c, int status) override;
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
 
+    // database callback.
+    static void on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task);
+    static void on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res);
+
+    virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) override;
+    virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) override;
+
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
+
+    // redis.
     virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd* cmd, const std::vector<std::string>& rds_cmds) override;
+
+    // database
+    virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
+    virtual bool db_query(const char* node, const char* sql, Cmd* cmd) override;
 
    private:
     void close_fd(int fd);
@@ -132,6 +147,8 @@ class Network : public INet {
     ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
     std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.
     std::unordered_map<std::string, RdsConnection*> m_redis_conns;  // redis connections.
+
+    DBMgr* m_db_pool = nullptr;
 };
 
 }  // namespace kim

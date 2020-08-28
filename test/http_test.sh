@@ -35,6 +35,10 @@ case "$1" in
     url="$base_url/kim/test_timeout/"
     request='{"key": "test_timeout"}'
     ;;
+"5")
+    url="$base_url/kim/test_mysql/"
+    request='{"id": "1", "value": "hello_world"}'
+    ;;
 *)
     echo "invalid param"
     exit 1

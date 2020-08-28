@@ -8,13 +8,15 @@ VPATH = .
 SUB_DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
 DIRS := $(SUB_DIRS)
 
-
-
 INC := $(INC) \
-       -I .
+       -I . \
+	   -I /usr/local/include/mariadb
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
+          -L /usr/local/opt/openssl/lib \
+          -L /usr/local/lib/mariadb \
           -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
+		  -lmariadb -lssl -lcrypto
 
 CPP_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))

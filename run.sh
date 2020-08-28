@@ -55,6 +55,7 @@ gen_proto() {
 }
 
 run() {
+    export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/lib/mariadb/
     cd $work_path/bin
     ./$server config.json
     echo '<------------------'

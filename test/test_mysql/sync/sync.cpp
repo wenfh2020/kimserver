@@ -82,8 +82,8 @@ int main(int args, char **argv) {
                 show_error(mysql);
             }
             result = mysql_store_result(mysql);
-            printf("query rows: %lu\n",
-                   (unsigned long)mysql_affected_rows(mysql));
+            // printf("query rows: %lu\n",
+            //        (unsigned long)mysql_affected_rows(mysql));
             mysql_free_result(result);
         }
     }

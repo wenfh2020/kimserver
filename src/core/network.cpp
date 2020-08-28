@@ -133,6 +133,11 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
         return false;
     }
 
+    if (!load_db()) {
+        LOG_ERROR("loda db failed!");
+        return false;
+    }
+
     if (!load_modules()) {
         LOG_ERROR("load module failed!");
         return false;
@@ -822,6 +827,116 @@ E_RDS_STATUS Network::redis_send_to(const std::string& host, int port,
     return E_RDS_STATUS::OK;
 }
 
+bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
+    if (node == nullptr || sql == nullptr || cmd == nullptr) {
+        LOG_ERROR("invalid param!");
+        return false;
+    }
+
+    LOG_DEBUG("database exec, node: %s, sql: %s", node, sql);
+
+    wait_cmd_info_t* index;
+    uint64_t cmd_id, module_id;
+
+    cmd_id = cmd->get_id();
+    module_id = cmd->get_module_id();
+    index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    if (index == nullptr) {
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
+                  cmd_id, module_id);
+        return false;
+    }
+
+    if (!m_db_pool->async_exec(node, &on_mysql_lib_exec_callback, sql, index)) {
+        SAFE_DELETE(index);
+        LOG_ERROR("database query failed! node: %s, sql: %s", node, sql);
+        return false;
+    }
+
+    return true;
+}
+
+bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
+    if (node == nullptr || sql == nullptr || cmd == nullptr) {
+        LOG_ERROR("invalid param!");
+        return false;
+    }
+
+    LOG_DEBUG("database query, node: %s, sql: %s", node, sql);
+
+    wait_cmd_info_t* index;
+    uint64_t cmd_id, module_id;
+
+    cmd_id = cmd->get_id();
+    module_id = cmd->get_module_id();
+    index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    if (index == nullptr) {
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
+                  cmd_id, module_id);
+        return false;
+    }
+
+    if (!m_db_pool->async_query(node, &on_mysql_lib_query_callback, sql, index)) {
+        SAFE_DELETE(index);
+        LOG_ERROR("database query failed! node: %s, sql: %s", node, sql);
+        return false;
+    }
+
+    return true;
+}
+
+void Network::on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(task->privdata);
+    index->net->on_mysql_query_callback(c, task, res);
+}
+
+void Network::on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {
+    int err;
+    Module* module;
+    wait_cmd_info_t* index;
+
+    index = static_cast<wait_cmd_info_t*>(task->privdata);
+    module = m_module_mgr->get_module(index->module_id);
+    if (module == nullptr) {
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        SAFE_DELETE(index);
+        return;
+    }
+
+    err = task->error != 0 ? ERR_DATABASE_FAILED : ERR_OK;
+    if (err != ERR_OK) {
+        LOG_ERROR("database query failed, error: %d, errstr: %s",
+                  task->error, task->errstr.c_str());
+    }
+    module->on_callback(index, err, res);
+}
+
+void Network::on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(task->privdata);
+    index->net->on_mysql_exec_callback(c, task);
+}
+
+void Network::on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
+    int err;
+    Module* module;
+    wait_cmd_info_t* index;
+
+    index = static_cast<wait_cmd_info_t*>(task->privdata);
+    module = m_module_mgr->get_module(index->module_id);
+    if (module == nullptr) {
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        SAFE_DELETE(index);
+        return;
+    }
+
+    err = task->error != 0 ? ERR_DATABASE_FAILED : ERR_OK;
+    if (err != ERR_OK) {
+        LOG_ERROR("database query failed, error: %d, errstr: %s",
+                  task->error, task->errstr.c_str());
+    }
+    module->on_callback(index, err, nullptr);
+}
+
 RdsConnection* Network::redis_connect(const std::string& host, int port, void* privdata) {
     RdsConnection* c;
     redisAsyncContext* ctx;
@@ -1005,6 +1120,21 @@ void Network::close_fd(int fd) {
                  fd, errno, strerror(errno));
     }
     LOG_DEBUG("close fd: %d.", fd);
+}
+
+bool Network::load_db() {
+    SAFE_DELETE(m_db_pool);
+    m_db_pool = new DBMgr(m_logger, m_events->get_ev_loop());
+    if (m_db_pool == nullptr) {
+        LOG_ERROR("load db pool failed!");
+        return false;
+    }
+    if (!m_db_pool->init(m_conf["database"])) {
+        LOG_ERROR("init db pool failed!");
+        SAFE_DELETE(m_db_pool);
+        return false;
+    }
+    return true;
 }
 
 }  // namespace kim

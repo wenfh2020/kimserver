@@ -2,7 +2,7 @@
 
 #include <errmsg.h>
 
-#define MAX_DISCONNECT_TIME 20
+#define MAX_DISCONNECT_TIME 2
 #define SET_ERR_INFO(x, e, s)                \
     if (x != nullptr) {                      \
         x->error = e;                        \
@@ -210,7 +210,7 @@ void MysqlAsyncConn::query_start() {
 
     if (status != 0) {
         /* LT mode. it will callback again! */
-        LOG_DEBUG("query done fsdfs, sql: %s", m_cur_task->sql.c_str());
+        LOG_DEBUG("query done, sql: %s", m_cur_task->sql.c_str());
         set_state(STATE::QUERY_WAITING);
         active_ev_io(status);
         return;

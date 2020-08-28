@@ -33,6 +33,8 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS response_http(int err, const std::string& errstr, const CJsonObject& data, int status_code = 200);
     virtual Cmd::STATUS response_http(int err, const std::string& errstr, int status_code = 200);
     virtual Cmd::STATUS redis_send_to(const std::string& host, int port, const std::vector<std::string>& rds_cmds);
+    virtual Cmd::STATUS db_exec(const char* node, const char* sql);
+    virtual Cmd::STATUS db_query(const char* node, const char* sql);
 
     uint64_t get_module_id() { return m_module_id; }
     CJsonObject& config() { return m_net->get_config(); }

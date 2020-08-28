@@ -16,11 +16,11 @@
 #include <iostream>
 #include <list>
 
+#include "../server.h"
+#include "../util/json/CJsonObject.hpp"
+#include "../util/log.h"
 #include "mysql_result.h"
 #include "mysql_task.h"
-#include "server.h"
-#include "util/json/CJsonObject.hpp"
-#include "util/log.h"
 
 namespace kim {
 

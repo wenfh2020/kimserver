@@ -25,10 +25,14 @@ DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
 
 INC := $(INC) \
        -I . \
+	   -I /usr/local/include/mariadb \
        -I $(CORE_PATH)
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
-           -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
+          -L /usr/local/opt/openssl/lib \
+          -L /usr/local/lib/mariadb \
+          -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
+		  -lmariadb -lssl -lcrypto
 
 # so objs.
 SO_PATH = .

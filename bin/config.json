@@ -26,7 +26,7 @@
             "user": "root",
             "password": "root123!@#",
             "charset": "utf8mb4",
-            "max_conn_cnt": 1
+            "max_conn_cnt": 5
         }
     }
 }

@@ -70,6 +70,32 @@ Cmd::STATUS Cmd::redis_send_to(const std::string& host,
     }
 }
 
+Cmd::STATUS Cmd::db_exec(const char* node, const char* sql) {
+    if (node == nullptr || sql == nullptr) {
+        LOG_ERROR("invalid param!");
+        return Cmd::STATUS::ERROR;
+    }
+    LOG_DEBUG("db exec, node: %s, sql: %s", node, sql);
+    if (!get_net()->db_exec(node, sql, this)) {
+        LOG_ERROR("database exec failed! node: %s, sql: %s", node, sql);
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::RUNNING;
+}
+
+Cmd::STATUS Cmd::db_query(const char* node, const char* sql) {
+    if (node == nullptr || sql == nullptr) {
+        LOG_ERROR("invalid param!");
+        return Cmd::STATUS::ERROR;
+    }
+    LOG_DEBUG("db exec, node: %s, sql: %s", node, sql);
+    if (!get_net()->db_query(node, sql, this)) {
+        LOG_ERROR("database query failed! node: %s, sql: %s", node, sql);
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::RUNNING;
+}
+
 Cmd::STATUS Cmd::execute_next_step(int err, void* data) {
     set_next_step();
     return execute_steps(err, data);
@@ -92,7 +118,8 @@ Cmd::STATUS Cmd::on_timeout() {
     if (++m_cur_timeout_cnt < get_max_timeout_cnt()) {
         return Cmd::STATUS::RUNNING;
     }
-    return response_http(ERR_EXEC_CMD_TIMEUOT, "request handle timeout!");
+    return Cmd::STATUS::ERROR;
+    // return response_http(ERR_EXEC_CMD_TIMEUOT, "request handle timeout!");
 }
 
-};  // namespace kim
+}  // namespace kim

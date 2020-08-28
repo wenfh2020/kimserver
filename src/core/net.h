@@ -6,6 +6,7 @@
 #include <hiredis/hiredis.h>
 
 #include "connection.h"
+#include "db/mysql_async_conn.h"
 #include "util/json/CJsonObject.hpp"
 
 namespace kim {
@@ -59,13 +60,24 @@ class INet {
     virtual void on_redis_disconnect(const redisAsyncContext* c, int status) {}
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
 
+    // database
+    /////////////////////////////////
+    virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {}
+    virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {}
+
    public:
     // socket.
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
+
+    // redis.
     virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd*, const std::vector<std::string>& rds_cmds) {
         return E_RDS_STATUS::ERROR;
     }
+
+    // database.
+    virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) { return false; }
+    virtual bool db_query(const char* node, const char* sql, Cmd* cmd) { return false; }
 
     // events
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) { return nullptr; }
