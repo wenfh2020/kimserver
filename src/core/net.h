@@ -33,7 +33,7 @@ class INet {
    public:
     virtual uint64_t get_new_seq() { return 0; }
     virtual CJsonObject& get_config() { return m_conf; }
-    virtual double get_time_now() { return 0.0; }
+    virtual double get_time_now() { return time_now(); }
     virtual bool add_cmd(Cmd* cmd) { return false; }
     virtual Cmd* get_cmd(uint64_t id) { return nullptr; }
     virtual bool del_cmd(Cmd* cmd) { return false; }
