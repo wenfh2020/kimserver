@@ -166,8 +166,8 @@ int main(int args, char** argv) {
     for (int i = 0; i < g_test_cnt; i++) {
         if (g_is_write) {
             snprintf(sql, sizeof(sql),
-                     "insert into mytest.test_async_mysql (value) values ('%s');",
-                     "hello world");
+                     "insert into mytest.test_async_mysql (value) values ('%s %d');",
+                     "hello world", i);
             if (!pool->async_exec("test", &mysql_exec_callback, sql)) {
                 LOG_ERROR("exec sql failed! sql: %s", sql);
                 return 1;
