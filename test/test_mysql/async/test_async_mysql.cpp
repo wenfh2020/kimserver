@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-#include "db_mgr.h"
+#include "db/db_mgr.h"
 #include "server.h"
 #include "util/json/CJsonObject.hpp"
 #include "util/util.h"
@@ -162,6 +162,7 @@ int main(int args, char** argv) {
     }
 
     char sql[1024];
+    g_begin_time = time_now();
     for (int i = 0; i < g_test_cnt; i++) {
         if (g_is_write) {
             snprintf(sql, sizeof(sql),
@@ -181,7 +182,6 @@ int main(int args, char** argv) {
         }
     }
 
-    g_begin_time = time_now();
     std::cout << "waiting result" << std::endl;
 
     ev_run(loop, 0);

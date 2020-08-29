@@ -47,6 +47,7 @@ class Cmd : public Timer, public Base {
     int get_exec_step() { return m_step; }
     void set_next_step() { m_step++; }
     Cmd::STATUS execute_next_step(int err, void* data);
+    Cmd::STATUS execute_cur_step(int step, int err, void* data);
 
    protected:
     virtual Cmd::STATUS execute_steps(int err, void* data);

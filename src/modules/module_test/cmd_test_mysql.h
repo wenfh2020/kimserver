@@ -38,9 +38,14 @@ class CmdTestMysql : public Cmd {
                 CJsonObject req_data(msg->body());
                 m_key = req_data("id");
                 m_value = req_data("value");
+                m_oper = req_data("oper");
                 if (m_key.empty() || m_value.empty()) {
                     LOG_ERROR("invalid request data! pls check!");
                     return response_http(ERR_FAILED, "invalid request data");
+                }
+
+                if (m_oper == "read") {
+                    return execute_cur_step(ES_DATABASE_QUERY);
                 }
                 return execute_next_step(err, data);
             }
@@ -61,6 +66,11 @@ class CmdTestMysql : public Cmd {
                     LOG_ERROR("database inert callback failed! error: %d");
                     return response_http(ERR_FAILED, "database insert data failed!");
                 }
+
+                if (m_oper == "write") {
+                    return response_http(ERR_OK, "database write data done!");
+                }
+
                 return execute_next_step(err, data);
             }
             case ES_DATABASE_QUERY: {
@@ -104,7 +114,7 @@ class CmdTestMysql : public Cmd {
 
    private:
     char m_sql[256];
-    std::string m_key, m_value;
+    std::string m_key, m_value, m_oper;
 };
 
 }  // namespace kim

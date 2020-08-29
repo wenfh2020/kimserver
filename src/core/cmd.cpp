@@ -109,6 +109,11 @@ Cmd::STATUS Cmd::execute_steps(int err, void* data) {
     return Cmd::STATUS::OK;
 }
 
+Cmd::STATUS Cmd::execute_cur_step(int step, int err, void* data) {
+    m_step = step;
+    return execute_steps(err, data);
+}
+
 Cmd::STATUS Cmd::on_callback(int err, void* data) {
     return execute_steps(err, data);
 }
