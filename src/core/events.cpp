@@ -48,6 +48,10 @@ void Events::end_ev_loop() {
     }
 }
 
+double Events::time_now() {
+    return ev_now(m_ev_loop);
+}
+
 void Events::create_signal_event(int signum, void* privdata) {
     LOG_DEBUG("create_signal_event, sig: %d", signum);
     if (m_ev_loop == nullptr) {

@@ -52,6 +52,13 @@ void Network::run() {
     }
 }
 
+double Network::get_time_now() {
+    if (m_events == nullptr) {
+        return 0;
+    }
+    return m_events->time_now();
+}
+
 bool Network::load_config(const CJsonObject& config) {
     int codec;
     double secs;
@@ -213,7 +220,7 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     }
     c->init(codec);
     c->set_private_data(this);
-    c->set_active_time(time_now());
+    c->set_active_time(get_time_now());
     c->set_state(Connection::STATE::CONNECTED);
 
     w = m_events->add_read_event(fd, c->get_ev_io(), this);
@@ -440,7 +447,7 @@ void Network::on_cmd_timer(void* privdata) {
     Module* module;
 
     cmd = static_cast<Cmd*>(privdata);
-    secs = cmd->get_keep_alive() - (time_now() - cmd->get_active_time());
+    secs = cmd->get_keep_alive() - (get_time_now() - cmd->get_active_time());
     if (secs > 0) {
         LOG_DEBUG("cmd timer restart, cmd id: %llu, restart timer secs: %f",
                   cmd->get_id(), secs);
@@ -470,7 +477,7 @@ void Network::on_io_timer(void* privdata) {
 
         conn_data = static_cast<ConnectionData*>(privdata);
         c = conn_data->m_conn;
-        secs = c->get_keep_alive() - (time_now() - c->get_active_time());
+        secs = c->get_keep_alive() - (get_time_now() - c->get_active_time());
         if (secs > 0) {
             LOG_DEBUG("io timer restart, fd: %d, restart timer secs: %f",
                       c->get_fd(), secs);

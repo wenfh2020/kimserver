@@ -40,14 +40,18 @@ class Network : public INet {
     bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                     // for worker.
     bool create(const AddrInfo* addr_info, INet* net, const CJsonObject& config, WorkerDataMgr* m);  // for manager.
     void destory();
+
     bool load_config(const CJsonObject& config);
     bool load_timer(INet* net);
     bool load_modules();
     bool load_db();
 
+    virtual double get_time_now() override;
+
     // events.
     void run();
     void end_ev_loop();
+
     std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
