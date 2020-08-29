@@ -213,21 +213,9 @@ std::string CJsonObject::JsonStruct2Str(const cJSON* pJsonStruct) const {
     if (pJsonStruct->type == cJSON_String) {
         return (pJsonStruct->valuestring);
     } else if (pJsonStruct->type == cJSON_Int) {
-        char szNumber[128] = {0};
-        if (pJsonStruct->sign == -1) {
-            if (pJsonStruct->valueint <= INT_MAX && pJsonStruct->valueint >= INT_MIN) {
-                snprintf(szNumber, sizeof(szNumber), "%llu", pJsonStruct->valueint);
-            } else {
-                snprintf(szNumber, sizeof(szNumber), "%lld", pJsonStruct->valueint);
-            }
-        } else {
-            if (pJsonStruct->valueint <= UINT_MAX) {
-                snprintf(szNumber, sizeof(szNumber), "%llu", pJsonStruct->valueint);
-            } else {
-                snprintf(szNumber, sizeof(szNumber), "%llu", pJsonStruct->valueint);
-            }
-        }
-        return (std::string(szNumber));
+        std::ostringstream oss;
+        oss << pJsonStruct->valueint;
+        return (oss.str());
     } else if (pJsonStruct->type == cJSON_Double) {
         char szNumber[128] = {0};
         if (fabs(pJsonStruct->valuedouble) < 1.0e-6 || fabs(pJsonStruct->valuedouble) > 1.0e9) {
@@ -235,6 +223,7 @@ std::string CJsonObject::JsonStruct2Str(const cJSON* pJsonStruct) const {
         } else {
             snprintf(szNumber, sizeof(szNumber), "%f", pJsonStruct->valuedouble);
         }
+        return (std::string(szNumber));
     } else if (pJsonStruct->type == cJSON_False) {
         return (std::string("false"));
     } else if (pJsonStruct->type == cJSON_True) {
