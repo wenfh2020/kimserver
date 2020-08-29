@@ -69,6 +69,16 @@ Run on Linux / MacOS
             "host": "127.0.0.1",
             "port": 6379
         }
+    },
+    "database": {
+        "test": {
+            "host": "127.0.0.1",
+            "port": 3306,
+            "user": "root",
+            "password": "root123!@#",
+            "charset": "utf8mb4",
+            "max_conn_cnt": 1
+        }
     }
 }
 ```
@@ -88,6 +98,7 @@ Run on Linux / MacOS
 | log_level        | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |
 | modules          | protocol route container, work as so.                                                             |
 | redis            | redis addr config.                                                                                |
+| database         | database (mysql) info.                                                                            |
 
 ---
 
