@@ -8,6 +8,7 @@ namespace kim {
 
 Connection::Connection(Log* logger, int fd, uint64_t id)
     : m_id(id), m_logger(logger), m_fd(fd) {
+    set_active_time(time_now());
 }
 
 Connection::~Connection() {

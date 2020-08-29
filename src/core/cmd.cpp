@@ -9,6 +9,7 @@ Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& n
     LOG_DEBUG("%s", get_name());
     set_keep_alive(CMD_TIMEOUT_VAL);
     set_max_timeout_cnt(CMD_MAX_TIMEOUT_CNT);
+    set_active_time(get_net()->get_time_now());
 }
 
 Cmd::~Cmd() {

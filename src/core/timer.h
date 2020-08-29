@@ -9,7 +9,7 @@ namespace kim {
 
 class Timer {
    public:
-    Timer() { set_active_time(time_now()); }
+    Timer() {}
     virtual ~Timer() {}
 
     void set_timer(ev_timer* w) { m_timer = w; }
