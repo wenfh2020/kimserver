@@ -3,6 +3,7 @@ CXX = $(shell command -v ccache >/dev/null 2>&1 && echo "ccache g++" || echo "g+
 CFLAGS = -g -O0 -Wall -m64 -D__GUNC__ -fPIC
 CPP_VERSION=$(shell g++ -dumpversion | awk '{if ($$NF > 5.0) print "c++14"; else print "c++11";}')
 CXXFLAG = -std=$(CPP_VERSION) -g -O0 -Wall -Wno-unused-function -Wno-noexcept-type -m64 -D_GNU_SOURCE=1 -D_REENTRANT -D__GUNC__ -fPIC -DNODE_BEAT=10.0
+CURRENT_DIR = $(notdir $(shell pwd))
 
 # ouput format.
 CCCOLOR="\033[34m"
@@ -50,13 +51,14 @@ CORE_C_SRCS = $(foreach dir, $(CORE_PATH_SRC), $(wildcard $(dir)/*.c))
 _CORE_OBJS = $(patsubst %.cpp,%.o,$(CORE_CPP_SRCS)) $(patsubst %.c,%.o,$(CORE_C_SRCS)) $(patsubst %.cc,%.o,$(CORE_CC_SRCS))
 CORE_OBJS = $(filter-out $(CORE_PATH)/server.o, $(_CORE_OBJS)) 
 
-SERVER_NAME = amysql
+SERVER_NAME = $(CURRENT_DIR)
 
 .PHONY: clean
-.SECONDARY: $(SO_OBJS) $(CORE_OBJS)
+.SECONDARY: $(DST_OBJS) $(CORE_OBJS)
 
 $(SERVER_NAME): $(DST_OBJS) $(CORE_OBJS)
 	$(SERVER_LD) -o $@ $^ $(INC) $(LDFLAGS)
+
 
 %.o:%.cpp
 	$(SERVER_CPP) $(INC) -c -o $@ $<
