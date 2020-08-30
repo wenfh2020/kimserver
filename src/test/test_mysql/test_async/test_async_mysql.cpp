@@ -137,7 +137,7 @@ int main(int args, char** argv) {
     m_logger->set_level(kim::Log::LL_INFO);
 
     kim::CJsonObject config;
-    if (!config.Load("../../../bin/config.json") || config["database"].IsEmpty()) {
+    if (!config.Load("../../../../bin/config.json") || config["database"].IsEmpty()) {
         LOG_ERROR("load json config failed!");
         SAFE_DELETE(m_logger);
         return 1;
