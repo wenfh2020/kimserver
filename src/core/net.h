@@ -33,9 +33,9 @@ class INet {
     virtual ~INet() {}
 
    public:
+    virtual double now() { return time_now(); }
     virtual uint64_t get_new_seq() { return 0; }
     virtual CJsonObject& get_config() { return m_conf; }
-    virtual double get_time_now() { return time_now(); }
     virtual Events* get_events() { return nullptr; }
 
     // cmd

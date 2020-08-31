@@ -79,7 +79,7 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
         return Cmd::STATUS::ERROR;
     }
 
-    cmd->set_active_time(get_net()->get_time_now());
+    cmd->set_active_time(get_net()->now());
     Cmd::STATUS status = cmd->on_callback(err, data);
     if (status != Cmd::STATUS::RUNNING) {
         get_net()->del_cmd(cmd);

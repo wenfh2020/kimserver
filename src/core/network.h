@@ -47,8 +47,8 @@ class Network : public INet {
     bool load_modules();
     bool load_db();
 
+    virtual double now() override;
     virtual Events* get_events() override;
-    virtual double get_time_now() override;
 
     // events.
     void run();
