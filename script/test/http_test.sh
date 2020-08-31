@@ -39,6 +39,10 @@ case "$1" in
     url="$base_url/kim/test_mysql/"
     request='{"id": "1", "value": "hello_world"}'
     ;;
+"6")
+    url="$base_url/kim/test_mysql/"
+    request='{"id": "1", "value": "hello_world", "session": true }'
+    ;;
 *)
     echo "invalid param"
     exit 1

@@ -15,6 +15,7 @@
 #include "net/chanel.h"
 #include "node_info.h"
 #include "redis_context.h"
+#include "session.h"
 #include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
 
@@ -46,6 +47,7 @@ class Network : public INet {
     bool load_modules();
     bool load_db();
 
+    virtual Events* get_events() override;
     virtual double get_time_now() override;
 
     // events.
@@ -55,6 +57,11 @@ class Network : public INet {
     std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
+
+    /* session */
+    virtual bool add_session(Session* s) override;
+    virtual Session* get_session(const std::string& sessid, bool re_active = false) override;
+    virtual bool del_session(const std::string& sessid) override;
 
     // socket.
     void close_chanel(int* fds);
@@ -83,6 +90,7 @@ class Network : public INet {
     // timer callback.
     virtual void on_io_timer(void* privdata) override;
     virtual void on_cmd_timer(void* privdata) override;
+    virtual void on_session_timer(void* privdata) override;
     virtual void on_repeat_timer(void* privdata) override;
 
     // redis callback.
@@ -153,6 +161,7 @@ class Network : public INet {
     std::unordered_map<std::string, RdsConnection*> m_redis_conns;  // redis connections.
 
     DBMgr* m_db_pool = nullptr;
+    SessionMgr* m_session_mgr = nullptr;
 };
 
 }  // namespace kim

@@ -3,6 +3,7 @@
 
 #include "cmd.h"
 #include "db/mysql_result.h"
+#include "session_test.h"
 #include "util/json/CJsonObject.hpp"
 
 namespace kim {
@@ -39,6 +40,7 @@ class CmdTestMysql : public Cmd {
                 m_key = req_data("id");
                 m_value = req_data("value");
                 m_oper = req_data("oper");
+                m_is_session = (req_data("session") == "true");
                 if (m_key.empty() || m_value.empty()) {
                     LOG_ERROR("invalid request data! pls check!");
                     return response_http(ERR_FAILED, "invalid request data");
@@ -49,9 +51,11 @@ class CmdTestMysql : public Cmd {
                 }
                 return execute_next_step(err, data);
             }
+
             case ES_DATABASE_INSERT: {
                 LOG_DEBUG("step: database insert, value: %s", m_value.c_str());
-                snprintf(m_sql, sizeof(m_sql), "insert into mytest.test_async_mysql (value) values ('%s');", m_value.c_str());
+                snprintf(m_sql, sizeof(m_sql),
+                         "insert into mytest.test_async_mysql (value) values ('%s');", m_value.c_str());
                 Cmd::STATUS status = db_exec("test", m_sql);
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "insert data failed!");
@@ -60,22 +64,33 @@ class CmdTestMysql : public Cmd {
                 set_next_step();
                 return status;
             }
+
             case ES_DATABASE_INSERT_CALLBACK: {
                 LOG_DEBUG("step: database insert callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database inert callback failed! error: %d");
                     return response_http(ERR_FAILED, "database insert data failed!");
                 }
-
                 if (m_oper == "write") {
                     return response_http(ERR_OK, "database write data done!");
                 }
-
                 return execute_next_step(err, data);
             }
+
             case ES_DATABASE_QUERY: {
                 LOG_DEBUG("step: database query, id: %s.", m_key.c_str());
-                snprintf(m_sql, sizeof(m_sql), "select value from mytest.test_async_mysql where id = %s;", m_key.c_str());
+                if (m_is_session) {
+                    // query from session.
+                    SessionTest* s = dynamic_cast<SessionTest*>(get_net()->get_session(m_key));
+                    if (s != nullptr) {
+                        LOG_DEBUG("query data from session ok, id: %s, value: %s",
+                                  m_key.c_str(), s->value().c_str())
+                        return response_http(ERR_OK, "database query data from session ok!");
+                    }
+                }
+
+                snprintf(m_sql, sizeof(m_sql),
+                         "select value from mytest.test_async_mysql where id = %s;", m_key.c_str());
                 Cmd::STATUS status = db_query("test", m_sql);
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "query data failed!");
@@ -84,27 +99,43 @@ class CmdTestMysql : public Cmd {
                 set_next_step();
                 return status;
             }
+
             case ES_DATABASE_QUERY_CALLBACK: {
                 LOG_DEBUG("step: database query callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database query callback failed! error: %d");
                     return response_http(ERR_FAILED, "database insert data failed!");
                 }
-                MysqlResult* res = static_cast<MysqlResult*>(data);
-                if (res != nullptr) {
-                    vec_row_t query_data;
-                    int size = res->get_result_data(query_data);
-                    if (size != 0) {
-                        for (size_t i = 0; i < query_data.size(); i++) {
-                            map_row_t& items = query_data[i];
-                            for (const auto& it : items) {
-                                LOG_DEBUG("col: %s, data: %s", it.first.c_str(), it.second.c_str());
-                            }
+
+                int size;
+                MysqlResult* res;
+                vec_row_t query_data;
+                SessionTest* session = nullptr;
+
+                res = static_cast<MysqlResult*>(data);
+                if (res == nullptr || (size = res->get_result_data(query_data)) == 0) {
+                    LOG_ERROR("query no data!");
+                    return response_http(ERR_FAILED, "query no data from db!");
+                }
+
+                if (m_is_session) {
+                    session = get_alloc_session<SessionTest>(m_key, 60.0);
+                }
+
+                // col - value.
+                for (size_t i = 0; i < query_data.size(); i++) {
+                    map_row_t& items = query_data[i];
+                    for (const auto& it : items) {
+                        if (session != nullptr) {
+                            // restore data in session.
+                            session->set_value(it.second);
                         }
+                        LOG_DEBUG("col: %s, data: %s", it.first.c_str(), it.second.c_str());
                     }
                 }
                 return response_http(ERR_OK, "database query data done!");
             }
+
             default: {
                 LOG_ERROR("invalid step");
                 return response_http(ERR_FAILED, "invalid step!");
@@ -115,6 +146,7 @@ class CmdTestMysql : public Cmd {
    private:
     char m_sql[256];
     std::string m_key, m_value, m_oper;
+    bool m_is_session = false;
 };
 
 }  // namespace kim

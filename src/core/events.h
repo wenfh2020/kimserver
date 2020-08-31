@@ -41,6 +41,7 @@ class Events {
     ev_timer* add_io_timer(double secs, ev_timer* w, void* privdata);
     ev_timer* add_repeat_timer(double secs, ev_timer* w, void* privdata);
     ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata);
+    ev_timer* add_session_timer(double secs, ev_timer* w, void* privdata);
     ev_timer* add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs = 0);
     bool restart_timer(double secs, ev_timer* w, void* privdata);
     bool del_timer_event(ev_timer* w);
@@ -55,6 +56,7 @@ class Events {
     static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
     static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
 
     // redis callback.

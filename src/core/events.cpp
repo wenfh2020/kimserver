@@ -8,6 +8,7 @@
 
 #include "connection.h"
 #include "module.h"
+#include "session.h"
 #include "util/util.h"
 
 namespace kim {
@@ -154,6 +155,10 @@ ev_timer* Events::add_cmd_timer(double secs, ev_timer* w, void* privdata) {
     return add_timer_event(secs, w, on_cmd_timer_callback, privdata, secs);
 }
 
+ev_timer* Events::add_session_timer(double secs, ev_timer* w, void* privdata) {
+    return add_timer_event(secs, w, on_session_timer_callback, privdata, secs);
+}
+
 ev_timer* Events::add_timer_event(double secs, ev_timer* w, timer_cb tcb, void* privdata, int repeat_secs) {
     if (w == nullptr) {
         w = (ev_timer*)malloc(sizeof(ev_timer));
@@ -261,6 +266,11 @@ void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int rev
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Cmd* cmd = static_cast<Cmd*>(w->data);
     cmd->get_net()->on_cmd_timer(cmd);
+}
+
+void Events::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    Session* s = static_cast<Session*>(w->data);
+    s->get_net()->on_session_timer(s);
 }
 
 redisAsyncContext* Events::redis_connect(const std::string& host, int port, void* privdata) {

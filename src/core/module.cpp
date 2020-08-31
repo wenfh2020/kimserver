@@ -30,6 +30,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
         }
         ev_timer* w = get_net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), cmd);
         if (w == nullptr) {
+            get_net()->del_cmd(cmd);
             LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_name());
             return Cmd::STATUS::ERROR;
         }

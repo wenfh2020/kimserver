@@ -58,6 +58,6 @@ class Cmd : public Timer, public Base {
     int m_step = 0;  // async step.
 };
 
-};  // namespace kim
+}  // namespace kim
 
 #endif  //__KIM_CMD_H__

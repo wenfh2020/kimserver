@@ -25,10 +25,11 @@ void Network::destory() {
         m_events->del_timer_event(m_timer);
         m_timer = nullptr;
     }
-    end_ev_loop();
-    close_conns();
 
-    SAFE_DELETE(m_events);
+    SAFE_DELETE(m_db_pool);
+    SAFE_DELETE(m_session_mgr);
+
+    close_conns();
     for (const auto& it : m_wait_send_fds) {
         free(it);
     }
@@ -44,6 +45,9 @@ void Network::destory() {
         delete it.second;
     }
     m_cmds.clear();
+
+    end_ev_loop();
+    SAFE_DELETE(m_events);
 }
 
 void Network::run() {
@@ -57,6 +61,10 @@ double Network::get_time_now() {
         return 0;
     }
     return m_events->time_now();
+}
+
+Events* Network::get_events() {
+    return m_events;
 }
 
 bool Network::load_config(const CJsonObject& config) {
@@ -122,6 +130,12 @@ bool Network::create(const AddrInfo* addr_info,
         LOG_ERROR("load timer failed!");
         return false;
     }
+
+    m_session_mgr = new SessionMgr(m_logger, this);
+    if (m_session_mgr == nullptr) {
+        LOG_ERROR("alloc session mgr failed!");
+        return false;
+    }
     return true;
 }
 
@@ -155,6 +169,12 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
     //     LOG_ERROR("load timer failed!");
     //     return false;
     // }
+
+    m_session_mgr = new SessionMgr(m_logger, this);
+    if (m_session_mgr == nullptr) {
+        LOG_ERROR("alloc session mgr failed!");
+        return false;
+    }
     return true;
 }
 
@@ -1142,6 +1162,22 @@ bool Network::load_db() {
         return false;
     }
     return true;
+}
+
+bool Network::add_session(Session* s) {
+    return m_session_mgr->add_session(s);
+}
+
+Session* Network::get_session(const std::string& sessid, bool re_active) {
+    return m_session_mgr->get_session(sessid, re_active);
+}
+
+bool Network::del_session(const std::string& sessid) {
+    return m_session_mgr->del_session(sessid);
+}
+
+void Network::on_session_timer(void* privdata) {
+    m_session_mgr->on_session_timer(privdata);
 }
 
 }  // namespace kim

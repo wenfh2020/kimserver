@@ -13,6 +13,8 @@ namespace kim {
 
 class Cmd;
 class INet;
+class Session;
+class Events;
 
 // privdata for cmd callback.
 typedef struct wait_cmd_info_s {
@@ -34,13 +36,18 @@ class INet {
     virtual uint64_t get_new_seq() { return 0; }
     virtual CJsonObject& get_config() { return m_conf; }
     virtual double get_time_now() { return time_now(); }
+    virtual Events* get_events() { return nullptr; }
 
+    // cmd
     virtual bool add_cmd(Cmd* cmd) { return false; }
     virtual Cmd* get_cmd(uint64_t id) { return nullptr; }
     virtual bool del_cmd(Cmd* cmd) { return false; }
 
-    // libev callback.
-    /////////////////////////////////
+    // session
+    virtual bool add_session(Session* s) { return false; }
+    virtual Session* get_session(const std::string& sessid, bool re_active = false) { return nullptr; }
+    virtual bool del_session(const std::string& sessid) { return false; }
+
    public:
     // signal.
     virtual void on_terminated(ev_signal* s) {}
@@ -55,6 +62,7 @@ class INet {
     virtual void on_io_timer(void* privdata) {}
     virtual void on_cmd_timer(void* privdata) {}
     virtual void on_repeat_timer(void* privdata) {}
+    virtual void on_session_timer(void* privdata) {}
 
     // redis callback
     /////////////////////////////////
@@ -63,7 +71,6 @@ class INet {
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
 
     // database
-    /////////////////////////////////
     virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {}
     virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {}
 
