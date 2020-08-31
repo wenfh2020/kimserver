@@ -99,11 +99,13 @@ void SessionMgr::on_session_timer(void* privdata) {
     if (old == s->get_cur_timeout_cnt()) {
         s->refresh_cur_timeout_cnt();
     }
+
     if (s->get_cur_timeout_cnt() >= s->get_max_timeout_cnt()) {
         LOG_DEBUG("timeout del session, sessid: %s", s->sessid().c_str());
         del_session(s->sessid());
         return;
     }
+
     LOG_DEBUG("session timer reset, session id: %llu, restart timer secs: %f",
               s->get_id(), secs);
     get_events()->restart_timer(s->get_keep_alive(), s->get_timer(), privdata);
