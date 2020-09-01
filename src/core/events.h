@@ -24,7 +24,7 @@ class Events {
     struct ev_loop* get_ev_loop() {
         return m_ev_loop;
     }
-    double time_now();
+    double now();
 
     // io
     ev_io* add_read_event(int fd, ev_io* w, void* privdata);

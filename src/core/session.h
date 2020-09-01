@@ -20,6 +20,7 @@ class Session : public Timer, public Base {
     virtual ~Session();
     void init(const std::string& sessid, double timeout = 60.0);
     const std::string& sessid() const { return m_sessid; }
+    const char* sessid() { return m_sessid.c_str(); }
 
    public:
     Session::STATUS on_timeout() { return STATUS::OK; }

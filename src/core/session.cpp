@@ -8,6 +8,7 @@ namespace kim {
 Session::Session(uint64_t id, Log* logger, INet* net, const std::string& name)
     : Base(id, logger, net, name) {
     set_active_time(get_net()->now());
+    set_max_timeout_cnt(SESSION_MAX_TIMEOUT_CNT);
 }
 
 Session::~Session() {
@@ -43,7 +44,7 @@ bool SessionMgr::add_session(Session* s) {
         return true;
     }
     m_sessions[sessid] = s;
-    ev_timer* w = get_events()->add_session_timer(60.0, s->get_timer(), s);
+    ev_timer* w = get_events()->add_session_timer(s->get_keep_alive(), s->get_timer(), s);
     if (w == nullptr) {
         m_sessions.erase(sessid);
         LOG_ERROR("add session(%s) failed!", s->get_name());
@@ -59,7 +60,7 @@ Session* SessionMgr::get_session(const std::string& sessid, bool re_active) {
         return nullptr;
     }
     if (re_active) {
-        it->second->set_active_time(get_events()->time_now());
+        it->second->set_active_time(get_events()->now());
     }
     return it->second;
 }
@@ -83,7 +84,7 @@ void SessionMgr::on_session_timer(void* privdata) {
     double secs = s->get_keep_alive() - (get_net()->now() - s->get_active_time());
     if (secs > 0) {
         LOG_DEBUG("session timer restart, sessid: %llu, restart timer secs: %f",
-                  s->sessid().c_str(), secs);
+                  s->sessid(), secs);
         get_events()->restart_timer(secs, s->get_timer(), privdata);
         return;
     }
@@ -91,7 +92,7 @@ void SessionMgr::on_session_timer(void* privdata) {
     int old = s->get_cur_timeout_cnt();
     Session::STATUS status = s->on_timeout();
     if (status != Session::STATUS::RUNNING) {
-        LOG_DEBUG("timeout del session, sessid: %s", s->sessid().c_str());
+        LOG_DEBUG("timeout del session, sessid: %s", s->sessid());
         del_session(s->sessid());
         return;
     }
@@ -101,7 +102,7 @@ void SessionMgr::on_session_timer(void* privdata) {
     }
 
     if (s->get_cur_timeout_cnt() >= s->get_max_timeout_cnt()) {
-        LOG_DEBUG("timeout del session, sessid: %s", s->sessid().c_str());
+        LOG_DEBUG("timeout del session, sessid: %s", s->sessid());
         del_session(s->sessid());
         return;
     }

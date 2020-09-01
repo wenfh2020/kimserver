@@ -54,8 +54,7 @@ class CmdTestMysql : public Cmd {
 
             case ES_DATABASE_INSERT: {
                 LOG_DEBUG("step: database insert, value: %s", m_value.c_str());
-                snprintf(m_sql, sizeof(m_sql),
-                         "insert into mytest.test_async_mysql (value) values ('%s');", m_value.c_str());
+                snprintf(m_sql, sizeof(m_sql), "insert into mytest.test_async_mysql (value) values ('%s');", m_value.c_str());
                 Cmd::STATUS status = db_exec("test", m_sql);
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "insert data failed!");
@@ -68,7 +67,7 @@ class CmdTestMysql : public Cmd {
             case ES_DATABASE_INSERT_CALLBACK: {
                 LOG_DEBUG("step: database insert callback!");
                 if (err != ERR_OK) {
-                    LOG_ERROR("database inert callback failed! error: %d");
+                    LOG_ERROR("database inert callback failed! eror: %d");
                     return response_http(ERR_FAILED, "database insert data failed!");
                 }
                 if (m_oper == "write") {
@@ -119,7 +118,7 @@ class CmdTestMysql : public Cmd {
                 }
 
                 if (m_is_session) {
-                    session = get_alloc_session<SessionTest>(m_key, 60.0);
+                    session = get_alloc_session<SessionTest>(m_key);
                 }
 
                 // col - value.

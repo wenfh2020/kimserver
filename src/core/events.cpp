@@ -49,7 +49,7 @@ void Events::end_ev_loop() {
     }
 }
 
-double Events::time_now() {
+double Events::now() {
     return ev_now(m_ev_loop);
 }
 

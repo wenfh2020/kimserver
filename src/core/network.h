@@ -58,7 +58,7 @@ class Network : public INet {
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
 
-    /* session */
+    // session
     virtual bool add_session(Session* s) override;
     virtual Session* get_session(const std::string& sessid, bool re_active = false) override;
     virtual bool del_session(const std::string& sessid) override;

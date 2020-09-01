@@ -23,9 +23,11 @@ class Module : public Base {
 
     bool init(Log* logger, INet* net, uint64_t id, const std::string& name = "");
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
+    Cmd::STATUS response_http(std::shared_ptr<Connection> c, const std::string& data, int status_code = 200);
+
+    // callback.
     Cmd::STATUS on_timeout(Cmd* cmd);
     Cmd::STATUS on_callback(wait_cmd_info_t* index, int err, void* data);
-    Cmd::STATUS response_http(std::shared_ptr<Connection> c, const std::string& data, int status_code = 200);
 
     // so manager.
     void set_so_handle(void* handle) { m_so_handle = handle; }

@@ -37,7 +37,7 @@ class Base {
 
     // session
     template <typename T>
-    T* get_alloc_session(const std::string& sessid, double secs, bool re_active = false) {
+    T* get_alloc_session(const std::string& sessid, double secs = 60.0, bool re_active = false) {
         T* s = dynamic_cast<T*>(get_net()->get_session(sessid, re_active));
         if (s == nullptr) {
             s = new T(m_net->get_new_seq(), m_logger, m_net);

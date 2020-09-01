@@ -60,7 +60,7 @@ double Network::now() {
     if (m_events == nullptr) {
         return 0;
     }
-    return m_events->time_now();
+    return m_events->now();
 }
 
 Events* Network::get_events() {
@@ -1063,7 +1063,6 @@ void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
 
-    int err;
     Module* module;
     std::string identity;
     wait_cmd_info_t* info;
@@ -1095,8 +1094,7 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         }
     }
 
-    err = (c->err == REDIS_OK) ? ERR_OK : ERR_REDIS_CALLBACK;
-    module->on_callback(info, err, reply);
+    module->on_callback(info, c->err, reply);
     SAFE_DELETE(info);
 }
 
