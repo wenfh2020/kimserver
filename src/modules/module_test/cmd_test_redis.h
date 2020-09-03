@@ -21,13 +21,6 @@ class CmdTestRedis : public Cmd {
         : Cmd(logger, net, mid, id, name) {
     }
 
-    bool init() {
-        m_redis_host = config()["redis"]["test"]("host");
-        m_redis_port = atoi(config()["redis"]["test"]("port").c_str());
-        LOG_DEBUG("redis host: %s, port: %d", m_redis_host.c_str(), m_redis_port);
-        return (!m_redis_host.empty() && m_redis_port);
-    }
-
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
@@ -50,11 +43,12 @@ class CmdTestRedis : public Cmd {
             }
             case ES_REDIS_SET: {
                 LOG_DEBUG("step redis set, key: %s, value: %s", m_key.c_str(), m_value.c_str());
-                std::vector<std::string> rds_cmds{"set", m_key, m_value};
-                Cmd::STATUS status = redis_send_to(m_redis_host, m_redis_port, rds_cmds);
+                std::vector<std::string> cmd_argv{"set", m_key, m_value};
+                Cmd::STATUS status = redis_send_to("test", cmd_argv);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }
+                set_next_step();
                 return status;
             }
             case ES_REDIS_SET_CALLBACK: {
@@ -68,11 +62,12 @@ class CmdTestRedis : public Cmd {
                 return execute_next_step(err, data);
             }
             case ES_REDIS_GET: {
-                std::vector<std::string> rds_cmds{"get", m_key};
-                Cmd::STATUS status = redis_send_to(m_redis_host, m_redis_port, rds_cmds);
+                std::vector<std::string> cmd_argv{"get", m_key};
+                Cmd::STATUS status = redis_send_to("test", cmd_argv);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }
+                set_next_step();
                 return status;
             }
             case ES_REDIS_GET_CALLBACK: {
@@ -96,8 +91,6 @@ class CmdTestRedis : public Cmd {
 
    private:
     std::string m_key, m_value;
-    std::string m_redis_host;
-    int m_redis_port;
 };
 
 }  // namespace kim

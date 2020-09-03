@@ -14,7 +14,7 @@
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "node_info.h"
-#include "redis_context.h"
+#include "redis/redis_mgr.h"
 #include "session.h"
 #include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
@@ -46,6 +46,7 @@ class Network : public INet {
     bool load_timer(INet* net);
     bool load_modules();
     bool load_db();
+    bool load_redis_mgr();
 
     virtual double now() override;
     virtual Events* get_events() override;
@@ -94,8 +95,7 @@ class Network : public INet {
     virtual void on_repeat_timer(void* privdata) override;
 
     // redis callback.
-    virtual void on_redis_connect(const redisAsyncContext* c, int status) override;
-    virtual void on_redis_disconnect(const redisAsyncContext* c, int status) override;
+    static void on_redis_lib_callback(redisAsyncContext* c, void* reply, void* privdata);
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
 
     // database callback.
@@ -110,7 +110,7 @@ class Network : public INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
 
     // redis.
-    virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd* cmd, const std::vector<std::string>& rds_cmds) override;
+    virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& rds_cmds) override;
 
     // database
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
@@ -133,9 +133,6 @@ class Network : public INet {
     bool close_conn(std::shared_ptr<Connection> c);
     void close_conns();
 
-    // redis.
-    RdsConnection* redis_connect(const std::string& host, int port, void* privdata);
-
    private:
     Log* m_logger = nullptr;      // logger.
     Events* m_events = nullptr;   // libev's events manager.
@@ -156,11 +153,11 @@ class Network : public INet {
     ModuleMgr* m_module_mgr = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds;
 
-    ev_timer* m_timer = nullptr;                                    // repeat timer for idle handle.
-    std::list<chanel_resend_data_t*> m_wait_send_fds;               // sendmsg maybe return -1 and errno == EAGAIN.
-    std::unordered_map<std::string, RdsConnection*> m_redis_conns;  // redis connections.
+    ev_timer* m_timer = nullptr;                       // repeat timer for idle handle.
+    std::list<chanel_resend_data_t*> m_wait_send_fds;  // sendmsg maybe return -1 and errno == EAGAIN.
 
     DBMgr* m_db_pool = nullptr;
+    RedisMgr* m_redis_pool = nullptr;
     SessionMgr* m_session_mgr = nullptr;
 };
 

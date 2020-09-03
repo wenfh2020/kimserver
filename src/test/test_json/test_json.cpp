@@ -11,7 +11,7 @@ typedef struct db_info_s {
 
 int main() {
     kim::CJsonObject config;
-    if (!config.Load("../../bin/config.json")) {
+    if (!config.Load("../../../bin/config.json")) {
         std::cerr << "load json config failed!" << std::endl;
         return 1;
     }

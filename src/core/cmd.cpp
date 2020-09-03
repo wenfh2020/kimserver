@@ -52,23 +52,17 @@ Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::redis_send_to(const std::string& host,
-                               int port, const std::vector<std::string>& rds_cmds) {
-    LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
-    if (host.empty() || port == 0) {
-        LOG_ERROR("invalid addr info: host: %s, port: %d", host.c_str(), port);
+Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& rds_cmds) {
+    if (node == nullptr) {
+        LOG_ERROR("invalid addr info, node: %s.", node);
         return Cmd::STATUS::ERROR;
     }
 
-    E_RDS_STATUS status = m_net->redis_send_to(host, port, this, rds_cmds);
-    if (status == E_RDS_STATUS::OK) {
-        set_next_step();
-        return Cmd::STATUS::RUNNING;
-    } else if (status == E_RDS_STATUS::WAITING) {
-        return Cmd::STATUS::RUNNING;
-    } else {
-        return Cmd::STATUS::ERROR;
-    }
+    LOG_DEBUG("redis send to node: %s", node);
+
+    return m_net->redis_send_to(node, this, rds_cmds)
+               ? Cmd::STATUS::RUNNING
+               : Cmd::STATUS::ERROR;
 }
 
 Cmd::STATUS Cmd::db_exec(const char* node, const char* sql) {

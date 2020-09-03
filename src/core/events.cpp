@@ -1,8 +1,6 @@
 #include "events.h"
 
 #include <ev.h>
-#include <hiredis/adapters/libev.h>
-#include <hiredis/hiredis.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -271,54 +269,6 @@ void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revent
 void Events::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Session* s = static_cast<Session*>(w->data);
     s->get_net()->on_session_timer(s);
-}
-
-redisAsyncContext* Events::redis_connect(const std::string& host, int port, void* privdata) {
-    redisAsyncContext* c = redisAsyncConnect(host.c_str(), port);
-    if (c == nullptr || c->err) {
-        LOG_ERROR("connect redis failed! errno: %d, error: %s, host: %s, port: %d",
-                  c->err, c->errstr, host.c_str(), port);
-        return nullptr;
-    }
-    c->data = privdata;
-    redisLibevAttach(m_ev_loop, c);
-    redisAsyncSetConnectCallback(c, on_redis_connect);
-    redisAsyncSetDisconnectCallback(c, on_redis_disconnect);
-    return c;
-}
-
-bool Events::redis_send_to(redisAsyncContext* c,
-                           const std::vector<std::string>& rds_cmds, void* privdata) {
-    if (c == nullptr || rds_cmds.empty()) {
-        return false;
-    }
-    size_t arglen[rds_cmds.size()];
-    const char* argv[rds_cmds.size()];
-    for (size_t i = 0; i < rds_cmds.size(); i++) {
-        argv[i] = rds_cmds[i].c_str();
-        arglen[i] = rds_cmds[i].length();
-    }
-    int ret = redisAsyncCommandArgv(c, on_redis_callback, privdata, rds_cmds.size(), argv, arglen);
-    if (ret != REDIS_OK) {
-        LOG_ERROR("redis send to failed! ret: %d, errno: %d, error: %s",
-                  ret, c->err, c->errstr);
-    }
-    return (ret == REDIS_OK);
-}
-
-void Events::on_redis_connect(const redisAsyncContext* c, int status) {
-    INet* net = static_cast<INet*>(c->data);
-    net->on_redis_connect(c, status);
-}
-
-void Events::on_redis_disconnect(const redisAsyncContext* c, int status) {
-    INet* net = static_cast<INet*>(c->data);
-    net->on_redis_disconnect(c, status);
-}
-
-void Events::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
-    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(privdata);
-    index->net->on_redis_callback(c, reply, privdata);
 }
 
 }  // namespace kim

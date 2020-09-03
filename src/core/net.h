@@ -66,8 +66,6 @@ class INet {
 
     // redis callback
     /////////////////////////////////
-    virtual void on_redis_connect(const redisAsyncContext* c, int status) {}
-    virtual void on_redis_disconnect(const redisAsyncContext* c, int status) {}
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
 
     // database
@@ -80,8 +78,8 @@ class INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
-    virtual E_RDS_STATUS redis_send_to(const std::string& host, int port, Cmd*, const std::vector<std::string>& rds_cmds) {
-        return E_RDS_STATUS::ERROR;
+    virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& rds_cmds) {
+        return false;
     }
 
     // database.

@@ -72,7 +72,7 @@ bool DBMgr::init(CJsonObject& config) {
 MysqlAsyncConn* DBMgr::get_conn(const std::string& node) {
     auto itr = m_dbs.find(node);
     if (itr == m_dbs.end()) {
-        LOG_ERROR("invalid db node : %s!", node.c_str());
+        LOG_ERROR("invalid db node: %s!", node.c_str());
         return nullptr;
     }
 
@@ -133,7 +133,7 @@ bool DBMgr::handle_sql(bool is_query, const char* node,
 
     MysqlAsyncConn* c = get_conn(node);
     if (c == nullptr) {
-        LOG_ERROR("get conn failed! node: %s", node);
+        LOG_ERROR("get db conn failed! node: %s", node);
         return false;
     }
 

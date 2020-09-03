@@ -27,6 +27,7 @@ void Network::destory() {
     }
 
     SAFE_DELETE(m_db_pool);
+    SAFE_DELETE(m_redis_pool);
     SAFE_DELETE(m_session_mgr);
 
     close_conns();
@@ -34,12 +35,6 @@ void Network::destory() {
         free(it);
     }
     m_wait_send_fds.clear();
-
-    for (const auto& it : m_redis_conns) {
-        RdsConnection* c = it.second;
-        SAFE_DELETE(c);
-    }
-    m_redis_conns.clear();
 
     for (const auto& it : m_cmds) {
         delete it.second;
@@ -155,7 +150,12 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
     }
 
     if (!load_db()) {
-        LOG_ERROR("loda db failed!");
+        LOG_ERROR("load db failed!");
+        return false;
+    }
+
+    if (!load_redis_mgr()) {
+        LOG_ERROR("load redis mgr failed!");
         return false;
     }
 
@@ -797,61 +797,35 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-E_RDS_STATUS Network::redis_send_to(const std::string& host, int port,
-                                    Cmd* cmd, const std::vector<std::string>& rds_cmds) {
-    LOG_DEBUG("redis send to host: %s, port: %d", host.c_str(), port);
+bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& cmd_argv) {
+    if (node == nullptr || cmd == nullptr || cmd_argv.size() == 0) {
+        LOG_ERROR("invalid params!");
+        return false;
+    }
 
-    RdsConnection* c;
+    LOG_DEBUG("redis send to node: %s", node);
+
+    wait_cmd_info_t* info;
     uint64_t module_id, cmd_id;
-    std::string identity;
 
     cmd_id = cmd->get_id();
     module_id = cmd->get_module_id();
 
-    identity = format_addr(host, port);
-    auto it = m_redis_conns.find(identity);
-    if (it == m_redis_conns.end()) {
-        LOG_DEBUG("find redis conn failed! host: %s, port: %d.", host.c_str(), port);
-        c = redis_connect(host, port, this);
-        if (c == nullptr) {
-            LOG_ERROR("create redis conn failed! host: %s, port: %d.", host.c_str(), port);
-            return E_RDS_STATUS::ERROR;
-        }
-        if (c->add_wait_cmd_info(module_id, cmd_id) == nullptr) {
-            LOG_ERROR("add wait cmd info failed! module id: %llu, cmd id: %llu",
-                      module_id, cmd_id);
-            return E_RDS_STATUS::ERROR;
-        }
-        return E_RDS_STATUS::WAITING;
-    }
-
-    c = it->second;
-
-    if (c->is_connecting()) {
-        LOG_DEBUG("redis is connecting. host: %s, port: %d.", host.c_str(), port);
-        if (c->add_wait_cmd_info(module_id, cmd_id) == nullptr) {
-            LOG_ERROR("add wait cmd info failed! module id: %llu, cmd id: %llu",
-                      module_id, cmd_id);
-            return E_RDS_STATUS::ERROR;
-        }
-        return E_RDS_STATUS::WAITING;
-    }
-
     // delete info when callback.
-    wait_cmd_info_t* info = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    info = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
     if (info == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
                   cmd_id, module_id);
-        return E_RDS_STATUS::ERROR;
+        return false;
     }
 
-    if (!m_events->redis_send_to(c->get_ctx(), rds_cmds, info)) {
-        LOG_ERROR("redis send data failed! host: %s, port: %d.", host.c_str(), port);
+    if (!m_redis_pool->send_to(node, cmd_argv, on_redis_lib_callback, info)) {
+        LOG_ERROR("redis send data failed! node: %s.", node);
         SAFE_DELETE(info);
-        return E_RDS_STATUS::ERROR;
+        return false;
     }
 
-    return E_RDS_STATUS::OK;
+    return true;
 }
 
 bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
@@ -918,7 +892,6 @@ void Network::on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* t
 }
 
 void Network::on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {
-    int err;
     Module* module;
     wait_cmd_info_t* index;
 
@@ -930,12 +903,11 @@ void Network::on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task,
         return;
     }
 
-    err = task->error != 0 ? ERR_DATABASE_FAILED : ERR_OK;
-    if (err != ERR_OK) {
+    if (task->error != ERR_OK) {
         LOG_ERROR("database query failed, error: %d, errstr: %s",
                   task->error, task->errstr.c_str());
     }
-    module->on_callback(index, err, res);
+    module->on_callback(index, task->error, res);
 }
 
 void Network::on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
@@ -944,7 +916,6 @@ void Network::on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* ta
 }
 
 void Network::on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
-    int err;
     Module* module;
     wait_cmd_info_t* index;
 
@@ -956,125 +927,23 @@ void Network::on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) 
         return;
     }
 
-    err = task->error != 0 ? ERR_DATABASE_FAILED : ERR_OK;
-    if (err != ERR_OK) {
+    if (task->error != ERR_OK) {
         LOG_ERROR("database query failed, error: %d, errstr: %s",
                   task->error, task->errstr.c_str());
     }
-    module->on_callback(index, err, nullptr);
+    module->on_callback(index, task->error, nullptr);
 }
 
-RdsConnection* Network::redis_connect(const std::string& host, int port, void* privdata) {
-    RdsConnection* c;
-    redisAsyncContext* ctx;
-    std::string identity;
-
-    identity = format_addr(host, port);
-    auto it = m_redis_conns.find(identity);
-    if (it != m_redis_conns.end()) {
-        return it->second;
-    }
-
-    ctx = m_events->redis_connect(host, port, privdata);
-    if (ctx == nullptr) {
-        LOG_ERROR("redis connect failed! host: %s, port: %d", host.c_str(), port);
-        return nullptr;
-    }
-
-    c = new RdsConnection(m_logger, this, host, port, ctx);
-    if (c == nullptr) {
-        LOG_ERROR("alloc redis conn failed! host: %s, port: %d.",
-                  host.c_str(), port);
-        return nullptr;
-    }
-    c->set_state(RdsConnection::STATE::CONNECTING);
-    m_redis_conns[identity] = c;
-    return c;
-}
-
-void Network::on_redis_connect(const redisAsyncContext* c, int status) {
-    LOG_INFO("redis connected!, host: %s, port: %d", c->c.tcp.host, c->c.tcp.port);
-
-    int err;
-    Module* module;
-    std::string identity;
-    wait_cmd_info_t* info;
-    RdsConnection* rc;
-
-    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
-    auto it = m_redis_conns.find(identity);
-    if (it == m_redis_conns.end()) {
-        LOG_WARN("find redis conn failed! host: %s, port: %d",
-                 c->c.tcp.host, c->c.tcp.port);
-        return;
-    }
-    rc = it->second;
-
-    if (status != REDIS_OK) {
-        SAFE_DELETE(rc);
-        m_redis_conns.erase(it);
-    } else {
-        rc->set_state(RdsConnection::STATE::OK);
-    }
-
-    const auto& infos = rc->get_wait_cmd_infos();
-    for (const auto& it : infos) {
-        info = it.second;
-        module = m_module_mgr->get_module(info->module_id);
-        if (module == nullptr) {
-            LOG_ERROR("find module failed! module id: %llu.", info->module_id);
-            continue;
-        }
-        err = (status == REDIS_OK) ? ERR_OK : ERR_REDIS_CONNECT_FAILED;
-        module->on_callback(info, err, nullptr);
-    }
-    rc->clear_wait_cmd_infos();
-}
-
-void Network::on_redis_disconnect(const redisAsyncContext* c, int status) {
-    LOG_INFO("redis disconnect. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
-
-    Module* module;
-    RdsConnection* rc;
-    std::string identity;
-    wait_cmd_info_t* info;
-
-    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
-    auto it = m_redis_conns.find(identity);
-    if (it != m_redis_conns.end()) {
-        SAFE_DELETE(it->second);
-        m_redis_conns.erase(it);
-    }
-    rc = it->second;
-
-    const auto& infos = rc->get_wait_cmd_infos();
-    for (const auto& it : infos) {
-        info = it.second;
-        module = m_module_mgr->get_module(info->module_id);
-        if (module == nullptr) {
-            LOG_ERROR("find module failed! module id: %llu.", info->module_id);
-            continue;
-        }
-        module->on_callback(info, ERR_REDIS_DISCONNECT, nullptr);
-    }
-    rc->clear_wait_cmd_infos();
+void Network::on_redis_lib_callback(redisAsyncContext* ac, void* reply, void* privdata) {
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(privdata);
+    index->net->on_redis_callback(ac, reply, privdata);
 }
 
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
 
     Module* module;
-    std::string identity;
     wait_cmd_info_t* info;
-
-    identity = format_addr(c->c.tcp.host, c->c.tcp.port);
-    auto it = m_redis_conns.find(identity);
-    if (it == m_redis_conns.end()) {
-        LOG_ERROR("find redis conn failed! host: %s, port: %d",
-                  c->c.tcp.host, c->c.tcp.port);
-        return;
-    }
-
     info = static_cast<wait_cmd_info_t*>(privdata);
 
     module = m_module_mgr->get_module(info->module_id);
@@ -1157,6 +1026,16 @@ bool Network::load_db() {
     if (!m_db_pool->init(m_conf["database"])) {
         LOG_ERROR("init db pool failed!");
         SAFE_DELETE(m_db_pool);
+        return false;
+    }
+    return true;
+}
+
+bool Network::load_redis_mgr() {
+    SAFE_DELETE(m_redis_pool);
+    m_redis_pool = new kim::RedisMgr(m_logger, m_events->get_ev_loop());
+    if (m_redis_pool == nullptr || !m_redis_pool->init(m_conf["redis"])) {
+        LOG_ERROR("init redis mgr failed!");
         return false;
     }
     return true;
