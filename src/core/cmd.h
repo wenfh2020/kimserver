@@ -32,7 +32,7 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS response_http(const std::string& data, int status_code = 200);
     virtual Cmd::STATUS response_http(int err, const std::string& errstr, const CJsonObject& data, int status_code = 200);
     virtual Cmd::STATUS response_http(int err, const std::string& errstr, int status_code = 200);
-    virtual Cmd::STATUS redis_send_to(const char* node, const std::vector<std::string>& rds_cmds);
+    virtual Cmd::STATUS redis_send_to(const char* node, const std::vector<std::string>& argv);
     virtual Cmd::STATUS db_exec(const char* node, const char* sql);
     virtual Cmd::STATUS db_query(const char* node, const char* sql);
 
@@ -45,9 +45,8 @@ class Cmd : public Timer, public Base {
     // async step. -- status machine.
     void set_exec_step(int step) { m_step = step; }
     int get_exec_step() { return m_step; }
-    void set_next_step() { m_step++; }
-    Cmd::STATUS execute_next_step(int err, void* data);
-    Cmd::STATUS execute_cur_step(int step, int err = ERR_OK, void* data = nullptr);
+    void set_next_step(int step = -1) { m_step = (step != -1) ? step : ++m_step; }
+    Cmd::STATUS execute_next_step(int err, void* data, int step = -1);
 
    protected:
     virtual Cmd::STATUS execute_steps(int err, void* data);

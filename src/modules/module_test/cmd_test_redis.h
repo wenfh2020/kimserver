@@ -41,7 +41,7 @@ class CmdTestRedis : public Cmd {
                 }
                 m_oper = req_data("oper");
                 if (m_oper == "read") {
-                    return execute_cur_step(ES_REDIS_GET);
+                    return execute_next_step(err, data, ES_REDIS_GET);
                 }
 
                 return execute_next_step(err, data);

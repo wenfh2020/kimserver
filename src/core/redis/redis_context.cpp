@@ -23,10 +23,7 @@ void RdsConnection::destory() {
             wait_task_error_callback(m_ctx, task, REDIS_ERR, errstr);
             SAFE_DELETE(task);
         }
-
-        if (m_ctx != nullptr) {
-            redisAsyncDisconnect(m_ctx);
-        }
+        redisAsyncDisconnect(m_ctx);
     }
     m_wait_tasks.clear();
     set_state(STATE::CLOSED);

@@ -49,7 +49,7 @@ Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& rds_cmds) {
+Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& argv) {
     if (node == nullptr) {
         LOG_ERROR("invalid addr info, node: %s.", node);
         return Cmd::STATUS::ERROR;
@@ -57,7 +57,7 @@ Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>&
 
     LOG_DEBUG("redis send to node: %s", node);
 
-    return m_net->redis_send_to(node, this, rds_cmds)
+    return m_net->redis_send_to(node, this, argv)
                ? Cmd::STATUS::RUNNING
                : Cmd::STATUS::ERROR;
 }
@@ -88,8 +88,8 @@ Cmd::STATUS Cmd::db_query(const char* node, const char* sql) {
     return Cmd::STATUS::RUNNING;
 }
 
-Cmd::STATUS Cmd::execute_next_step(int err, void* data) {
-    set_next_step();
+Cmd::STATUS Cmd::execute_next_step(int err, void* data, int step) {
+    set_next_step(step);
     return execute_steps(err, data);
 }
 
@@ -99,11 +99,6 @@ Cmd::STATUS Cmd::execute(std::shared_ptr<Request> req) {
 
 Cmd::STATUS Cmd::execute_steps(int err, void* data) {
     return Cmd::STATUS::OK;
-}
-
-Cmd::STATUS Cmd::execute_cur_step(int step, int err, void* data) {
-    m_step = step;
-    return execute_steps(err, data);
 }
 
 Cmd::STATUS Cmd::on_callback(int err, void* data) {

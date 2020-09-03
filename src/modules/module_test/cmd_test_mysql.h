@@ -47,7 +47,7 @@ class CmdTestMysql : public Cmd {
                 }
 
                 if (m_oper == "read") {
-                    return execute_cur_step(ES_DATABASE_QUERY);
+                    return execute_next_step(err, data, ES_DATABASE_QUERY);
                 }
                 return execute_next_step(err, data);
             }

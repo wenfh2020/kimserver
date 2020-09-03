@@ -78,7 +78,7 @@ class INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
-    virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& rds_cmds) {
+    virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) {
         return false;
     }
 

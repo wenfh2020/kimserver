@@ -61,10 +61,10 @@ class RdsConnection {
 
     int m_port = 0;
     std::string m_host;
-    std::list<task_t*> m_wait_tasks;
+    std::list<task_t*> m_wait_tasks; /* add task to task list, before connection is ok.*/
 
     STATE m_state = STATE::CLOSED;
-    redisAsyncContext* m_ctx = nullptr;
+    redisAsyncContext* m_ctx = nullptr; /* hiredis async connection. */
 };
 
 }  // namespace kim

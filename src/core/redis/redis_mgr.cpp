@@ -82,20 +82,20 @@ RdsConnection* RedisMgr::get_conn(const char* node) {
     return c;
 }
 
-bool RedisMgr::send_to(const char* node, const std::vector<std::string>& rds_cmds,
+bool RedisMgr::send_to(const char* node, const std::vector<std::string>& argv,
                        redisCallbackFn* fn, void* privdata) {
-    if (node == nullptr || fn == nullptr || rds_cmds.size() == 0) {
+    if (node == nullptr || fn == nullptr || argv.size() == 0) {
         LOG_ERROR("invalid params!");
         return false;
     }
 
-    /* async hiredis client pressure 10w+ qps. it's ok just one link. */
+    /* async hiredis client pressure 10w+ qps. it's ok for just one link. */
     RdsConnection* c = get_conn(node);
     if (c == nullptr) {
         LOG_ERROR("get redis conn failed! node: %s", node);
         return false;
     }
-    return c->send_to(rds_cmds, fn, privdata);
+    return c->send_to(argv, fn, privdata);
 }
 
 }  // namespace kim

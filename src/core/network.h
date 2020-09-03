@@ -110,7 +110,7 @@ class Network : public INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
 
     // redis.
-    virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& rds_cmds) override;
+    virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
 
     // database
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
