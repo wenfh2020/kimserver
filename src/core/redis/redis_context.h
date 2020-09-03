@@ -44,7 +44,6 @@ class RdsConnection {
    private:
     void destory();
     void set_state(RdsConnection::STATE s) { m_state = s; }
-    std::string format_redis_cmds(const std::vector<std::string>& cmd_argv);
 
     // task.
     bool add_wait_task(const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata);

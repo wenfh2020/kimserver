@@ -39,6 +39,11 @@ class CmdTestRedis : public Cmd {
                     LOG_ERROR("invalid request data! pls check!");
                     return response_http(ERR_FAILED, "invalid request data");
                 }
+                m_oper = req_data("oper");
+                if (m_oper == "read") {
+                    return execute_cur_step(ES_REDIS_GET);
+                }
+
                 return execute_next_step(err, data);
             }
             case ES_REDIS_SET: {
@@ -59,6 +64,11 @@ class CmdTestRedis : public Cmd {
                     return response_http(ERR_FAILED, "redis set data callback failed!");
                 }
                 LOG_DEBUG("redis set callback result: %s", reply->str);
+
+                if (m_oper == "write") {
+                    return response_http(ERR_OK, "redis write data done!");
+                }
+
                 return execute_next_step(err, data);
             }
             case ES_REDIS_GET: {
@@ -90,7 +100,7 @@ class CmdTestRedis : public Cmd {
     }
 
    private:
-    std::string m_key, m_value;
+    std::string m_key, m_value, m_oper;
 };
 
 }  // namespace kim

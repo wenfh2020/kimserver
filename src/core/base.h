@@ -15,11 +15,7 @@ class Base {
     }
     Base(const Base&) = delete;
     Base& operator=(const Base&) = delete;
-    virtual ~Base() {
-        if (!m_name.empty()) {
-            LOG_DEBUG("~%s()", m_name.c_str());
-        }
-    }
+    virtual ~Base() {}
 
    public:
     void set_id(uint64_t id) { m_id = id; }

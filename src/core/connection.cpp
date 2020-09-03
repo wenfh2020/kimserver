@@ -12,7 +12,6 @@ Connection::Connection(Log* logger, int fd, uint64_t id)
 }
 
 Connection::~Connection() {
-    LOG_DEBUG("~Connection()");
     SAFE_DELETE(m_recv_buf);
     SAFE_DELETE(m_send_buf);
     SAFE_DELETE(m_wait_send_buf);
@@ -96,7 +95,6 @@ bool Connection::conn_read() {
 }
 
 Codec::STATUS Connection::decode_http(HttpMsg& msg) {
-    LOG_DEBUG("decode_http");
     CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;
@@ -105,7 +103,6 @@ Codec::STATUS Connection::decode_http(HttpMsg& msg) {
 }
 
 Codec::STATUS Connection::decode_proto(MsgHead& head, MsgBody& body) {
-    LOG_DEBUG("decode_proto");
     CodecProto* codec = dynamic_cast<CodecProto*>(m_codec);
     if (codec == nullptr) {
         return Codec::STATUS::ERR;

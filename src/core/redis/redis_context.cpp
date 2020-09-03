@@ -126,7 +126,7 @@ bool RdsConnection::send_to(
         return true;
     }
 
-    LOG_DEBUG("send to redis, cmd: %s", format_redis_cmds(cmd_argv).c_str());
+    // LOG_DEBUG("send to redis, cmd: %s", format_redis_cmds(cmd_argv).c_str());
 
     /* ok. send cmd to redis. */
     size_t arglen[cmd_argv.size()];
@@ -144,21 +144,13 @@ bool RdsConnection::send_to(
     return (ret == REDIS_OK);
 }
 
-std::string RdsConnection::format_redis_cmds(const std::vector<std::string>& cmd_argv) {
-    std::ostringstream oss;
-    for (auto& it : cmd_argv) {
-        oss << it << " ";
-    }
-    return oss.str();
-}
-
 bool RdsConnection::add_wait_task(
     const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata) {
     if (cmd_argv.size() == 0 || fn == nullptr) {
         return false;
     }
 
-    LOG_DEBUG("add wait task, redis cmd: %s", format_redis_cmds(cmd_argv).c_str());
+    // LOG_DEBUG("add wait task, redis cmd: %s", format_redis_cmds(cmd_argv).c_str());
     task_t* task = new task_t;
     task->fn = fn;
     task->cmd_argv = cmd_argv;

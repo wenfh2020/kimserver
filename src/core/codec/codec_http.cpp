@@ -289,7 +289,6 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
     size_t len = http_parser_execute(&m_parser, &m_parser_setting, buffer, buf_len);
 
     if (msg.is_decoding()) {
-        LOG_DEBUG("decode....");
         return Codec::STATUS::PAUSE;
     }
 

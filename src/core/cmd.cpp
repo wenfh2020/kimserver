@@ -6,15 +6,12 @@ namespace kim {
 
 Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name)
     : Base(id, logger, net, name), m_module_id(mid) {
-    LOG_DEBUG("%s", get_name());
     set_keep_alive(CMD_TIMEOUT_VAL);
     set_max_timeout_cnt(CMD_MAX_TIMEOUT_CNT);
     set_active_time(get_net()->now());
 }
 
-Cmd::~Cmd() {
-    LOG_DEBUG("destory %s", get_name());
-}
+Cmd::~Cmd() {}
 
 Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     const HttpMsg* req_msg = m_req->get_http_msg();
