@@ -92,11 +92,7 @@ class Module : public Base {
             SAFE_DELETE(p);                                                         \
             return Cmd::STATUS::ERROR;                                              \
         }                                                                           \
-        Cmd::STATUS status = execute_cmd(p, req);                                   \
-        if (status != Cmd::STATUS::RUNNING) {                                       \
-            SAFE_DELETE(p);                                                         \
-        }                                                                           \
-        return status;                                                              \
+        return execute_cmd(p, req);                                                 \
     } while (0);
 
 }  // namespace kim

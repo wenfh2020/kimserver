@@ -23,7 +23,9 @@ bool Module::init(Log* logger, INet* net, uint64_t id, const std::string& name) 
 
 Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     Cmd::STATUS status = cmd->execute(req);
-    if (status == Cmd::STATUS::RUNNING) {
+    if (status != Cmd::STATUS::RUNNING) {
+        SAFE_DELETE(cmd);
+    } else {
         if (!get_net()->add_cmd(cmd)) {
             LOG_ERROR("add cmd duplicate, id: %llu!", cmd->get_id());
             return Cmd::STATUS::ERROR;
