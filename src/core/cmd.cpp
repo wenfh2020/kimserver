@@ -55,8 +55,6 @@ Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>&
         return Cmd::STATUS::ERROR;
     }
 
-    LOG_DEBUG("redis send to node: %s", node);
-
     return m_net->redis_send_to(node, this, argv)
                ? Cmd::STATUS::RUNNING
                : Cmd::STATUS::ERROR;

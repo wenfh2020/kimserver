@@ -797,8 +797,8 @@ bool Network::del_cmd_timer(ev_timer* w) {
     return m_events->del_timer_event(w);
 }
 
-bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& cmd_argv) {
-    if (node == nullptr || cmd == nullptr || cmd_argv.size() == 0) {
+bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) {
+    if (node == nullptr || cmd == nullptr || argv.size() == 0) {
         LOG_ERROR("invalid params!");
         return false;
     }
@@ -819,7 +819,7 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
         return false;
     }
 
-    if (!m_redis_pool->send_to(node, cmd_argv, on_redis_lib_callback, info)) {
+    if (!m_redis_pool->send_to(node, argv, on_redis_lib_callback, info)) {
         LOG_ERROR("redis send data failed! node: %s.", node);
         SAFE_DELETE(info);
         return false;
@@ -992,6 +992,7 @@ bool Network::del_cmd(Cmd* cmd) {
     if (cmd == nullptr) {
         return false;
     }
+
     auto it = m_cmds.find(cmd->get_id());
     if (it == m_cmds.end()) {
         return false;
@@ -999,11 +1000,12 @@ bool Network::del_cmd(Cmd* cmd) {
 
     m_cmds.erase(it);
     if (cmd->get_timer() != nullptr) {
+        LOG_DEBUG("del timer: %p!", cmd->get_timer());
         del_cmd_timer(cmd->get_timer());
         cmd->set_timer(nullptr);
-        LOG_DEBUG("del timer!")
     }
-    LOG_DEBUG("delete cmd index data!");
+
+    LOG_DEBUG("delete cmd: %p!", cmd);
     SAFE_DELETE(cmd);
     return true;
 }

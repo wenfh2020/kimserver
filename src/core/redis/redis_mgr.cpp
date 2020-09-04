@@ -15,22 +15,21 @@ RedisMgr::~RedisMgr() {
 }
 
 bool RedisMgr::init(CJsonObject& config) {
+    int port;
+    std::string host;
     std::vector<std::string> nodes;
     config.GetKeys(nodes);
 
-    int port;
-    std::string host;
-
-    for (const auto& it : nodes) {
-        const CJsonObject& obj = config[it];
+    for (const auto& node : nodes) {
+        const CJsonObject& obj = config[node];
         host = obj("host");
         port = atoi(obj("port").c_str());
         if (host.empty() || port == 0) {
-            LOG_ERROR("invalid redis node addr: %s", it.c_str());
+            LOG_ERROR("invalid redis node addr: %s", node.c_str());
             m_addrs.clear();
             return false;
         }
-        m_addrs.insert({it, {host, port}});
+        m_addrs.insert({node, {host, port}});
     }
 
     return true;

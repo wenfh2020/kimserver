@@ -48,8 +48,8 @@ class CmdTestRedis : public Cmd {
             }
             case ES_REDIS_SET: {
                 LOG_DEBUG("step redis set, key: %s, value: %s", m_key.c_str(), m_value.c_str());
-                std::vector<std::string> cmd_argv{"set", m_key, m_value};
-                Cmd::STATUS status = redis_send_to("test", cmd_argv);
+                std::vector<std::string> argv{"set", m_key, m_value};
+                Cmd::STATUS status = redis_send_to("test", argv);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }
@@ -72,8 +72,8 @@ class CmdTestRedis : public Cmd {
                 return execute_next_step(err, data);
             }
             case ES_REDIS_GET: {
-                std::vector<std::string> cmd_argv{"get", m_key};
-                Cmd::STATUS status = redis_send_to("test", cmd_argv);
+                std::vector<std::string> argv{"get", m_key};
+                Cmd::STATUS status = redis_send_to("test", argv);
                 if (status == Cmd::STATUS::ERROR) {
                     return response_http(ERR_FAILED, "redis failed!");
                 }

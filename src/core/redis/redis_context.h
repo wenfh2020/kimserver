@@ -15,7 +15,7 @@ namespace kim {
 class RdsConnection {
    public:
     typedef struct task_s {
-        std::vector<std::string> cmd_argv;
+        std::vector<std::string> argv;
         redisCallbackFn* fn = nullptr;
         void* privdata = nullptr;
     } task_t;
@@ -29,7 +29,7 @@ class RdsConnection {
     RdsConnection(Log* logger, struct ev_loop* loop);
     virtual ~RdsConnection();
     bool connect(const std::string& host, int port);
-    bool send_to(const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata);
+    bool send_to(const std::vector<std::string>& argv, redisCallbackFn* fn, void* privdata);
 
     // state.
     bool is_connected() { return m_state == STATE::CONNECTED; }
@@ -46,7 +46,7 @@ class RdsConnection {
     void set_state(RdsConnection::STATE s) { m_state = s; }
 
     // task.
-    bool add_wait_task(const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata);
+    bool add_wait_task(const std::vector<std::string>& argv, redisCallbackFn* fn, void* privdata);
     void wait_task_error_callback(const redisAsyncContext* c, task_t* task, int err, char* errstr);
 
     // callback.

@@ -36,14 +36,18 @@ bool RdsConnection::connect(const std::string& host, int port) {
         return false;
     }
 
-    if (m_ctx != nullptr) {
-        destory();
-    }
+    destory();
 
     redisAsyncContext* c = redisAsyncConnect(host.c_str(), port);
     if (c == nullptr || c->err != REDIS_OK) {
-        LOG_ERROR("connect redis failed! errno: %d, error: %s, host: %s, port: %d",
-                  c->err, c->errstr, host.c_str(), port);
+        if (c->err != REDIS_OK) {
+            LOG_ERROR("async connect rdis failed! host: %s, port: %d, error: %d, errstr: %s",
+                      host.c_str(), port, c->err, c->errstr);
+            redisAsyncFree(c);
+        } else {
+            LOG_ERROR("async connect redis failed! host: %s, port: %d",
+                      host.c_str(), port);
+        }
         return false;
     }
 
@@ -90,7 +94,7 @@ void RdsConnection::on_redis_connect_callback(const redisAsyncContext* ac, int s
     for (auto& it : m_wait_tasks) {
         task_t* task = it;
         if (status == REDIS_OK) {
-            if (!send_to(task->cmd_argv, task->fn, task->privdata)) {
+            if (!send_to(task->argv, task->fn, task->privdata)) {
                 wait_task_error_callback(ac, task, REDIS_ERR, send_errstr);
             }
         } else {
@@ -108,7 +112,7 @@ void RdsConnection::on_redis_disconnect_callback(const redisAsyncContext* ac, in
 }
 
 bool RdsConnection::send_to(
-    const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata) {
+    const std::vector<std::string>& argv, redisCallbackFn* fn, void* privdata) {
     if (m_ctx == nullptr || is_closed()) {
         LOG_DEBUG("connection is not ok! host: %s, port: %d, state: %d",
                   m_host.c_str(), m_port, m_state);
@@ -116,24 +120,24 @@ bool RdsConnection::send_to(
     }
 
     if (is_connecting()) {
-        if (!add_wait_task(cmd_argv, fn, privdata)) {
+        if (!add_wait_task(argv, fn, privdata)) {
             LOG_ERROR("add wait task failed!");
             return false;
         }
         return true;
     }
 
-    // LOG_DEBUG("send to redis, cmd: %s", format_redis_cmds(cmd_argv).c_str());
+    // LOG_DEBUG("send to redis, cmd: %s", format_redis_cmds(argv).c_str());
 
     /* ok. send cmd to redis. */
-    size_t arglen[cmd_argv.size()];
-    const char* argv[cmd_argv.size()];
-    for (size_t i = 0; i < cmd_argv.size(); i++) {
-        argv[i] = cmd_argv[i].c_str();
-        arglen[i] = cmd_argv[i].length();
+    size_t arglen[argv.size()];
+    const char* rds_argv[argv.size()];
+    for (size_t i = 0; i < argv.size(); i++) {
+        arglen[i] = argv[i].length();
+        rds_argv[i] = argv[i].c_str();
     }
 
-    int ret = redisAsyncCommandArgv(m_ctx, fn, privdata, cmd_argv.size(), argv, arglen);
+    int ret = redisAsyncCommandArgv(m_ctx, fn, privdata, argv.size(), rds_argv, arglen);
     if (ret != REDIS_OK) {
         LOG_ERROR("redis send to failed! ret: %d, errno: %d, error: %s",
                   ret, m_ctx->err, m_ctx->errstr);
@@ -142,21 +146,22 @@ bool RdsConnection::send_to(
 }
 
 bool RdsConnection::add_wait_task(
-    const std::vector<std::string>& cmd_argv, redisCallbackFn* fn, void* privdata) {
-    if (cmd_argv.size() == 0 || fn == nullptr) {
+    const std::vector<std::string>& argv, redisCallbackFn* fn, void* privdata) {
+    if (argv.size() == 0 || fn == nullptr) {
         return false;
     }
 
-    // LOG_DEBUG("add wait task, redis cmd: %s", format_redis_cmds(cmd_argv).c_str());
+    // LOG_DEBUG("add wait task, redis cmd: %s", format_redis_cmds(argv).c_str());
     task_t* task = new task_t;
     task->fn = fn;
-    task->cmd_argv = cmd_argv;
+    task->argv = argv;
     task->privdata = privdata;
     m_wait_tasks.push_back(task);
     return true;
 }
 
-void RdsConnection::wait_task_error_callback(const redisAsyncContext* ac, task_t* task, int err, char* errstr) {
+void RdsConnection::wait_task_error_callback(
+    const redisAsyncContext* ac, task_t* task, int err, char* errstr) {
     /* danger: const to no const. */
     redisAsyncContext* c = const_cast<redisAsyncContext*>(ac);
     int old_error = c->err;

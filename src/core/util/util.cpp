@@ -53,9 +53,9 @@ std::string get_work_path() {
     return std::string(work_path);
 }
 
-std::string format_redis_cmds(const std::vector<std::string>& cmd_argv) {
+std::string format_redis_cmds(const std::vector<std::string>& argv) {
     std::ostringstream oss;
-    for (auto& it : cmd_argv) {
+    for (auto& it : argv) {
         oss << it << " ";
     }
     return oss.str();
