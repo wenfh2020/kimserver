@@ -232,4 +232,86 @@ int anet_set_tcp_no_delay(char *err, int fd, int val) {
     return ANET_OK;
 }
 
+int anet_tcp_connect(char *err, const char *addr, int port, bool is_block,
+                     struct sockaddr *saddr, size_t *saddrlen) {
+    int s = ANET_ERR, rv;
+    char portstr[6];
+    struct addrinfo hints, *servinfo, *p;
+
+    snprintf(portstr, sizeof(portstr), "%d", port);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(addr, portstr, &hints, &servinfo)) != 0) {
+        anet_set_error(err, "%s", gai_strerror(rv));
+        return ANET_ERR;
+    }
+
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        /* Try to create the socket and to connect it.
+         * If we fail in the socket() call, or on connect(), we retry with
+         * the next entry in servinfo. */
+        if ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            continue;
+        }
+
+        if (anet_set_reuse_addr(err, s) == ANET_ERR) {
+            goto error;
+        }
+
+        if (!is_block && anet_no_block(err, s) != ANET_OK) {
+            goto error;
+        }
+
+        if (connect(s, p->ai_addr, p->ai_addrlen) == -1) {
+            /* If the socket is non-blocking, it is ok for connect() to
+             * return an EINPROGRESS error here. */
+            if (errno == EINPROGRESS && !is_block)
+                goto end;
+            close(s);
+            s = ANET_ERR;
+            continue;
+        }
+
+        /* If we ended an iteration of the for loop without errors, we
+         * have a connected socket. Let's return to the caller. */
+        goto end;
+    }
+
+error:
+    if (s != ANET_ERR) {
+        close(s);
+        s = ANET_ERR;
+    }
+
+end:
+    if (saddr && saddrlen) {
+        *saddrlen = p->ai_addrlen;
+        memcpy(saddr, p->ai_addr, p->ai_addrlen);
+    }
+    freeaddrinfo(servinfo);
+    return s;
+}
+
+int anet_check_connect_done(int fd, struct sockaddr *saddr, size_t saddr_len, bool &completed) {
+    int rc = connect(fd, saddr, saddr_len);
+    if (rc == 0) {
+        completed = true;
+        return ANET_OK;
+    }
+    switch (errno) {
+        case EISCONN:
+            completed = true;
+            return ANET_OK;
+        case EALREADY:
+        case EINPROGRESS:
+        case EWOULDBLOCK:
+            completed = false;
+            return ANET_OK;
+        default:
+            return ANET_ERR;
+    }
+}
+
 }  // namespace kim

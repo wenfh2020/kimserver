@@ -132,12 +132,14 @@ bool Events::del_write_event(ev_io* w) {
     if (w == nullptr) {
         return false;
     }
+
     if (w->events | EV_WRITE) {
         ev_io_stop(m_ev_loop, w);
         ev_io_set(w, w->fd, w->events & (~EV_WRITE));
         ev_io_start(m_ev_loop, w);
+        LOG_DEBUG("del write event, fd: %d", w->fd);
     }
-    LOG_DEBUG("del write event, fd: %d", w->fd);
+
     return true;
 }
 
@@ -252,7 +254,7 @@ void Events::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
 
 void Events::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
-    INet* net = static_cast<INet*>(c->get_private_data());
+    INet* net = static_cast<INet*>(c->privdata());
     net->on_io_timer(w->data);
 }
 

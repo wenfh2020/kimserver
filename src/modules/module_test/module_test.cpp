@@ -29,8 +29,9 @@ Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
               head->cmd(), head->seq(), head->len());
 
     MsgBody* body = req->get_msg_body();
-    LOG_DEBUG("body len: %d, data: %s",
-              body->ByteSizeLong(), body->SerializeAsString().c_str());
+    LOG_DEBUG("body len: %d, data: <%s>",
+              body->ByteSizeLong(),
+              body->SerializeAsString().c_str());
 
     MsgHead rsp_head;
     rsp_head.set_cmd(head->cmd() + 1);
@@ -41,8 +42,8 @@ Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
     rsp_head.set_len(rsp_body.ByteSizeLong());
 
     return get_net()->send_to(req->get_conn(), rsp_head, rsp_body)
-               ? Cmd::STATUS::ERROR
-               : Cmd::STATUS::OK;
+               ? Cmd::STATUS::OK
+               : Cmd::STATUS::ERROR;
 }
 
 Cmd::STATUS MoudleTest::func_test_cmd(std::shared_ptr<Request> req) {

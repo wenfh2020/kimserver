@@ -16,6 +16,7 @@ Connection::~Connection() {
     SAFE_DELETE(m_send_buf);
     SAFE_DELETE(m_wait_send_buf);
     SAFE_DELETE(m_codec);
+    SAFE_FREE(m_saddr);
 }
 
 bool Connection::init(Codec::TYPE codec) {
@@ -117,7 +118,7 @@ Codec::STATUS Connection::conn_write() {
     }
 
     int write_len = m_send_buf->write_fd(m_fd, m_errno);
-    LOG_DEBUG("write to fd: %d, seq: %llu, write len: %d, readed data len: %d",
+    LOG_DEBUG("write to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
               m_fd, m_id, write_len, m_send_buf->get_readable_len());
     if (write_len >= 0) {
         // recovery socket buffer.
@@ -134,7 +135,6 @@ Codec::STATUS Connection::conn_write() {
             m_active_time = time_now();
             return Codec::STATUS::PAUSE;
         }
-
         LOG_ERROR("send data failed! fd: %d, seq: %llu, readable len: %d",
                   m_fd, m_id, m_send_buf->get_readable_len());
         return Codec::STATUS::ERR;
@@ -148,8 +148,16 @@ Codec::STATUS Connection::conn_read(MsgHead& head, MsgBody& body) {
     return decode_proto(head, body);
 }
 
-Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
+Codec::STATUS Connection::fetch_data(MsgHead& head, MsgBody& body) {
     if (!is_connected()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        return Codec::STATUS::ERR;
+    }
+    return decode_proto(head, body);
+}
+
+Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
+    if (!is_connected() && !is_connecting()) {
         LOG_ERROR("conn is invalid! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
@@ -174,11 +182,23 @@ Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
         return status;
     }
 
+    if (is_connecting()) {
+        return status;
+    }
+
     return conn_write();
 }
 
 Codec::STATUS Connection::conn_read(HttpMsg& msg) {
     if (!conn_read()) {
+        return Codec::STATUS::ERR;
+    }
+    return decode_http(msg);
+}
+
+Codec::STATUS Connection::fetch_data(HttpMsg& msg) {
+    if (!is_connected()) {
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
     return decode_http(msg);
@@ -233,6 +253,17 @@ double Connection::get_keep_alive() {
         }
     }
     return m_keep_alive;
+}
+
+void Connection::set_addr_info(struct sockaddr* saddr, size_t saddr_len) {
+    SAFE_FREE(m_saddr);
+    m_saddr = (struct sockaddr*)malloc(saddr_len);
+    memcpy(m_saddr, saddr, saddr_len);
+    m_saddr_len = saddr_len;
+}
+
+struct sockaddr* Connection::sockaddr() {
+    return m_saddr;
 }
 
 }  // namespace kim

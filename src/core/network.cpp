@@ -239,7 +239,7 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
         return nullptr;
     }
     c->init(codec);
-    c->set_private_data(this);
+    c->set_privdata(this);
     c->set_active_time(now());
     c->set_state(Connection::STATE::CONNECTED);
 
@@ -525,50 +525,49 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
+    return process_message(c);
+}
+
+bool Network::process_message(std::shared_ptr<Connection>& c) {
+    Cmd::STATUS cmd_ret;
     Codec::STATUS status;
-    std::shared_ptr<Request> req;
-    Cmd::STATUS cmd_stat = Cmd::STATUS::UNKOWN;
 
     if (c->is_http_codec()) {
-        req = std::make_shared<Request>(c, true);
-        HttpMsg* msg = req->http_msg_alloc();
-        status = c->conn_read(*msg);
+        HttpMsg msg;
+        status = c->conn_read(msg);
+        LOG_DEBUG("connection is http codec type, status: %d", (int)status);
+        while (status == Codec::STATUS::OK) {
+            cmd_ret = m_module_mgr->process_msg(c, msg);
+            LOG_DEBUG("cmd status: %d", cmd_ret);
+            msg.Clear();
+            status = c->fetch_data(msg);
+        }
     } else {
-        req = std::make_shared<Request>(c, false);
-        MsgHead* head = req->msg_head_alloc();
-        MsgBody* body = req->msg_body_alloc();
-        status = c->conn_read(*head, *body);
+        MsgHead head;
+        MsgBody body;
+        status = c->conn_read(head, body);
+        LOG_DEBUG("connection is protobuf codec type, status: %d", (int)status);
+        while (status == Codec::STATUS::OK) {
+            cmd_ret = m_module_mgr->process_msg(c, head, body);
+            LOG_DEBUG("cmd status: %d", cmd_ret);
+            head.Clear();
+            body.Clear();
+            status = c->fetch_data(head, body);
+        }
     }
 
-    if (status == Codec::STATUS::OK) {
-        // find path in modules and process message.
-        cmd_stat = m_module_mgr->process_msg(req);
-        if (cmd_stat != Cmd::STATUS::UNKOWN) {
-            LOG_DEBUG("cmd status: %d", cmd_stat);
-            if (cmd_stat != Cmd::STATUS::RUNNING) {
-                if (c->get_keep_alive() == 0.0) {  // Connection : close
-                    LOG_DEBUG("close short connection! fd: %d", fd);
-                    close_conn(c);
-                }
-            }
-        } else {
-            // no cmd in modules.
-            if (c->get_keep_alive() == 0) {
-                close_conn(c);
-            }
-        }
-    } else {
-        if (status == Codec::STATUS::PAUSE) {
-            // not enough data, then decode next time.
-            LOG_DEBUG("decode next time. fd: %d", fd);
-            return true;
-        } else {
-            LOG_DEBUG("read failed. fd: %d", fd);
-            close_conn(c);
-            return false;
-        }
+    if (status == Codec::STATUS::ERR) {
+        LOG_DEBUG("read failed. fd: %d", c->get_fd());
+        close_conn(c);
+        return false;
     }
-    LOG_DEBUG("connection is http codec type, status: %d", (int)status);
+
+    // if (c->get_keep_alive() == 0.0) {
+    //     LOG_DEBUG("short connection! fd: %d", c->get_fd());
+    //     close_conn(c);
+    //     return false;
+    // }
+
     return true;
 }
 

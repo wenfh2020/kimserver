@@ -170,4 +170,20 @@ Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Request>& req) {
     return Cmd::STATUS::UNKOWN;
 }
 
+Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Connection>& c, const HttpMsg& msg) {
+    std::shared_ptr<Request> req = std::make_shared<Request>(c, msg);
+    if (req == nullptr) {
+        return Cmd::STATUS::ERROR;
+    }
+    return process_msg(req);
+}
+
+Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
+    std::shared_ptr<Request> req = std::make_shared<Request>(c, head, body);
+    if (req == nullptr) {
+        return Cmd::STATUS::ERROR;
+    }
+    return process_msg(req);
+}
+
 }  // namespace kim

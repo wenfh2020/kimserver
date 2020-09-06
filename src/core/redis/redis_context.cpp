@@ -57,6 +57,7 @@ bool RdsConnection::connect(const std::string& host, int port) {
         LOG_ERROR("redis libev attach failed!");
         return false;
     }
+
     redisAsyncSetConnectCallback(c, on_redis_connect_libev_callback);
     redisAsyncSetDisconnectCallback(c, on_redis_disconnect_libev_callback);
     set_state(STATE::CONNECTING);

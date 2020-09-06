@@ -41,8 +41,12 @@ class Connection : public Timer {
 
     uint64_t get_id() const { return m_id; }
 
-    void set_private_data(void* data) { m_private_data = data; }
-    void* get_private_data() const { return m_private_data; }
+    void set_privdata(void* data) { m_privdata = data; }
+    void* privdata() const { return m_privdata; }
+
+    void set_addr_info(struct sockaddr* saddr, size_t saddr_len);
+    struct sockaddr* sockaddr();
+    size_t saddr_len() { return m_saddr_len; }
 
     void set_state(STATE state) { m_state = state; }
     STATE get_state() const { return m_state; }
@@ -60,8 +64,10 @@ class Connection : public Timer {
 
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);
+    Codec::STATUS fetch_data(HttpMsg& msg);
 
     Codec::STATUS conn_read(MsgHead& head, MsgBody& body);
+    Codec::STATUS fetch_data(MsgHead& head, MsgBody& body);
     Codec::STATUS conn_write(const MsgHead& head, const MsgBody& body);
     Codec::STATUS conn_write();
 
@@ -74,10 +80,10 @@ class Connection : public Timer {
     Codec::STATUS decode_proto(MsgHead& head, MsgBody& body);
 
    private:
-    uint64_t m_id = 0;               // sequence.
-    Log* m_logger = nullptr;         // logger.
-    void* m_private_data = nullptr;  // private data.
-    ev_io* m_ev_io = nullptr;        // libev io event obj.
+    uint64_t m_id = 0;           // sequence.
+    Log* m_logger = nullptr;     // logger.
+    void* m_privdata = nullptr;  // private data.
+    ev_io* m_ev_io = nullptr;    // libev io event obj.
     Codec* m_codec = nullptr;
 
     int m_fd = -1;                     // socket fd.
@@ -87,6 +93,9 @@ class Connection : public Timer {
     SocketBuffer* m_recv_buf = nullptr;
     SocketBuffer* m_send_buf = nullptr;
     SocketBuffer* m_wait_send_buf = nullptr;
+
+    size_t m_saddr_len = 0;
+    struct sockaddr* m_saddr = nullptr;
 };
 
 }  // namespace kim

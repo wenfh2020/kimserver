@@ -1,6 +1,8 @@
 #ifndef __NETWORK_H__
 #define __NETWORK_H__
 
+#include <sys/socket.h>
+
 #include <iostream>
 #include <list>
 #include <unordered_map>
@@ -127,6 +129,7 @@ class Network : public INet {
     void accept_and_transfer_fd(int fd);
     void read_transfer_fd(int fd);
     bool read_query_from_client(int fd);
+    bool process_message(std::shared_ptr<Connection>& c);
 
     // connection.
     std::shared_ptr<Connection> create_conn(int fd);
