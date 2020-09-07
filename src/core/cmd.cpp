@@ -4,17 +4,17 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name)
-    : Base(id, logger, net, name), m_module_id(mid) {
+Cmd::Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name)
+    : Base(id, logger, n, name), m_module_id(mid) {
     set_keep_alive(CMD_TIMEOUT_VAL);
     set_max_timeout_cnt(CMD_MAX_TIMEOUT_CNT);
-    set_active_time(get_net()->now());
+    set_active_time(net()->now());
 }
 
 Cmd::~Cmd() {}
 
 Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
-    const HttpMsg* req_msg = m_req->get_http_msg();
+    const HttpMsg* req_msg = m_req->http_msg();
     if (req_msg == nullptr) {
         LOG_ERROR("http msg is null! pls alloc!");
         return Cmd::STATUS::ERROR;
@@ -27,7 +27,7 @@ Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     msg.set_http_minor(req_msg->http_minor());
     msg.set_body(data);
 
-    if (!m_net->send_to(m_req->get_conn(), msg)) {
+    if (!m_net->send_to(m_req->conn(), msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;
@@ -66,7 +66,7 @@ Cmd::STATUS Cmd::db_exec(const char* node, const char* sql) {
         return Cmd::STATUS::ERROR;
     }
     LOG_DEBUG("db exec, node: %s, sql: %s", node, sql);
-    if (!get_net()->db_exec(node, sql, this)) {
+    if (!net()->db_exec(node, sql, this)) {
         LOG_ERROR("database exec failed! node: %s, sql: %s", node, sql);
         return Cmd::STATUS::ERROR;
     }
@@ -79,7 +79,7 @@ Cmd::STATUS Cmd::db_query(const char* node, const char* sql) {
         return Cmd::STATUS::ERROR;
     }
     LOG_DEBUG("db exec, node: %s, sql: %s", node, sql);
-    if (!get_net()->db_query(node, sql, this)) {
+    if (!net()->db_query(node, sql, this)) {
         LOG_ERROR("database query failed! node: %s, sql: %s", node, sql);
         return Cmd::STATUS::ERROR;
     }
@@ -105,7 +105,7 @@ Cmd::STATUS Cmd::on_callback(int err, void* data) {
 
 Cmd::STATUS Cmd::on_timeout() {
     LOG_DEBUG("time out!");
-    if (++m_cur_timeout_cnt < get_max_timeout_cnt()) {
+    if (++m_cur_timeout_cnt < max_timeout_cnt()) {
         return Cmd::STATUS::RUNNING;
     }
     return Cmd::STATUS::ERROR;

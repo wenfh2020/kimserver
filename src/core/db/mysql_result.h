@@ -23,15 +23,15 @@ class MysqlResult {
     bool init(MYSQL *mysql, MYSQL_RES *res);
 
     MYSQL_ROW fetch_row();
-    unsigned int get_num_rows();
-    const MYSQL_RES *get_result() { return m_res; }
-    int get_result_data(vec_row_t &data);
+    unsigned int num_rows();
+    const MYSQL_RES *result() { return m_res; }
+    int result_data(vec_row_t &data);
     unsigned long *fetch_lengths();
     unsigned int fetch_num_fields();
 
     bool is_ok() { return m_error == 0; }
-    int get_error() { return m_error; }
-    const std::string &get_errstr() const { return m_errstr; }
+    int error() { return m_error; }
+    const std::string &errstr() const { return m_errstr; }
 
    private:
     int m_error = -1;

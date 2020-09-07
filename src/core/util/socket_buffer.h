@@ -46,25 +46,25 @@ class SocketBuffer {
             m_buffer = nullptr;
         }
     }
-    inline size_t get_read_index() { return m_read_idx; }
-    inline size_t get_write_index() { return m_write_idx; }
+    inline size_t read_index() { return m_read_idx; }
+    inline size_t write_index() { return m_write_idx; }
     inline void set_read_index(size_t idx) { m_read_idx = idx; }
     inline void advance_read_index(int step) { m_read_idx += step; }
     inline void set_write_index(size_t idx) { m_write_idx = idx; }
     inline void advance_write_index(int step) { m_write_idx += step; }
     inline bool is_readable() { return m_write_idx > m_read_idx; }
     inline bool is_writeable() { return m_buffer_len > m_write_idx; }
-    inline size_t get_readable_len() { return is_readable() ? m_write_idx - m_read_idx : 0; }
-    inline size_t get_writeable_len() { return is_writeable() ? m_buffer_len - m_write_idx : 0; }
+    inline size_t readable_len() { return is_readable() ? m_write_idx - m_read_idx : 0; }
+    inline size_t writeable_len() { return is_writeable() ? m_buffer_len - m_write_idx : 0; }
 
     // recovery writebale buffer and alreay readed buffer.
     inline size_t compact(size_t size) {
-        if (get_writeable_len() < size) {
+        if (writeable_len() < size) {
             return 0;
         }
 
         uint32_t total = capacity();
-        uint32_t readable_bytes = get_readable_len();
+        uint32_t readable_bytes = readable_len();
 
         char* new_buffer = nullptr;
         if (readable_bytes > 0) {
@@ -88,7 +88,7 @@ class SocketBuffer {
     }
 
     inline bool ensure_writeable(size_t min) {
-        if (get_writeable_len() >= min) {
+        if (writeable_len() >= min) {
             // enough space to write.
             return true;
         }
@@ -103,18 +103,18 @@ class SocketBuffer {
             cap = DEFAULT_BUFFER_SIZE;
         }
 
-        size_t min_cap = get_write_index() + min;
+        size_t min_cap = write_index() + min;
         while (cap < min_cap) {
             cap <<= 1;
         }
 
         char* tmp = (char*)malloc(cap);
         if (tmp != nullptr) {
-            memcpy(tmp, m_buffer + m_read_idx, get_readable_len());
+            memcpy(tmp, m_buffer + m_read_idx, readable_len());
             free(m_buffer);
             m_buffer = tmp;
             m_buffer_len = cap;
-            m_write_idx = get_readable_len();
+            m_write_idx = readable_len();
             m_read_idx = 0;
             return true;
         }
@@ -122,14 +122,14 @@ class SocketBuffer {
         return false;
     }
 
-    inline char* get_raw_write_buffer() { return m_buffer + m_write_idx; }
-    inline const char* get_raw_write_buffer() const { return m_buffer + m_read_idx; }
-    inline const char* get_raw_read_buffer() const { return m_buffer + m_read_idx; }
+    inline char* raw_write_buffer() { return m_buffer + m_write_idx; }
+    inline const char* raw_write_buffer() const { return m_buffer + m_read_idx; }
+    inline const char* raw_read_buffer() const { return m_buffer + m_read_idx; }
     inline size_t capacity() const { return m_buffer_len; }
     inline void limit() { m_buffer_len = m_write_idx; }
     inline void clear() { m_write_idx = m_read_idx = 0; }
     inline int _read(void* data_out, size_t len) {
-        if (len > get_readable_len()) {
+        if (len > readable_len()) {
             return -1;
         }
         memcpy(data_out, m_buffer + m_read_idx, len);
@@ -150,8 +150,8 @@ class SocketBuffer {
         if (unit == nullptr) {
             return -1;
         }
-        if (len > unit->get_readable_len()) {
-            len = unit->get_readable_len();
+        if (len > unit->readable_len()) {
+            len = unit->readable_len();
         }
         int ret = _write(unit->m_buffer + unit->m_read_idx, len);
         if (ret > 0) {
@@ -186,8 +186,8 @@ class SocketBuffer {
         if (len == 0) {
             return 0;
         }
-        if (len > get_readable_len()) {
-            len = get_readable_len();
+        if (len > readable_len()) {
+            len = readable_len();
         }
         memcpy(data_out, m_buffer + m_read_idx, len);
         return len;
@@ -209,7 +209,7 @@ class SocketBuffer {
     inline void DiscardReadedBytes() {
         if (m_read_idx > 0) {
             if (is_readable()) {
-                size_t tmp = get_readable_len();
+                size_t tmp = readable_len();
                 memmove(m_buffer, m_buffer + m_read_idx, tmp);
                 m_read_idx = 0;
                 m_write_idx = tmp;
@@ -224,7 +224,7 @@ class SocketBuffer {
     int read_fd(int fd, int& err);
     int write_fd(int fd, int& err);
 
-    inline std::string ToString() { return std::string(m_buffer + m_read_idx, get_readable_len()); }
+    inline std::string ToString() { return std::string(m_buffer + m_read_idx, readable_len()); }
 };
 
 }  // namespace kim

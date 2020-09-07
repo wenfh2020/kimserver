@@ -16,21 +16,21 @@ class Request {
     Request& operator=(const Request&) = delete;
     virtual ~Request();
 
-    MsgHead* get_msg_head();
-    MsgBody* get_msg_body();
-    HttpMsg* get_http_msg();
+    MsgHead* msg_head();
+    MsgBody* msg_body();
+    HttpMsg* http_msg();
 
     void set_http_msg_info(const HttpMsg& msg);
     void set_msg_info(const MsgHead& head, const MsgBody& body);
 
     void set_conn(std::shared_ptr<Connection> c) { m_conn = c; }
-    std::shared_ptr<Connection> get_conn() { return m_conn; }
+    std::shared_ptr<Connection> conn() { return m_conn; }
 
     void set_errno(int n) { m_errno = n; }
     int get_errno() { return m_errno; }
 
     void set_privdate(void* data) { m_privdata = data; }
-    void* get_privdata() { return m_privdata; }
+    void* privdata() { return m_privdata; }
 
     bool is_http_req() { return m_is_http; }
 

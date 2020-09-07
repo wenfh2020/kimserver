@@ -27,7 +27,7 @@ class CmdTestMysql : public Cmd {
     Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
             case ES_PARSE_REQUEST: {
-                const HttpMsg* msg = m_req->get_http_msg();
+                const HttpMsg* msg = m_req->http_msg();
                 if (msg == nullptr) {
                     response_http(ERR_FAILED, "invalid request!");
                     return Cmd::STATUS::ERROR;
@@ -80,7 +80,7 @@ class CmdTestMysql : public Cmd {
                 LOG_DEBUG("step: database query, id: %s.", m_key.c_str());
                 if (m_is_session) {
                     // query from session.
-                    SessionTest* s = dynamic_cast<SessionTest*>(get_net()->get_session(m_key));
+                    SessionTest* s = dynamic_cast<SessionTest*>(net()->get_session(m_key));
                     if (s != nullptr) {
                         LOG_DEBUG("query data from session ok, id: %s, value: %s",
                                   m_key.c_str(), s->value().c_str())
@@ -112,7 +112,7 @@ class CmdTestMysql : public Cmd {
                 SessionTest* session = nullptr;
 
                 res = static_cast<MysqlResult*>(data);
-                if (res == nullptr || (size = res->get_result_data(query_data)) == 0) {
+                if (res == nullptr || (size = res->result_data(query_data)) == 0) {
                     LOG_ERROR("query no data!");
                     return response_http(ERR_FAILED, "query no data from db!");
                 }

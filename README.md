@@ -153,7 +153,7 @@ class MoudleTest : public Module {
     }
 
     Cmd::STATUS func_hello_world(std::shared_ptr<Request> req) {
-        const HttpMsg* msg = req->get_http_msg();
+        const HttpMsg* msg = req->http_msg();
         if (msg == nullptr) {
             return Cmd::STATUS::ERROR;
         }
@@ -169,7 +169,7 @@ class MoudleTest : public Module {
         obj.Add("code", 0);
         obj.Add("msg", "ok");
         obj.Add("data", data);
-        return response_http(req->get_conn(), obj.ToString());
+        return response_http(req->conn(), obj.ToString());
     }
 };
 

@@ -31,10 +31,10 @@ class Module : public Base {
 
     // so manager.
     void set_so_handle(void* handle) { m_so_handle = handle; }
-    void* get_so_handle() { return m_so_handle; }
+    void* so_handle() { return m_so_handle; }
     void set_so_path(const std::string& path) { m_so_path = path; }
-    const std::string& get_so_path() const { return m_so_path; }
-    const char* get_so_path() { return m_so_path.c_str(); }
+    const std::string& so_path() const { return m_so_path; }
+    const char* so_path() { return m_so_path.c_str(); }
 
    protected:
     std::string m_so_path;        // module so path.
@@ -50,7 +50,7 @@ class Module : public Base {
     typedef Cmd::STATUS (class_name::*cmd_func)(std::shared_ptr<Request> req);    \
     virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) {           \
         if (req->is_http_req()) {                                                 \
-            const HttpMsg* msg = req->get_http_msg();                             \
+            const HttpMsg* msg = req->http_msg();                                 \
             if (msg == nullptr) {                                                 \
                 return Cmd::STATUS::ERROR;                                        \
             }                                                                     \
@@ -60,8 +60,8 @@ class Module : public Base {
             }                                                                     \
             return (this->*(it->second))(req);                                    \
         } else {                                                                  \
-            const MsgHead* head = req->get_msg_head();                            \
-            const MsgBody* body = req->get_msg_body();                            \
+            const MsgHead* head = req->msg_head();                                \
+            const MsgBody* body = req->msg_body();                                \
             if (head == nullptr || body == nullptr) {                             \
                 return Cmd::STATUS::ERROR;                                        \
             }                                                                     \
@@ -83,16 +83,16 @@ class Module : public Base {
 #define REGISTER_FUNC(id, func) \
     m_cmd_funcs[id] = &func;
 
-#define HANDLE_CMD(_cmd)                                                            \
-    do {                                                                            \
-        _cmd* p = new _cmd(m_logger, m_net, get_id(), m_net->get_new_seq(), #_cmd); \
-        p->set_req(req);                                                            \
-        if (!p->init()) {                                                           \
-            LOG_ERROR("init cmd failed! %s", p->get_name());                        \
-            SAFE_DELETE(p);                                                         \
-            return Cmd::STATUS::ERROR;                                              \
-        }                                                                           \
-        return execute_cmd(p, req);                                                 \
+#define HANDLE_CMD(_cmd)                                                    \
+    do {                                                                    \
+        _cmd* p = new _cmd(m_logger, m_net, id(), m_net->new_seq(), #_cmd); \
+        p->set_req(req);                                                    \
+        if (!p->init()) {                                                   \
+            LOG_ERROR("init cmd failed! %s", p->name());                    \
+            SAFE_DELETE(p);                                                 \
+            return Cmd::STATUS::ERROR;                                      \
+        }                                                                   \
+        return execute_cmd(p, req);                                         \
     } while (0);
 
 }  // namespace kim

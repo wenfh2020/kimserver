@@ -25,7 +25,7 @@ class CmdTestRedis : public Cmd {
     Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
             case ES_PARSE_REQUEST: {
-                const HttpMsg* msg = m_req->get_http_msg();
+                const HttpMsg* msg = m_req->http_msg();
                 if (msg == nullptr) {
                     return Cmd::STATUS::ERROR;
                 }

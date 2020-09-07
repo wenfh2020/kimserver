@@ -32,7 +32,7 @@ class Codec {
     virtual Codec::STATUS decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body);
 
     bool set_codec(Codec::TYPE codec);
-    Codec::TYPE get_codec() { return m_codec; }
+    Codec::TYPE codec() { return m_codec; }
 
     bool gzip(const std::string& src, std::string& dst);
     bool ungzip(const std::string& src, std::string& dst);

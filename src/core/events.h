@@ -21,7 +21,7 @@ class Events {
     void destory();
     void run();
     void end_ev_loop();
-    struct ev_loop* get_ev_loop() {
+    struct ev_loop* ev_loop() {
         return m_ev_loop;
     }
     double now();

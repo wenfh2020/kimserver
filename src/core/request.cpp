@@ -37,15 +37,15 @@ void Request::set_msg_info(const MsgHead& head, const MsgBody& body) {
     *m_msg_body = body;
 }
 
-HttpMsg* Request::get_http_msg() {
+HttpMsg* Request::http_msg() {
     return m_http_msg;
 }
 
-MsgHead* Request::get_msg_head() {
+MsgHead* Request::msg_head() {
     return m_msg_head;
 }
 
-MsgBody* Request::get_msg_body() {
+MsgBody* Request::msg_body() {
     return m_msg_body;
 }
 

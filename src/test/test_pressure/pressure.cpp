@@ -13,7 +13,7 @@ Pressure::~Pressure() {
     for (auto& it : m_conns) {
         c = it.second;
         cleanup_events(c);
-        close(c->get_fd());
+        close(c->fd());
         SAFE_DELETE(c);
     }
     m_conns.clear();
@@ -38,7 +38,7 @@ bool Pressure::start(const char* host, int port, int users, int packets) {
 
         // add events.
         if (!attach_libev(c)) {
-            LOG_ERROR("attach libev failed! fd: %d", c->get_fd());
+            LOG_ERROR("attach libev failed! fd: %d", c->fd());
             del_connect(c);
             continue;
         }
@@ -89,7 +89,7 @@ Connection* Pressure::get_connect(const char* host, int port) {
     }
 
     // connection.
-    c = new Connection(m_logger, fd, get_new_seq());
+    c = new Connection(m_logger, fd, new_seq());
     if (c == nullptr) {
         close(fd);
         LOG_ERROR("alloc connection failed! fd: %d", fd);
@@ -116,8 +116,8 @@ bool Pressure::attach_libev(Connection* c) {
     e->rev.data = e;
     e->wev.data = e;
     c->set_privdata(e);
-    ev_io_init(&e->rev, libev_read_event, c->get_fd(), EV_READ);
-    ev_io_init(&e->wev, libev_write_event, c->get_fd(), EV_WRITE);
+    ev_io_init(&e->rev, libev_read_event, c->fd(), EV_READ);
+    ev_io_init(&e->wev, libev_write_event, c->fd(), EV_WRITE);
     add_read_event(c);
     add_write_event(c);
     return true;
@@ -126,15 +126,15 @@ bool Pressure::attach_libev(Connection* c) {
 bool Pressure::send_proto(Connection* c, MsgHead& head, MsgBody& body) {
     Codec::STATUS status = c->conn_write(head, body);
     if (status == Codec::STATUS::ERR) {
-        LOG_ERROR("conn write data failed! fd: %d", c->get_fd());
+        LOG_ERROR("conn write data failed! fd: %d", c->fd());
         del_connect(c);
         return false;
     } else {
         if (status == Codec::STATUS::OK) {
-            LOG_DEBUG("conn write data done! fd: %d", c->get_fd());
+            LOG_DEBUG("conn write data done! fd: %d", c->fd());
             del_write_event(c);
         } else {
-            LOG_DEBUG("conn write data next time! fd: %d", c->get_fd());
+            LOG_DEBUG("conn write data next time! fd: %d", c->fd());
             add_write_event(c);
         }
     }
@@ -143,7 +143,7 @@ bool Pressure::send_proto(Connection* c, MsgHead& head, MsgBody& body) {
 }
 
 bool Pressure::send_proto(Connection* c, int cmd) {
-    LOG_DEBUG("send proto, fd: %d, cmd: %d!", c->get_fd(), cmd);
+    LOG_DEBUG("send proto, fd: %d, cmd: %d!", c->fd(), cmd);
 
     MsgHead head;
     MsgBody body;
@@ -151,7 +151,7 @@ bool Pressure::send_proto(Connection* c, int cmd) {
     if (cmd == 1) {
         body.set_data("hello!1223fdsfsdfdsfds45+");
         head.set_cmd(1);
-        head.set_seq(get_new_seq());
+        head.set_seq(new_seq());
         head.set_len(body.ByteSizeLong());
     } else {
         return false;
@@ -177,15 +177,15 @@ void Pressure::libev_write_event(EV_P_ ev_io* watcher, int revents) {
 bool Pressure::async_handle_connect(Connection* c) {
     bool completed = false;
     if (anet_check_connect_done(
-            c->get_fd(), c->sockaddr(), c->saddr_len(), completed) == ANET_ERR) {
-        LOG_ERROR("connect failed! fd: %d", c->get_fd());
+            c->fd(), c->sockaddr(), c->saddr_len(), completed) == ANET_ERR) {
+        LOG_ERROR("connect failed! fd: %d", c->fd());
         return false;
     } else {
         if (completed) {
-            LOG_DEBUG("connect done! fd: %d", c->get_fd());
+            LOG_DEBUG("connect done! fd: %d", c->fd());
             c->set_state(Connection::STATE::CONNECTED);
         } else {
-            LOG_DEBUG("connect not completed! fd: %d", c->get_fd());
+            LOG_DEBUG("connect not completed! fd: %d", c->fd());
         }
         return true;
     }
@@ -194,15 +194,15 @@ bool Pressure::async_handle_connect(Connection* c) {
 void Pressure::async_handle_write(Connection* c) {
     if (!c->is_connected()) {
         if (!async_handle_connect(c)) {
-            LOG_DEBUG("connect failed! fd: %d", c->get_fd());
+            LOG_DEBUG("connect failed! fd: %d", c->fd());
             del_connect(c);
             return;
         }
         if (!c->is_connected()) {
-            LOG_DEBUG("connect next time! fd: %d", c->get_fd());
+            LOG_DEBUG("connect next time! fd: %d", c->fd());
             return;
         }
-        LOG_DEBUG("connect ok! fd: %d", c->get_fd());
+        LOG_DEBUG("connect ok! fd: %d", c->fd());
 
         for (int i = 0; i < m_packets; i++) {
             m_send_cnt++;
@@ -221,14 +221,14 @@ void Pressure::async_handle_read(Connection* c) {
     LOG_DEBUG("");
     if (!c->is_connected()) {
         if (!async_handle_connect(c)) {
-            LOG_DEBUG("connect failed! fd: %d", c->get_fd());
+            LOG_DEBUG("connect failed! fd: %d", c->fd());
             del_connect(c);
             return;
         }
         if (!c->is_connected()) {
             return;
         }
-        LOG_INFO("connect ok! fd: %d", c->get_fd());
+        LOG_INFO("connect ok! fd: %d", c->fd());
 
         for (int i = 0; i < m_packets; i++) {
             m_send_cnt++;
@@ -268,7 +268,7 @@ void Pressure::async_handle_read(Connection* c) {
     }
 
     if (status == Codec::STATUS::PAUSE) {
-        LOG_DEBUG("wait decoding......fd: %d", c->get_fd());
+        LOG_DEBUG("wait decoding......fd: %d", c->fd());
         show_statics_result();
         return;
     }
@@ -276,7 +276,7 @@ void Pressure::async_handle_read(Connection* c) {
     if (status == Codec::STATUS::ERR) {
         m_cur_callback_cnt++;
         m_err_callback_cnt++;
-        LOG_DEBUG("read data failed! fd: %d", c->get_fd());
+        LOG_DEBUG("read data failed! fd: %d", c->fd());
         del_connect(c);
         show_statics_result();
     }
@@ -353,13 +353,13 @@ bool Pressure::del_connect(Connection* c) {
         return false;
     }
 
-    auto it = m_conns.find(c->get_fd());
+    auto it = m_conns.find(c->fd());
     if (it == m_conns.end()) {
         return false;
     }
 
     cleanup_events(c);
-    close(c->get_fd());
+    close(c->fd());
     SAFE_DELETE(it->second);
     m_conns.erase(it);
     return true;

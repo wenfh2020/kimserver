@@ -58,7 +58,7 @@ double Network::now() {
     return m_events->now();
 }
 
-Events* Network::get_events() {
+Events* Network::events() {
     return m_events;
 }
 
@@ -263,7 +263,7 @@ std::shared_ptr<Connection> Network::create_conn(int fd) {
     uint64_t seq;
     std::shared_ptr<Connection> c;
 
-    seq = get_new_seq();
+    seq = new_seq();
     c = std::make_shared<Connection>(m_logger, fd, seq);
     if (c == nullptr) {
         LOG_ERROR("new connection failed! fd: %d", fd);
@@ -280,7 +280,7 @@ bool Network::close_conn(std::shared_ptr<Connection> c) {
     if (c == nullptr) {
         return false;
     }
-    return close_conn(c->get_fd());
+    return close_conn(c->fd());
 }
 
 bool Network::close_conn(int fd) {
@@ -297,7 +297,7 @@ bool Network::close_conn(int fd) {
             m_events->del_io_event(c->get_ev_io());
             c->set_ev_io(nullptr);
 
-            ev_timer* w = c->get_timer();
+            ev_timer* w = c->timer();
             if (w != nullptr) {
                 delete static_cast<ConnectionData*>(w->data);
                 w->data = nullptr;
@@ -355,7 +355,7 @@ void Network::close_conns() {
 
 void Network::close_fds() {
     for (const auto& it : m_conns) {
-        int fd = it.second->get_fd();
+        int fd = it.second->fd();
         if (fd != -1) {
             close_fd(fd);
             it.second->set_fd(-1);
@@ -372,7 +372,7 @@ void Network::on_io_write(int fd) {
 
     std::shared_ptr<Connection> c = it->second;
     if (!c->is_connected() && !c->is_connecting()) {
-        LOG_ERROR("invalid connection, fd: %d, id: %llu", fd, c->get_id());
+        LOG_ERROR("invalid connection, fd: %d, id: %llu", fd, c->id());
         close_conn(fd);
         return;
     }
@@ -467,24 +467,24 @@ void Network::on_cmd_timer(void* privdata) {
     Module* module;
 
     cmd = static_cast<Cmd*>(privdata);
-    secs = cmd->get_keep_alive() - (now() - cmd->get_active_time());
+    secs = cmd->keep_alive() - (now() - cmd->active_time());
     if (secs > 0) {
         LOG_DEBUG("cmd timer restart, cmd id: %llu, restart timer secs: %f",
-                  cmd->get_id(), secs);
-        m_events->restart_timer(secs, cmd->get_timer(), privdata);
+                  cmd->id(), secs);
+        m_events->restart_timer(secs, cmd->timer(), privdata);
         return;
     } else {
-        module = m_module_mgr->get_module(cmd->get_module_id());
+        module = m_module_mgr->get_module(cmd->module_id());
         if (module == nullptr) {
-            LOG_ERROR("find module failed!, module id: %llu", cmd->get_module_id());
+            LOG_ERROR("find module failed!, module id: %llu", cmd->module_id());
             return;
         }
         /* note: cmd will be deleted, when status != Cmd::STATUS::RUNNING.
          * and the same to cmd's timer.*/
         if (module->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
             LOG_DEBUG("cmd timer reset, cmd id: %llu, restart timer secs: %f",
-                      cmd->get_id(), secs);
-            m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), privdata);
+                      cmd->id(), secs);
+            m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->timer(), privdata);
         }
     }
 }
@@ -497,16 +497,16 @@ void Network::on_io_timer(void* privdata) {
 
         conn_data = static_cast<ConnectionData*>(privdata);
         c = conn_data->m_conn;
-        secs = c->get_keep_alive() - (now() - c->get_active_time());
+        secs = c->keep_alive() - (now() - c->active_time());
         if (secs > 0) {
             LOG_DEBUG("io timer restart, fd: %d, restart timer secs: %f",
-                      c->get_fd(), secs);
-            m_events->restart_timer(secs, c->get_timer(), privdata);
+                      c->fd(), secs);
+            m_events->restart_timer(secs, c->timer(), privdata);
             return;
         }
 
         LOG_INFO("time up, close connection! secs: %f, fd: %d, seq: %llu",
-                 secs, c->get_fd(), c->get_id());
+                 secs, c->fd(), c->id());
         close_conn(c);
     }
 }
@@ -557,13 +557,13 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
     }
 
     if (status == Codec::STATUS::ERR) {
-        LOG_DEBUG("read failed. fd: %d", c->get_fd());
+        LOG_DEBUG("read failed. fd: %d", c->fd());
         close_conn(c);
         return false;
     }
 
-    // if (c->get_keep_alive() == 0.0) {
-    //     LOG_DEBUG("short connection! fd: %d", c->get_fd());
+    // if (c->keep_alive() == 0.0) {
+    //     LOG_DEBUG("short connection! fd: %d", c->fd());
     //     close_conn(c);
     //     return false;
     // }
@@ -671,7 +671,7 @@ void Network::read_transfer_fd(int fd) {
         conn_data->m_conn = c;
         // add timer.
         LOG_DEBUG("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
-        w = m_events->add_io_timer(m_keep_alive, c->get_timer(), conn_data);
+        w = m_events->add_io_timer(m_keep_alive, c->timer(), conn_data);
         if (w == nullptr) {
             LOG_ERROR("add timer failed! fd: %d", ch.fd);
             goto error;
@@ -704,7 +704,7 @@ bool Network::set_gate_codec(Codec::TYPE type) {
 }
 
 bool Network::load_modules() {
-    m_module_mgr = new ModuleMgr(get_new_seq(), m_logger, this);
+    m_module_mgr = new ModuleMgr(new_seq(), m_logger, this);
     if (m_module_mgr == nullptr) {
         LOG_ERROR("alloc module mgr failed!");
         return false;
@@ -725,7 +725,7 @@ bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     ev_io* w;
     Codec::STATUS status;
 
-    fd = c->get_fd();
+    fd = c->fd();
     if (c->is_closed()) {
         LOG_WARN("connection is closed! fd: %d", fd);
         return false;
@@ -759,7 +759,7 @@ bool Network::send_to(std::shared_ptr<Connection> c, const MsgHead& head, const 
     ev_io* w;
     Codec::STATUS status;
 
-    fd = c->get_fd();
+    fd = c->fd();
     if (c->is_closed()) {
         LOG_WARN("connection is closed! fd: %d", fd);
         return false;
@@ -807,8 +807,8 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
     wait_cmd_info_t* info;
     uint64_t module_id, cmd_id;
 
-    cmd_id = cmd->get_id();
-    module_id = cmd->get_module_id();
+    cmd_id = cmd->id();
+    module_id = cmd->module_id();
 
     // delete info when callback.
     info = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
@@ -838,8 +838,8 @@ bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
     wait_cmd_info_t* index;
     uint64_t cmd_id, module_id;
 
-    cmd_id = cmd->get_id();
-    module_id = cmd->get_module_id();
+    cmd_id = cmd->id();
+    module_id = cmd->module_id();
     index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
     if (index == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
@@ -867,8 +867,8 @@ bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
     wait_cmd_info_t* index;
     uint64_t cmd_id, module_id;
 
-    cmd_id = cmd->get_id();
-    module_id = cmd->get_module_id();
+    cmd_id = cmd->id();
+    module_id = cmd->module_id();
     index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
     if (index == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
@@ -970,9 +970,9 @@ bool Network::add_cmd(Cmd* cmd) {
     if (cmd == nullptr) {
         return false;
     }
-    auto it = m_cmds.insert({cmd->get_id(), cmd});
+    auto it = m_cmds.insert({cmd->id(), cmd});
     if (it.second == false) {
-        LOG_ERROR("cmd: %s duplicate!", cmd->get_name());
+        LOG_ERROR("cmd: %s duplicate!", cmd->name());
         return false;
     }
     return true;
@@ -992,15 +992,15 @@ bool Network::del_cmd(Cmd* cmd) {
         return false;
     }
 
-    auto it = m_cmds.find(cmd->get_id());
+    auto it = m_cmds.find(cmd->id());
     if (it == m_cmds.end()) {
         return false;
     }
 
     m_cmds.erase(it);
-    if (cmd->get_timer() != nullptr) {
-        LOG_DEBUG("del timer: %p!", cmd->get_timer());
-        del_cmd_timer(cmd->get_timer());
+    if (cmd->timer() != nullptr) {
+        LOG_DEBUG("del timer: %p!", cmd->timer());
+        del_cmd_timer(cmd->timer());
         cmd->set_timer(nullptr);
     }
 
@@ -1019,7 +1019,7 @@ void Network::close_fd(int fd) {
 
 bool Network::load_db() {
     SAFE_DELETE(m_db_pool);
-    m_db_pool = new DBMgr(m_logger, m_events->get_ev_loop());
+    m_db_pool = new DBMgr(m_logger, m_events->ev_loop());
     if (m_db_pool == nullptr) {
         LOG_ERROR("load db pool failed!");
         return false;
@@ -1034,7 +1034,7 @@ bool Network::load_db() {
 
 bool Network::load_redis_mgr() {
     SAFE_DELETE(m_redis_pool);
-    m_redis_pool = new kim::RedisMgr(m_logger, m_events->get_ev_loop());
+    m_redis_pool = new kim::RedisMgr(m_logger, m_events->ev_loop());
     if (m_redis_pool == nullptr || !m_redis_pool->init(m_conf["redis"])) {
         LOG_ERROR("init redis mgr failed!");
         return false;

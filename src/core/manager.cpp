@@ -223,7 +223,7 @@ bool Manager::create_worker(int worker_index) {
         info.index = worker_index;
         LOG_INFO("worker chanels, fd1: %d, fd2: %d", info.ctrl_fd, info.data_fd);
 
-        Worker worker(get_worker_name(worker_index));
+        Worker worker(worker_name(worker_index));
         if (!worker.init(&info, m_conf)) {
             exit(EXIT_CHILD_INIT_FAIL);
         }
@@ -265,7 +265,7 @@ void Manager::create_workers() {
     }
 }
 
-std::string Manager::get_worker_name(int index) {
+std::string Manager::worker_name(int index) {
     char name[64] = {0};
     snprintf(name, sizeof(name), "%s_w_%d",
              m_conf("server_name").c_str(), index);

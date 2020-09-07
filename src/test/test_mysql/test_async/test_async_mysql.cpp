@@ -66,7 +66,7 @@ bool check_result(kim::sql_task_t* task, kim::MysqlResult* res) {
     }
 
     kim::vec_row_t data;
-    if (res->get_num_rows() == 0) {
+    if (res->num_rows() == 0) {
         g_err_callback_cnt++;
         return false;
     }
@@ -87,7 +87,7 @@ static void mysql_query_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* 
     }
     /* 
     kim::vec_row_t data;
-    int size = res->get_result_data(data);
+    int size = res->result_data(data);
     if (size != 0) {
         for (size_t i = 0; i < data.size(); i++) {
             kim::map_row_t& items = data[i];

@@ -32,7 +32,7 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
     if (write_len != body.ByteSizeLong()) {
         LOG_ERROR("encode failed! cmd: %d, seq: %d, write len: %d, body len: %d",
                   head.cmd(), head.seq(), write_len, body.ByteSizeLong());
-        sbuf->set_write_index(sbuf->get_write_index() - len);
+        sbuf->set_write_index(sbuf->write_index() - len);
         return CodecProto::STATUS::ERR;
     }
 
@@ -41,15 +41,15 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
 
 Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
     LOG_DEBUG("decode data len: %d, cur read index: %d, write index: %d",
-              sbuf->get_readable_len(), sbuf->get_read_index(), sbuf->get_write_index());
+              sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 
-    if (sbuf->get_readable_len() < PROTO_MSG_HEAD_LEN) {
+    if (sbuf->readable_len() < PROTO_MSG_HEAD_LEN) {
         LOG_DEBUG("wait for enough data to decode.");
         return CodecProto::STATUS::PAUSE;  // wait for more data to decode.
     }
 
     // parse msg head.
-    bool ret = head.ParseFromArray(sbuf->get_raw_read_buffer(), PROTO_MSG_HEAD_LEN);
+    bool ret = head.ParseFromArray(sbuf->raw_read_buffer(), PROTO_MSG_HEAD_LEN);
     if (!ret) {
         LOG_ERROR("decode head failed");
         return CodecProto::STATUS::ERR;
@@ -62,12 +62,12 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
     }
 
     // parse msg body.
-    if ((int)sbuf->get_readable_len() < PROTO_MSG_HEAD_LEN + head.len()) {
+    if ((int)sbuf->readable_len() < PROTO_MSG_HEAD_LEN + head.len()) {
         LOG_DEBUG("wait for enough data to decode msg body.");
         return CodecProto::STATUS::PAUSE;  // wait for more data to decode.
     }
 
-    ret = body.ParseFromArray(sbuf->get_raw_read_buffer() + PROTO_MSG_HEAD_LEN, head.len());
+    ret = body.ParseFromArray(sbuf->raw_read_buffer() + PROTO_MSG_HEAD_LEN, head.len());
     if (!ret) {
         LOG_ERROR("cmd: %d, seq: %d, parse msg body failed!", head.cmd(), head.seq());
         return CodecProto::STATUS::ERR;
@@ -75,7 +75,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
 
     sbuf->skip_bytes(PROTO_MSG_HEAD_LEN + head.len());
     LOG_DEBUG("sbuf reable len: %d, body size: %d",
-              sbuf->get_readable_len(), body.ByteSizeLong());
+              sbuf->readable_len(), body.ByteSizeLong());
     return CodecProto::STATUS::OK;
 }
 

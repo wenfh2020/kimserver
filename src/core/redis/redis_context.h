@@ -37,8 +37,8 @@ class RdsConnection {
     bool is_active() { return (is_connecting() || is_connected()); }
     bool is_closed() { return m_state == STATE::CLOSED; }
 
-    int get_port() { return m_port; }
-    const std::string& get_host() const { return m_host; }
+    int port() { return m_port; }
+    const std::string& host() const { return m_host; }
     const char* host() { return m_host.c_str(); }
 
    private:

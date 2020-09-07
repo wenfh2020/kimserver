@@ -17,9 +17,9 @@ ModuleMgr::~ModuleMgr() {
     Module* module;
     for (const auto& it : m_modules) {
         module = it.second;
-        if (dlclose(module->get_so_handle()) == -1) {
+        if (dlclose(module->so_handle()) == -1) {
             LOG_ERROR("close so failed! so: %s, errstr: %s",
-                      module->get_name(), DL_ERROR());
+                      module->name(), DL_ERROR());
         }
         SAFE_DELETE(module);
     }
@@ -32,7 +32,7 @@ bool ModuleMgr::init(CJsonObject& config) {
 
     for (int i = 0; i < array.GetArraySize(); i++) {
         name = array(i);
-        path = get_work_path() + MODULE_DIR + name;
+        path = work_path() + MODULE_DIR + name;
         LOG_DEBUG("loading so: %s, path: %s!", name.c_str(), path.c_str());
 
         if (0 != access(path.c_str(), F_OK)) {
@@ -72,18 +72,18 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path, uint64
         LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), DL_ERROR());
         if (dlclose(handle) == -1) {
             LOG_ERROR("close so failed! so: %s, errstr: %s",
-                      module->get_name(), DL_ERROR());
+                      module->name(), DL_ERROR());
         }
         return false;
     }
 
     module = (Module*)create_module();
-    id = (id != 0) ? id : m_net->get_new_seq();
+    id = (id != 0) ? id : m_net->new_seq();
     if (!module->init(m_logger, m_net, id, name)) {
         LOG_ERROR("init module failed! module: %s", name.c_str());
         if (dlclose(handle) == -1) {
             LOG_ERROR("close so failed! so: %s, errstr: %s",
-                      module->get_name(), DL_ERROR());
+                      module->name(), DL_ERROR());
         }
         return false;
     }
@@ -99,7 +99,7 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path, uint64
 bool ModuleMgr::reload_so(const std::string& name) {
     uint64_t id = 0;
     Module* module = nullptr;
-    std::string path = get_work_path() + MODULE_DIR + name;
+    std::string path = work_path() + MODULE_DIR + name;
     LOG_DEBUG("reloading so: %s, path: %s!", name.c_str(), path.c_str());
 
     if (0 != access(path.c_str(), F_OK)) {
@@ -109,7 +109,7 @@ bool ModuleMgr::reload_so(const std::string& name) {
 
     module = get_module(name);
     if (module != nullptr) {
-        id = module->get_id();
+        id = module->id();
     }
 
     unload_so(name);
@@ -123,12 +123,12 @@ bool ModuleMgr::unload_so(const std::string& name) {
         return false;
     }
 
-    if (dlclose(module->get_so_handle()) == -1) {
+    if (dlclose(module->so_handle()) == -1) {
         LOG_ERROR("close so failed! so: %s, errstr: %s",
-                  module->get_name(), DL_ERROR());
+                  module->name(), DL_ERROR());
     }
 
-    auto it = m_modules.find(module->get_id());
+    auto it = m_modules.find(module->id());
     if (it != m_modules.end()) {
         m_modules.erase(it);
     } else {
@@ -149,7 +149,7 @@ Module* ModuleMgr::get_module(const std::string& name) {
     Module* module = nullptr;
     for (const auto& it : m_modules) {
         module = it.second;
-        if (module->get_name() == name) {
+        if (module->name() == name) {
             break;
         }
     }
@@ -161,7 +161,7 @@ Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Request>& req) {
     Cmd::STATUS cmd_stat;
     for (const auto& it : m_modules) {
         module = it.second;
-        LOG_DEBUG("module name: %s", module->get_name());
+        LOG_DEBUG("module name: %s", module->name());
         cmd_stat = module->process_message(req);
         if (cmd_stat != Cmd::STATUS::UNKOWN) {
             return cmd_stat;

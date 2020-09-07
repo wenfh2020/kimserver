@@ -21,7 +21,7 @@ bool MysqlResult::init(MYSQL *mysql, MYSQL_RES *res) {
     return true;
 }
 
-int MysqlResult::get_result_data(vec_row_t &data) {
+int MysqlResult::result_data(vec_row_t &data) {
     if (m_res == nullptr) {
         return 0;
     }
@@ -44,7 +44,7 @@ MYSQL_ROW MysqlResult::fetch_row() {
     return m_cur_row;
 }
 
-unsigned int MysqlResult::get_num_rows() {
+unsigned int MysqlResult::num_rows() {
     if (m_res == nullptr) {
         return 0;
     }

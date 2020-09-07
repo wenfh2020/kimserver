@@ -53,7 +53,7 @@ bool Connection::is_http_codec() {
     if (m_codec == nullptr) {
         return false;
     }
-    return (m_codec->get_codec() == Codec::TYPE::HTTP);
+    return (m_codec->codec() == Codec::TYPE::HTTP);
 }
 
 bool Connection::conn_read() {
@@ -71,7 +71,7 @@ bool Connection::conn_read() {
 
     int read_len = m_recv_buf->read_fd(m_fd, m_errno);
     LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
-              m_fd, read_len, m_recv_buf->get_readable_len());
+              m_fd, read_len, m_recv_buf->readable_len());
     if (read_len == 0) {
         LOG_DEBUG("connection closed! fd: %d!", m_fd);
         return false;
@@ -86,8 +86,8 @@ bool Connection::conn_read() {
     if (read_len > 0) {
         // recovery socket buffer.
         if (m_recv_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
-            m_recv_buf->get_readable_len() < m_recv_buf->capacity() / 2) {
-            m_recv_buf->compact(m_recv_buf->get_readable_len() * 2);
+            m_recv_buf->readable_len() < m_recv_buf->capacity() / 2) {
+            m_recv_buf->compact(m_recv_buf->readable_len() * 2);
         }
         m_active_time = time_now();
     }
@@ -119,15 +119,15 @@ Codec::STATUS Connection::conn_write() {
 
     int write_len = m_send_buf->write_fd(m_fd, m_errno);
     LOG_DEBUG("write to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
-              m_fd, m_id, write_len, m_send_buf->get_readable_len());
+              m_fd, m_id, write_len, m_send_buf->readable_len());
     if (write_len >= 0) {
         // recovery socket buffer.
         if (m_send_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
-            m_send_buf->get_readable_len() < m_send_buf->capacity() / 2) {
-            m_send_buf->compact(m_send_buf->get_readable_len() * 2);
+            m_send_buf->readable_len() < m_send_buf->capacity() / 2) {
+            m_send_buf->compact(m_send_buf->readable_len() * 2);
         }
         m_active_time = time_now();
-        return (m_send_buf->get_readable_len() > 0)
+        return (m_send_buf->readable_len() > 0)
                    ? Codec::STATUS::PAUSE
                    : Codec::STATUS::OK;
     } else {
@@ -136,7 +136,7 @@ Codec::STATUS Connection::conn_write() {
             return Codec::STATUS::PAUSE;
         }
         LOG_ERROR("send data failed! fd: %d, seq: %llu, readable len: %d",
-                  m_fd, m_id, m_send_buf->get_readable_len());
+                  m_fd, m_id, m_send_buf->readable_len());
         return Codec::STATUS::ERR;
     }
 }
@@ -235,18 +235,18 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
 
 bool Connection::is_need_alive_check() {
     if (m_codec != nullptr) {
-        if (m_codec->get_codec() == Codec::TYPE::HTTP) {
+        if (m_codec->codec() == Codec::TYPE::HTTP) {
             return false;
         }
     }
     return true;
 }
 
-double Connection::get_keep_alive() {
+double Connection::keep_alive() {
     if (is_http_codec()) {  // http codec has it's own keep alive.
         CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
         if (codec != nullptr) {
-            int keep_alive = codec->get_keep_alive();
+            int keep_alive = codec->keep_alive();
             if (keep_alive >= 0) {
                 return keep_alive;
             }

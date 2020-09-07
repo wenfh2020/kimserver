@@ -5,9 +5,9 @@ namespace kim {
 // Session
 ////////////////////////////////////////////////
 
-Session::Session(uint64_t id, Log* logger, INet* net, const std::string& name)
-    : Base(id, logger, net, name) {
-    set_active_time(get_net()->now());
+Session::Session(uint64_t id, Log* logger, INet* n, const std::string& name)
+    : Base(id, logger, n, name) {
+    set_active_time(net()->now());
     set_max_timeout_cnt(SESSION_MAX_TIMEOUT_CNT);
 }
 
@@ -26,7 +26,7 @@ SessionMgr::~SessionMgr() {
     for (auto& it : m_sessions) {
         Session* s = it.second;
         if (s != nullptr) {
-            get_events()->del_timer_event(s->get_timer());
+            events()->del_timer_event(s->timer());
             SAFE_DELETE(s);
         }
     }
@@ -40,14 +40,14 @@ bool SessionMgr::add_session(Session* s) {
     const std::string& sessid = s->sessid();
     auto it = m_sessions.find(sessid);
     if (it != m_sessions.end()) {
-        s->set_active_time(get_net()->now());
+        s->set_active_time(net()->now());
         return true;
     }
     m_sessions[sessid] = s;
-    ev_timer* w = get_events()->add_session_timer(s->get_keep_alive(), s->get_timer(), s);
+    ev_timer* w = events()->add_session_timer(s->keep_alive(), s->timer(), s);
     if (w == nullptr) {
         m_sessions.erase(sessid);
-        LOG_ERROR("add session(%s) failed!", s->get_name());
+        LOG_ERROR("add session(%s) failed!", s->name());
         return false;
     }
     s->set_timer(w);
@@ -60,7 +60,7 @@ Session* SessionMgr::get_session(const std::string& sessid, bool re_active) {
         return nullptr;
     }
     if (re_active) {
-        it->second->set_active_time(get_events()->now());
+        it->second->set_active_time(events()->now());
     }
     return it->second;
 }
@@ -72,7 +72,7 @@ bool SessionMgr::del_session(const std::string& sessid) {
     }
     Session* s = it->second;
     if (s != nullptr) {
-        get_events()->del_timer_event(s->get_timer());
+        events()->del_timer_event(s->timer());
         SAFE_DELETE(s);
     }
     m_sessions.erase(it);
@@ -81,15 +81,15 @@ bool SessionMgr::del_session(const std::string& sessid) {
 
 void SessionMgr::on_session_timer(void* privdata) {
     Session* s = static_cast<Session*>(privdata);
-    double secs = s->get_keep_alive() - (get_net()->now() - s->get_active_time());
+    double secs = s->keep_alive() - (net()->now() - s->active_time());
     if (secs > 0) {
         LOG_DEBUG("session timer restart, sessid: %llu, restart timer secs: %f",
                   s->sessid(), secs);
-        get_events()->restart_timer(secs, s->get_timer(), privdata);
+        events()->restart_timer(secs, s->timer(), privdata);
         return;
     }
 
-    int old = s->get_cur_timeout_cnt();
+    int old = s->cur_timeout_cnt();
     Session::STATUS status = s->on_timeout();
     if (status != Session::STATUS::RUNNING) {
         LOG_DEBUG("timeout del session, sessid: %s", s->sessid());
@@ -97,19 +97,19 @@ void SessionMgr::on_session_timer(void* privdata) {
         return;
     }
 
-    if (old == s->get_cur_timeout_cnt()) {
+    if (old == s->cur_timeout_cnt()) {
         s->refresh_cur_timeout_cnt();
     }
 
-    if (s->get_cur_timeout_cnt() >= s->get_max_timeout_cnt()) {
+    if (s->cur_timeout_cnt() >= s->max_timeout_cnt()) {
         LOG_DEBUG("timeout del session, sessid: %s", s->sessid());
         del_session(s->sessid());
         return;
     }
 
     LOG_DEBUG("session timer reset, session id: %llu, restart timer secs: %f",
-              s->get_id(), secs);
-    get_events()->restart_timer(s->get_keep_alive(), s->get_timer(), privdata);
+              s->id(), secs);
+    events()->restart_timer(s->keep_alive(), s->timer(), privdata);
 }
 
 }  // namespace kim

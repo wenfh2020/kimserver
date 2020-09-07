@@ -34,9 +34,9 @@ class INet {
 
    public:
     virtual double now() { return time_now(); }
-    virtual uint64_t get_new_seq() { return 0; }
-    virtual CJsonObject& get_config() { return m_conf; }
-    virtual Events* get_events() { return nullptr; }
+    virtual uint64_t new_seq() { return 0; }
+    virtual CJsonObject& config() { return m_conf; }
+    virtual Events* events() { return nullptr; }
 
     // cmd
     virtual bool add_cmd(Cmd* cmd) { return false; }

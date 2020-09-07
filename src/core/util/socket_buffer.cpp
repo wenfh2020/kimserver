@@ -17,7 +17,7 @@ int SocketBuffer::_vprintf(const char* fmt, va_list ap) {
 
     for (;;) {
         buffer = m_buffer + m_write_idx;
-        space = get_writeable_len();
+        space = writeable_len();
 
 #ifndef va_copy
 #define va_copy(dst, src) memcpy(&(dst), &(src), sizeof(va_list))
@@ -56,7 +56,7 @@ int SocketBuffer::_printf(const char* fmt, ...) {
 
 int SocketBuffer::write_fd(int fd, int& err) {
     int n = -1;
-    int readable = get_readable_len();
+    int readable = readable_len();
     if (readable == 0) {
         return 0;
     }
@@ -78,7 +78,7 @@ int SocketBuffer::write_fd(int fd, int& err) {
 int SocketBuffer::read_fd(int fd, int& err) {
     char extrabuf[32768];
     struct iovec vec[2];
-    size_t writable = get_writeable_len();
+    size_t writable = writeable_len();
 
     vec[0].iov_base = m_buffer + m_write_idx;
     vec[0].iov_len = writable;

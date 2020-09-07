@@ -37,9 +37,9 @@ class Connection : public Timer {
     bool init(Codec::TYPE codec);
 
     void set_fd(int fd) { m_fd = fd; }
-    int get_fd() const { return m_fd; }
+    int fd() const { return m_fd; }
 
-    uint64_t get_id() const { return m_id; }
+    uint64_t id() const { return m_id; }
 
     void set_privdata(void* data) { m_privdata = data; }
     void* privdata() const { return m_privdata; }
@@ -49,7 +49,7 @@ class Connection : public Timer {
     size_t saddr_len() { return m_saddr_len; }
 
     void set_state(STATE state) { m_state = state; }
-    STATE get_state() const { return m_state; }
+    STATE state() const { return m_state; }
     bool is_connected() { return m_state == STATE::CONNECTED; }
     bool is_closed() { return m_state == STATE::CLOSED; }
     bool is_connecting() { return m_state == STATE::CONNECTING; }
@@ -72,7 +72,7 @@ class Connection : public Timer {
     Codec::STATUS conn_write();
 
     virtual bool is_need_alive_check();
-    virtual double get_keep_alive();
+    virtual double keep_alive();
 
    protected:
     bool conn_read();
@@ -81,7 +81,7 @@ class Connection : public Timer {
 
    private:
     uint64_t m_id = 0;           // sequence.
-    Log* m_logger = nullptr;     // logger.
+    Log* m_logger = nullptr;     // logger.]
     void* m_privdata = nullptr;  // private data.
     ev_io* m_ev_io = nullptr;    // libev io event obj.
     Codec* m_codec = nullptr;

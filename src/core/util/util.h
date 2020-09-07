@@ -1,5 +1,5 @@
-#ifndef __UTIL_H__
-#define __UTIL_H__
+#ifndef __KIM_UTIL_H__
+#define __KIM_UTIL_H__
 
 #include <string>
 #include <vector>
@@ -7,7 +7,7 @@
 std::vector<std::string> split_str(const std::string& s, char delim);
 std::string format_addr(const std::string& host, int port);
 std::string format_str(const char* const fmt, ...);
-std::string get_work_path();
+std::string work_path();
 std::string format_redis_cmds(const std::vector<std::string>& argv);
 
 #ifdef __cplusplus
@@ -30,4 +30,4 @@ double decimal_rand();  // [0, 1.0) double random.
 }
 #endif
 
-#endif  //__UTIL_H__
+#endif  //__KIM_UTIL_H__

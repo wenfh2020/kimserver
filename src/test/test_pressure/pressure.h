@@ -40,7 +40,7 @@ class Pressure {
     virtual ~Pressure();
 
     bool start(const char* host, int port, int users, int packets);
-    int get_new_seq() { return ++m_seq; }
+    int new_seq() { return ++m_seq; }
     void show_statics_result();
 
     // connection.

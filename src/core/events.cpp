@@ -265,12 +265,12 @@ void Events::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int rev
 
 void Events::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Cmd* cmd = static_cast<Cmd*>(w->data);
-    cmd->get_net()->on_cmd_timer(cmd);
+    cmd->net()->on_cmd_timer(cmd);
 }
 
 void Events::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Session* s = static_cast<Session*>(w->data);
-    s->get_net()->on_session_timer(s);
+    s->net()->on_session_timer(s);
 }
 
 }  // namespace kim

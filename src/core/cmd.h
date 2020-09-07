@@ -19,7 +19,7 @@ class Cmd : public Timer, public Base {
         COMPLETED = 3,
         ERROR = 4,
     };
-    Cmd(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name = "");
+    Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name = "");
     virtual ~Cmd();
 
    public:
@@ -36,11 +36,11 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS db_exec(const char* node, const char* sql);
     virtual Cmd::STATUS db_query(const char* node, const char* sql);
 
-    uint64_t get_module_id() { return m_module_id; }
-    CJsonObject& config() { return m_net->get_config(); }
+    uint64_t module_id() { return m_module_id; }
+    CJsonObject& config() { return m_net->config(); }
 
     void set_req(std::shared_ptr<Request> req) { m_req = req; }
-    std::shared_ptr<Request> get_req() const { return m_req; }
+    std::shared_ptr<Request> req() const { return m_req; }
 
     // async step. -- status machine.
     void set_exec_step(int step) { m_step = step; }
@@ -52,9 +52,9 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS execute_steps(int err, void* data);
 
    protected:
+    int m_step = 0;  // async step.
     uint64_t m_module_id = 0;
     std::shared_ptr<Request> m_req = nullptr;
-    int m_step = 0;  // async step.
 };
 
 }  // namespace kim

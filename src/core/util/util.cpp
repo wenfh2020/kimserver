@@ -45,7 +45,7 @@ std::string format_addr(const std::string& host, int port) {
     return std::string(identity);
 }
 
-std::string get_work_path() {
+std::string work_path() {
     char work_path[MAX_PATH] = {0};
     if (!getcwd(work_path, sizeof(work_path))) {
         return "";

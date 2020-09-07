@@ -88,7 +88,7 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body
 
 Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     LOG_DEBUG("readable len: %d, read index: %d, write index: %d",
-              sbuf->get_readable_len(), sbuf->get_read_index(), sbuf->get_write_index());
+              sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 
     if (++m_encode_cnt > m_decode_cnt) {
         m_is_client = true;
@@ -208,7 +208,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
                 CHECK_WRITE(size = sbuf->_printf("\r\n"));
                 writed_len += size;
             } else {
-                sbuf->set_write_index(sbuf->get_write_index() - writed_len);
+                sbuf->set_write_index(sbuf->write_index() - writed_len);
                 writed_len = 0;
             }
 
@@ -236,7 +236,7 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
                 CHECK_WRITE(size = sbuf->_printf("\r\n"));
                 writed_len += size;
             } else {
-                sbuf->set_write_index(sbuf->get_write_index() - writed_len);
+                sbuf->set_write_index(sbuf->write_index() - writed_len);
             }
 
             CHECK_WRITE(size = sbuf->_printf("0\r\n\r\n"));
@@ -249,18 +249,18 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
 
     m_http_headers.clear();
     CHECK_WRITE(size = sbuf->write_byte('\0'));
-    write_index = sbuf->get_write_index();
+    write_index = sbuf->write_index();
     sbuf->set_write_index(write_index - size);
 
-    // LOG_DEBUG("%s", sbuf->get_raw_write_buffer());
+    // LOG_DEBUG("%s", sbuf->raw_write_buffer());
     LOG_DEBUG("readable len: %d, read index: %d, write index: %d, writed len: %d",
-              sbuf->get_readable_len(), sbuf->get_read_index(),
-              sbuf->get_write_index(), writed_len);
+              sbuf->readable_len(), sbuf->read_index(),
+              sbuf->write_index(), writed_len);
     LOG_DEBUG("\n%s", to_string(msg).c_str());
     return Codec::STATUS::OK;
 
 error:
-    sbuf->set_write_index(sbuf->get_write_index() - writed_len);
+    sbuf->set_write_index(sbuf->write_index() - writed_len);
     m_http_headers.clear();
     return Codec::STATUS::ERR;
 }
@@ -284,8 +284,8 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
     m_parser.data = &msg;
     http_parser_init(&m_parser, HTTP_BOTH);
 
-    const char* buffer = sbuf->get_raw_read_buffer();
-    size_t buf_len = sbuf->get_readable_len();
+    const char* buffer = sbuf->raw_read_buffer();
+    size_t buf_len = sbuf->readable_len();
     size_t len = http_parser_execute(&m_parser, &m_parser_setting, buffer, buf_len);
 
     if (msg.is_decoding()) {

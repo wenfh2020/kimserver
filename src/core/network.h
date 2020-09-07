@@ -51,7 +51,7 @@ class Network : public INet {
     bool load_redis_mgr();
 
     virtual double now() override;
-    virtual Events* get_events() override;
+    virtual Events* events() override;
 
     // events.
     void run();
@@ -77,10 +77,10 @@ class Network : public INet {
 
     bool set_gate_codec(Codec::TYPE type);
     void set_keep_alive(double secs) { m_keep_alive = secs; }
-    double get_keep_alive() { return m_keep_alive; }
+    double keep_alive() { return m_keep_alive; }
 
    public:
-    virtual uint64_t get_new_seq() override { return ++m_seq; }
+    virtual uint64_t new_seq() override { return ++m_seq; }
     virtual bool add_cmd(Cmd* cmd) override;
     virtual Cmd* get_cmd(uint64_t id) override;
     virtual bool del_cmd(Cmd* cmd) override;

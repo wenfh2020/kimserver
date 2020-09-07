@@ -23,7 +23,7 @@ class CodecHttp : public Codec {
     std::string to_string(const HttpMsg &oHttpMsg);
     static void decode_params(const std::string &s, std::map<std::string, std::string> &params);
 
-    int get_keep_alive() { return m_keep_alive; }
+    int keep_alive() { return m_keep_alive; }
 
    protected:
     static int on_message_begin(http_parser *parser);

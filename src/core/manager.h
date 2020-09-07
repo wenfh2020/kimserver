@@ -33,7 +33,7 @@ class Manager : public INet {
     bool create_worker(int worker_index);  // for one process.
     bool restart_worker(pid_t pid);        // fork a new process, when old terminated!
     void restart_workers();
-    std::string get_worker_name(int index);
+    std::string worker_name(int index);
 
    private:
     Log* m_logger = nullptr;           // logger.

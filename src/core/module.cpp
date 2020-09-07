@@ -26,14 +26,14 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     if (status != Cmd::STATUS::RUNNING) {
         SAFE_DELETE(cmd);
     } else {
-        if (!get_net()->add_cmd(cmd)) {
-            LOG_ERROR("add cmd duplicate, id: %llu!", cmd->get_id());
+        if (!net()->add_cmd(cmd)) {
+            LOG_ERROR("add cmd duplicate, id: %llu!", cmd->id());
             return Cmd::STATUS::ERROR;
         }
-        ev_timer* w = get_net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->get_timer(), cmd);
+        ev_timer* w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), cmd);
         if (w == nullptr) {
-            get_net()->del_cmd(cmd);
-            LOG_ERROR("module add cmd(%s) timer failed!", cmd->get_name());
+            net()->del_cmd(cmd);
+            LOG_ERROR("module add cmd(%s) timer failed!", cmd->name());
             return Cmd::STATUS::ERROR;
         }
         cmd->set_timer(w);
@@ -45,22 +45,22 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     int old;
     Cmd::STATUS status;
 
-    old = cmd->get_cur_timeout_cnt();
+    old = cmd->cur_timeout_cnt();
     status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
-        get_net()->del_cmd(cmd);
+        net()->del_cmd(cmd);
     } else {
-        if (cmd->get_req()->get_conn()->is_closed()) {
+        if (cmd->req()->conn()->is_closed()) {
             LOG_DEBUG("connection is closed, stop timeout!");
-            get_net()->del_cmd(cmd);
+            net()->del_cmd(cmd);
             return Cmd::STATUS::ERROR;
         }
-        if (old == cmd->get_cur_timeout_cnt()) {
+        if (old == cmd->cur_timeout_cnt()) {
             cmd->refresh_cur_timeout_cnt();
         }
-        if (cmd->get_cur_timeout_cnt() >= cmd->get_max_timeout_cnt()) {
-            LOG_WARN("pls check timeout logic! %s", cmd->get_name());
-            get_net()->del_cmd(cmd);
+        if (cmd->cur_timeout_cnt() >= cmd->max_timeout_cnt()) {
+            LOG_WARN("pls check timeout logic! %s", cmd->name());
+            net()->del_cmd(cmd);
             return Cmd::STATUS::ERROR;
         }
     }
@@ -75,16 +75,16 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
         return Cmd::STATUS::ERROR;
     }
 
-    Cmd* cmd = get_net()->get_cmd(index->cmd_id);
+    Cmd* cmd = net()->get_cmd(index->cmd_id);
     if (cmd == nullptr) {
         LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
         return Cmd::STATUS::ERROR;
     }
 
-    cmd->set_active_time(get_net()->now());
+    cmd->set_active_time(net()->now());
     Cmd::STATUS status = cmd->on_callback(err, data);
     if (status != Cmd::STATUS::RUNNING) {
-        get_net()->del_cmd(cmd);
+        net()->del_cmd(cmd);
     }
 
     return status;
@@ -98,7 +98,7 @@ Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, const std::stri
     msg.set_http_minor(1);
     msg.set_body(data);
 
-    if (!get_net()->send_to(c, msg)) {
+    if (!net()->send_to(c, msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;
