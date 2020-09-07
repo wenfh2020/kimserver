@@ -1,5 +1,5 @@
-#ifndef __CODEC_H__
-#define __CODEC_H__
+#ifndef __KIM_CODEC_H__
+#define __KIM_CODEC_H__
 
 #include "../proto/http.pb.h"
 #include "../proto/msg.pb.h"
@@ -25,6 +25,7 @@ class Codec {
         PAUSE = 2,
     };
 
+    Codec() {}
     Codec(Log* logger, Codec::TYPE codec) : m_logger(logger), m_codec(codec) {}
     virtual ~Codec() {}
 
@@ -33,6 +34,7 @@ class Codec {
 
     bool set_codec(Codec::TYPE codec);
     Codec::TYPE codec() { return m_codec; }
+    Codec::TYPE get_codec_type(const std::string& codec_type);
 
     bool gzip(const std::string& src, std::string& dst);
     bool ungzip(const std::string& src, std::string& dst);
@@ -44,4 +46,4 @@ class Codec {
 
 };  // namespace kim
 
-#endif  //__CODEC_H__
+#endif  //__KIM_CODEC_H__

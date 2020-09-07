@@ -75,7 +75,7 @@ class Network : public INet {
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
-    bool set_gate_codec(Codec::TYPE type);
+    bool set_gate_codec(const std::string& codec);
     void set_keep_alive(double secs) { m_keep_alive = secs; }
     double keep_alive() { return m_keep_alive; }
 

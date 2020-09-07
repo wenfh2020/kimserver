@@ -63,17 +63,15 @@ Events* Network::events() {
 }
 
 bool Network::load_config(const CJsonObject& config) {
-    int codec;
     double secs;
     m_conf = config;
+    std::string codec = m_conf("gate_codec");
 
-    if (m_conf.Get("gate_codec", codec)) {
-        if (!set_gate_codec(static_cast<Codec::TYPE>(codec))) {
-            LOG_ERROR("invalid codec: %d", codec);
-            return false;
-        }
+    if (!set_gate_codec(codec)) {
+        LOG_ERROR("invalid codec: %s", codec.c_str());
+        return false;
     }
-    LOG_DEBUG("gate codec: %d", codec);
+    LOG_DEBUG("gate codec: %s", codec.c_str());
 
     if (m_conf.Get("keep_alive", secs)) {
         set_keep_alive(secs);
@@ -694,9 +692,10 @@ void Network::end_ev_loop() {
     }
 }
 
-bool Network::set_gate_codec(Codec::TYPE type) {
-    if (type < Codec::TYPE::UNKNOWN ||
-        type >= Codec::TYPE::COUNT) {
+bool Network::set_gate_codec(const std::string& codec_type) {
+    Codec codec;
+    Codec::TYPE type = codec.get_codec_type(codec_type);
+    if (type == Codec::TYPE::UNKNOWN) {
         return false;
     }
     m_gate_codec = type;

@@ -16,6 +16,18 @@ bool Codec::set_codec(Codec::TYPE codec) {
     return true;
 }
 
+Codec::TYPE Codec::get_codec_type(const std::string& codec_type) {
+    if (strcasecmp(codec_type.c_str(), "protobuf") == 0) {
+        return Codec::TYPE::PROTOBUF;
+    } else if (strcasecmp(codec_type.c_str(), "http") == 0) {
+        return Codec::TYPE::HTTP;
+    } else if (strcasecmp(codec_type.c_str(), "private") == 0) {
+        return Codec::TYPE::PRIVATE;
+    } else {
+        return Codec::TYPE::UNKNOWN;
+    }
+}
+
 Codec::STATUS Codec::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf) {
     LOG_DEBUG("encode");
     return Codec::STATUS::ERR;

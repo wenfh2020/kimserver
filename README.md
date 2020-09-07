@@ -57,7 +57,7 @@ Run on Linux / MacOS
     "port": 3344,
     "gate_bind": "127.0.0.1",
     "gate_port": 3355,
-    "gate_codec": 1,
+    "gate_codec": "http",
     "keep_alive": 30,
     "log_path": "kimserver.log",
     "log_level": "debug",
@@ -92,7 +92,7 @@ Run on Linux / MacOS
 | port             | bind port.                                                                                        |
 | gate_bind        | host for user's client contact.                                                                   |
 | gate_port        | gate_bind's port.                                                                                 |
-| gate_codec       | protobuf:1, http: 2, private: 3.                                                                  |
+| gate_codec       | "protobuf", "http".                                                                               |
 | keep_alive       | connection keep alive time (seconds).                                                             |
 | log_path         | log file. path.                                                                                   |
 | log_level        | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |
