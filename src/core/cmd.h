@@ -45,7 +45,7 @@ class Cmd : public Timer, public Base {
     // async step. -- status machine.
     void set_exec_step(int step) { m_step = step; }
     int get_exec_step() { return m_step; }
-    void set_next_step(int step = -1) { m_step = (step != -1) ? step : ++m_step; }
+    void set_next_step(int step = -1) { m_step = (step != -1) ? step : (m_step + 1); }
     Cmd::STATUS execute_next_step(int err, void* data, int step = -1);
 
    protected:
