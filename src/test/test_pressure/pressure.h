@@ -16,6 +16,12 @@ namespace kim {
 
 class Pressure {
    public:
+    typedef struct statistics_data_s {
+        int packets = 0;
+        int send_cnt = 0;
+        int callback_cnt = 0;
+    } statistics_data_t;
+
     typedef struct libev_events_s {
         Pressure* press = nullptr;
         Connection* conn = nullptr;
@@ -23,14 +29,12 @@ class Pressure {
         bool reading = false;
         bool writing = false;
         ev_io rev, wev;
+        statistics_data_t stat;
     } libev_events_t;
 
     double m_begin_time = 0.0;
     int m_packets = 0;
-    int m_test_cnt = 0;
     int m_send_cnt = 0;
-    int m_send_ok_cnt = 0;
-    int m_send_err_cnt = 0;
     int m_cur_callback_cnt = 0;
     int m_err_callback_cnt = 0;
     int m_ok_callback_cnt = 0;
@@ -46,13 +50,18 @@ class Pressure {
     // connection.
     Connection* get_connect(const char* host, int port);
     bool del_connect(Connection* c);
+    bool check_connect(Connection* c);
 
+    bool send_packets(Connection* c);
     bool send_proto(Connection* c, int cmd);
     bool send_proto(Connection* c, MsgHead& head, MsgBody& body);
 
     // events.
-    bool attach_libev(Connection* c);
+    bool attach_libev(Connection* c, int packets);
     void cleanup_events(Connection* c);
+
+    static void libev_read_event(EV_P_ ev_io* watcher, int revents);
+    static void libev_write_event(EV_P_ ev_io* watcher, int revents);
 
     void add_write_event(Connection* c);
     void del_write_event(Connection* c);
@@ -62,9 +71,6 @@ class Pressure {
     void del_read_event(Connection* c);
     void async_handle_read(Connection* c);
     bool async_handle_connect(Connection* c);
-
-    static void libev_read_event(EV_P_ ev_io* watcher, int revents);
-    static void libev_write_event(EV_P_ ev_io* watcher, int revents);
 
    private:
     int m_seq = 0;

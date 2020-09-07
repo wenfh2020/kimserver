@@ -22,6 +22,18 @@ class Cmd : public Timer, public Base {
     Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name = "");
     virtual ~Cmd();
 
+    uint64_t module_id() { return m_module_id; }
+    CJsonObject& config() { return m_net->config(); }
+
+    void set_req(std::shared_ptr<Request> req) { m_req = req; }
+    std::shared_ptr<Request> req() const { return m_req; }
+
+    // async step. -- status machine.
+    void set_exec_step(int step) { m_step = step; }
+    int get_exec_step() { return m_step; }
+    void set_next_step(int step = -1) { m_step = (step != -1) ? step : (m_step + 1); }
+    Cmd::STATUS execute_next_step(int err, void* data, int step = -1);
+
    public:
     virtual bool init() { return true; }
     virtual Cmd::STATUS on_timeout();
@@ -35,18 +47,6 @@ class Cmd : public Timer, public Base {
     virtual Cmd::STATUS redis_send_to(const char* node, const std::vector<std::string>& argv);
     virtual Cmd::STATUS db_exec(const char* node, const char* sql);
     virtual Cmd::STATUS db_query(const char* node, const char* sql);
-
-    uint64_t module_id() { return m_module_id; }
-    CJsonObject& config() { return m_net->config(); }
-
-    void set_req(std::shared_ptr<Request> req) { m_req = req; }
-    std::shared_ptr<Request> req() const { return m_req; }
-
-    // async step. -- status machine.
-    void set_exec_step(int step) { m_step = step; }
-    int get_exec_step() { return m_step; }
-    void set_next_step(int step = -1) { m_step = (step != -1) ? step : (m_step + 1); }
-    Cmd::STATUS execute_next_step(int err, void* data, int step = -1);
 
    protected:
     virtual Cmd::STATUS execute_steps(int err, void* data);

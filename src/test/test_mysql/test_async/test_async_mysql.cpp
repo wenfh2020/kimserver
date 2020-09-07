@@ -19,8 +19,6 @@ CREATE TABLE `test_async_mysql` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4; 
 */
 
-// make all project.
-
 int g_test_cnt = 0;
 int g_cur_callback_cnt = 0;
 int g_err_callback_cnt = 0;
@@ -97,7 +95,7 @@ static void mysql_query_callback(const kim::MysqlAsyncConn* c, kim::sql_task_t* 
             }
         }
     }
-  */
+    */
 }
 
 bool check_args(int args, char** argv) {
@@ -132,7 +130,6 @@ int main(int args, char** argv) {
         return 1;
     }
 
-    /* "debug", "err", "info", "crit" ... pls set "err" if pressure. */
     // m_logger->set_level(kim::Log::LL_DEBUG);
     m_logger->set_level(kim::Log::LL_INFO);
 

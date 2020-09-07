@@ -112,9 +112,14 @@ Codec::STATUS Connection::decode_proto(MsgHead& head, MsgBody& body) {
 }
 
 Codec::STATUS Connection::conn_write() {
-    if (!m_send_buf->is_readable()) {
+    if (m_send_buf == nullptr) {
         LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
+    }
+
+    if (!m_send_buf->is_readable()) {
+        LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
+        return Codec::STATUS::OK;
     }
 
     int write_len = m_send_buf->write_fd(m_fd, m_errno);
@@ -157,7 +162,7 @@ Codec::STATUS Connection::fetch_data(MsgHead& head, MsgBody& body) {
 }
 
 Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
-    if (!is_connected() && !is_connecting()) {
+    if (!is_connected()) {
         LOG_ERROR("conn is invalid! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::ERR;
     }
@@ -179,10 +184,6 @@ Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
     if (status != Codec::STATUS::OK) {
         LOG_DEBUG("encode packed failed! fd: %d, seq: %llu, status: %d",
                   m_fd, m_id, (int)status);
-        return status;
-    }
-
-    if (is_connecting()) {
         return status;
     }
 

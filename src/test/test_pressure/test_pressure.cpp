@@ -5,7 +5,7 @@
 kim::Log* m_logger = nullptr;
 kim::Pressure* g_pressure = nullptr;
 int g_server_port = 3355;
-const char* g_server_host = "127.0.0.1";
+std::string g_server_host = "127.0.0.1";
 ev_timer m_timer;
 int g_test_users = 0;
 int g_test_packets = 0;
@@ -17,14 +17,18 @@ void libev_timer_cb(struct ev_loop* loop, ev_timer* w, int events) {
 }
 
 bool check_args(int args, char** argv) {
-    if (args < 2 ||
-        argv[1] == nullptr || !isdigit(argv[1][0]) || atoi(argv[1]) == 0 ||
-        argv[2] == nullptr || !isdigit(argv[2][0]) || atoi(argv[2]) == 0) {
+    if (args < 4 ||
+        argv[2] == nullptr || !isdigit(argv[2][0]) || atoi(argv[2]) == 0 ||
+        argv[3] == nullptr || !isdigit(argv[3][0]) || atoi(argv[3]) == 0 ||
+        argv[4] == nullptr || !isdigit(argv[4][0]) || atoi(argv[4]) == 0) {
         std::cerr << "invalid args!" << std::endl;
         return false;
     }
-    g_test_users = atoi(argv[1]);
-    g_test_packets = atoi(argv[2]);
+
+    g_server_host = argv[1];
+    g_server_port = atoi(argv[2]);
+    g_test_users = atoi(argv[3]);
+    g_test_packets = atoi(argv[4]);
     return true;
 }
 
@@ -51,7 +55,7 @@ int main(int args, char** argv) {
     // ev_timer_start(loop, &m_timer);
 
     g_pressure = new kim::Pressure(m_logger, loop);
-    if (!g_pressure->start(g_server_host, g_server_port, g_test_users, g_test_packets)) {
+    if (!g_pressure->start(g_server_host.c_str(), g_server_port, g_test_users, g_test_packets)) {
         LOG_ERROR("start g_pressure failed!");
         goto error;
     }
