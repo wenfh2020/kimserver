@@ -1,14 +1,16 @@
-/* ./test_pressure 100 1000  */
+/* ./test_pressure 127.0.0.1 3355 100 100  */
 
 #include "pressure.h"
 
-kim::Log* m_logger = nullptr;
-kim::Pressure* g_pressure = nullptr;
-int g_server_port = 3355;
-std::string g_server_host = "127.0.0.1";
-ev_timer m_timer;
 int g_test_users = 0;
 int g_test_packets = 0;
+
+int g_server_port = 3355;
+std::string g_server_host = "127.0.0.1";
+
+ev_timer m_timer;
+kim::Log* m_logger = nullptr;
+kim::Pressure* g_pressure = nullptr;
 
 void libev_timer_cb(struct ev_loop* loop, ev_timer* w, int events) {
     if (g_pressure != nullptr) {

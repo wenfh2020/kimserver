@@ -5,9 +5,10 @@
 #include <sstream>
 #include <string>
 
+#include "../../../src/core/server.h"
 #include "../../../src/core/util/util.h"
-#include "zk.h"
-#include "zk_mgr.h"
+#include "../../../src/core/zookeeper/zk.h"
+#include "../../../src/core/zookeeper/zk_mgr.h"
 
 namespace utils {
 static std::string perms_to_string(int32_t perms) {
@@ -78,7 +79,7 @@ void print_zk_cpp_usage() {
     fprintf(stderr, "    watch_child <path> \n");
 }
 
-const char* get_task_oper_string(kim::zk_task_t::OPERATE oper) {
+const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
     switch (oper) {
         case kim::zk_task_t::OPERATE::EXISTS:
             return "exists";
@@ -116,7 +117,7 @@ void child_change_events(const std::string& path, const std::vector<std::string>
 void callback_fn(const kim::zk_task_t* task) {
     printf("----------\n");
     printf("rsp\noper: %s\npath: %s\nvalue: %s\nflag:%d\nerror:%d\nerrstr: %s\n",
-           get_task_oper_string(task->oper), task->path.c_str(),
+           task_oper_to_string(task->oper), task->path.c_str(),
            task->value.c_str(), task->flag, task->res.error, task->res.errstr.c_str());
 
     switch (task->oper) {

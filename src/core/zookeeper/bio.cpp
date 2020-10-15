@@ -1,3 +1,5 @@
+/* refer: https://github.com/redis/redis/blob/unstable/src/bio.c */
+
 #include "bio.h"
 
 #include <pthread.h>
@@ -6,16 +8,17 @@
 
 #include <list>
 
-#include "../../../src/core/util/util.h"
 #include "task.h"
+#include "util/util.h"
 
 namespace kim {
 
 /* Make sure we have enough stack to perform all the things we do 
  * in the main thread. */
 #define REDIS_THREAD_STACK_SIZE (1024 * 1024 * 4)
-pthread_mutex_t g_mutex;
-std::list<zk_task_t*> g_tasks;
+
+static pthread_mutex_t g_mutex;
+static std::list<zk_task_t*> g_tasks;
 
 Bio::Bio(Log* logger) : m_logger(logger) {
 }
@@ -63,7 +66,7 @@ bool Bio::bio_init() {
     /* Ready to spawn our threads. We use the single argument the thread
      * function accepts in order to pass the job ID the thread is
      * responsible of. */
-    if (pthread_create(&thread, &attr, bio_process_jobs, this) != 0) {
+    if (pthread_create(&thread, &attr, bio_process_tasks, this) != 0) {
         LOG_ERROR("Fatal: Can't initialize Background Jobs.");
         return false;
     }
@@ -71,7 +74,7 @@ bool Bio::bio_init() {
     return true;
 }
 
-void* Bio::bio_process_jobs(void* arg) {
+void* Bio::bio_process_tasks(void* arg) {
     Bio* mgr = (Bio*)arg;
     printf("mgr ptr: %p\n", mgr);
 
@@ -107,7 +110,7 @@ void* Bio::bio_process_jobs(void* arg) {
             continue;
         }
 
-        mgr->process_task(task);
+        mgr->process_tasks(task);
         SAFE_DELETE(task);
     }
 

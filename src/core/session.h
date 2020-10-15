@@ -18,12 +18,13 @@ class Session : public Timer, public Base {
     };
     Session(uint64_t id, Log* logger, INet* net, const std::string& name = "");
     virtual ~Session();
+
     void init(const std::string& sessid, double timeout = 60.0);
     const std::string& sessid() const { return m_sessid; }
     const char* sessid() { return m_sessid.c_str(); }
 
    public:
-    Session::STATUS on_timeout() { return STATUS::OK; }
+    virtual Session::STATUS on_timeout() { return STATUS::OK; }
 
    protected:
     std::string m_sessid;

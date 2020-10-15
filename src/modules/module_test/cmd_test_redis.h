@@ -46,6 +46,7 @@ class CmdTestRedis : public Cmd {
 
                 return execute_next_step(err, data);
             }
+
             case ES_REDIS_SET: {
                 LOG_DEBUG("step redis set, key: %s, value: %s", m_key.c_str(), m_value.c_str());
                 std::vector<std::string> argv{"set", m_key, m_value};
@@ -56,6 +57,7 @@ class CmdTestRedis : public Cmd {
                 set_next_step();
                 return status;
             }
+
             case ES_REDIS_SET_CALLBACK: {
                 redisReply* reply = (redisReply*)data;
                 if (err != ERR_OK || reply == nullptr ||
@@ -71,6 +73,7 @@ class CmdTestRedis : public Cmd {
 
                 return execute_next_step(err, data);
             }
+
             case ES_REDIS_GET: {
                 std::vector<std::string> argv{"get", m_key};
                 Cmd::STATUS status = redis_send_to("test", argv);
@@ -80,6 +83,7 @@ class CmdTestRedis : public Cmd {
                 set_next_step();
                 return status;
             }
+
             case ES_REDIS_GET_CALLBACK: {
                 redisReply* reply = (redisReply*)data;
                 if (err != ERR_OK || reply == nullptr || reply->type != REDIS_REPLY_STRING) {
@@ -92,6 +96,7 @@ class CmdTestRedis : public Cmd {
                 rsp_data.Add("value", m_value);
                 return response_http(ERR_OK, "ok", rsp_data);
             }
+
             default: {
                 LOG_ERROR("invalid step");
                 return response_http(ERR_FAILED, "invalid step!");

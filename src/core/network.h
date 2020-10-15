@@ -7,18 +7,14 @@
 #include <list>
 #include <unordered_map>
 
-#include "codec/codec.h"
 #include "connection.h"
 #include "db/db_mgr.h"
 #include "events.h"
 #include "module_mgr.h"
-#include "net.h"
 #include "net/anet.h"
 #include "net/chanel.h"
-#include "node_info.h"
 #include "redis/redis_mgr.h"
 #include "session.h"
-#include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
 
 namespace kim {

@@ -1,12 +1,12 @@
-/* new a thread to handle the zk commands. */
+/* create a new thread to handle the zk commands in the background. */
 #ifndef __KIM_BIO_H__
 #define __KIM_BIO_H__
 
 #include <pthread.h>
 
-#include "../../../src/core/server.h"
-#include "../../../src/core/util/log.h"
+#include "server.h"
 #include "task.h"
+#include "util/log.h"
 
 namespace kim {
 
@@ -17,9 +17,9 @@ class Bio {
 
     bool bio_init();
     void bio_stop() { m_stop_thread = true; }
-    static void* bio_process_jobs(void* arg);
+    static void* bio_process_tasks(void* arg);
 
-    virtual void process_task(zk_task_t* task) {}
+    virtual void process_tasks(zk_task_t* task) {}
     bool add_task(const std::string& path, zk_task_t::OPERATE oper,
                   void* privdata, const std::string& value = "", int flag = 0);
 

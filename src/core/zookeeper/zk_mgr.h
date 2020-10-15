@@ -27,7 +27,6 @@ class ZookeeperMgr : public Bio {
     void attach_watch_data_cb_fn(ZkCallbackWatchDataChangeFn* fn) { m_watch_data_fn = fn; }
     void attach_child_change_cb_fn(ZkCallbackChildChangeFn* fn) { m_child_change_fn = fn; }
 
-    /* delete node. */
     /* zk api. */
     bool zk_create(const std::string& path, const std::string& value, int flag, void* privdata);
     bool zk_delelte(const std::string& path, void* privdata);
@@ -38,7 +37,7 @@ class ZookeeperMgr : public Bio {
     bool zk_watch_data(const std::string& path, void* privdata);
     bool zk_watch_children(const std::string& path, void* privdata);
 
-    virtual void process_task(zk_task_t* task) override;
+    virtual void process_tasks(zk_task_t* task) override;
 
    private:
     utility::zk_cpp* m_zk;

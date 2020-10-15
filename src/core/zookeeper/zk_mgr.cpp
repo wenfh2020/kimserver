@@ -1,5 +1,3 @@
-/* refer: https://github.com/redis/redis/blob/unstable/src/bio.c */
-
 #include "zk_mgr.h"
 
 namespace kim {
@@ -140,7 +138,7 @@ bool ZookeeperMgr::zk_watch_children(const std::string& path, void* privdata) {
     return add_task(path, zk_task_t::OPERATE::WATCH_CHILD, privdata);
 }
 
-void ZookeeperMgr::process_task(zk_task_t* task) {
+void ZookeeperMgr::process_tasks(zk_task_t* task) {
     LOG_DEBUG("process task, path: %s, oper: %d", task->path.c_str(), task->oper);
     utility::zoo_rc ret = utility::zoo_rc::z_system_error;
 

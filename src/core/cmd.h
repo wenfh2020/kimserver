@@ -16,8 +16,7 @@ class Cmd : public Timer, public Base {
         UNKOWN = 0,
         OK = 1,
         RUNNING = 2,
-        COMPLETED = 3,
-        ERROR = 4,
+        ERROR = 3,
     };
     Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name = "");
     virtual ~Cmd();

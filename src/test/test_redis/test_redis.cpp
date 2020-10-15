@@ -43,7 +43,7 @@ void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
 
     if (++g_cur_callback_cnt == g_test_cnt) {
         std::cout << "spend time: " << time_now() - g_begin_time << std::endl
-                  << "write avg:  " << g_test_cnt / (time_now() - g_begin_time)
+                  << "avg:        " << g_test_cnt / (time_now() - g_begin_time)
                   << std::endl;
 
         std::cout << "callback cnt:     " << g_cur_callback_cnt << std::endl
@@ -116,8 +116,8 @@ int main(int args, char** argv) {
     }
 
     struct ev_loop* loop = EV_DEFAULT;
-    ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
-    ev_timer_start(loop, &m_timer);
+    // ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
+    // ev_timer_start(loop, &m_timer);
 
     g_mgr = new kim::RedisMgr(m_logger, loop);
     if (!g_mgr->init(config["redis"])) {
@@ -128,13 +128,13 @@ int main(int args, char** argv) {
     }
 
     g_begin_time = time_now();
-    // std::vector<std::string> read_cmds{"get", "key"};
-    // std::vector<std::string> write_cmds{"set", "key", "hello world!"};
-    // for (int i = 0; i < g_test_cnt; i++) {
-    //     user_data_t* d = new user_data_t(++g_send_cnt);
-    //     g_mgr->send_to("test", g_is_write ? write_cmds : read_cmds,
-    //                    on_redis_callback, (void*)d);
-    // }
+    std::vector<std::string> read_cmds{"get", "key"};
+    std::vector<std::string> write_cmds{"set", "key", "hello world!"};
+    for (int i = 0; i < g_test_cnt; i++) {
+        user_data_t* d = new user_data_t(++g_send_cnt);
+        g_mgr->send_to("test", g_is_write ? write_cmds : read_cmds,
+                       on_redis_callback, (void*)d);
+    }
 
     ev_run(loop, 0);
     SAFE_DELETE(g_mgr);

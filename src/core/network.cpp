@@ -3,12 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "connection.h"
 #include "error.h"
-#include "module.h"
-#include "net/anet.h"
-#include "server.h"
-#include "util/util.h"
 
 namespace kim {
 
@@ -267,6 +262,7 @@ std::shared_ptr<Connection> Network::create_conn(int fd) {
         LOG_ERROR("new connection failed! fd: %d", fd);
         return nullptr;
     }
+
     c->set_keep_alive(m_keep_alive);
     m_conns[fd] = c;
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
