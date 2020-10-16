@@ -154,6 +154,7 @@ void zk_cpp::reconnect() {
     // try rewatch the watchs
     data_event_map_type data_watch_event_map;
     child_event_map_type child_watch_event_map;
+
     {
         std::lock_guard<std::mutex> locker(m_mtx);
         data_watch_event_map = m_data_event_map;
@@ -465,7 +466,7 @@ void zk_cpp::on_path_data_change(const char* path) {
     }
 
     // call callback
-    (*handler)(path_str, out_value);
+    (*handler)(path_str, out_value, m_watch_privdata);
 }
 
 void zk_cpp::on_path_child_change(const char* path) {
@@ -484,7 +485,7 @@ void zk_cpp::on_path_child_change(const char* path) {
     }
 
     // call callback
-    (*handler)(path_str, children);
+    (*handler)(path_str, children, m_watch_privdata);
 }
 
 }  // namespace utility

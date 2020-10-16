@@ -8,8 +8,8 @@ namespace kim {
 
 /* callback fn. */
 typedef void(ZkCallbackCmdFn)(const zk_task_t* task);
-typedef void(ZkCallbackWatchDataChangeFn)(const std::string& path, const std::string& new_value);
-typedef void(ZkCallbackChildChangeFn)(const std::string& path, const std::vector<std::string>& children);
+typedef void(ZkCallbackWatchDataChangeFn)(const std::string& path, const std::string& new_value, void* privdata);
+typedef void(ZkCallbackChildChangeFn)(const std::string& path, const std::vector<std::string>& children, void* privdata);
 
 class ZookeeperMgr : public Bio {
    public:
@@ -23,9 +23,8 @@ class ZookeeperMgr : public Bio {
     bool connect(const std::string& servers);
 
     /* attach callback fn. */
-    void attach_cmd_cb_fn(ZkCallbackCmdFn* fn) { m_cmd_fn = fn; }
-    void attach_watch_data_cb_fn(ZkCallbackWatchDataChangeFn* fn) { m_watch_data_fn = fn; }
-    void attach_child_change_cb_fn(ZkCallbackChildChangeFn* fn) { m_child_change_fn = fn; }
+    void attach_zk_cmd_event(ZkCallbackCmdFn* fn) { m_cmd_fn = fn; }
+    void attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn, ZkCallbackChildChangeFn* child_fn, void* watch_privdata);
 
     /* zk api. */
     bool zk_create(const std::string& path, const std::string& value, int flag, void* privdata);
@@ -37,11 +36,14 @@ class ZookeeperMgr : public Bio {
     bool zk_watch_data(const std::string& path, void* privdata);
     bool zk_watch_children(const std::string& path, void* privdata);
 
+   public:
+    /* bio handler. */
     virtual void process_tasks(zk_task_t* task) override;
 
    private:
     utility::zk_cpp* m_zk;
     FILE* m_zk_log_file = nullptr;
+    void* m_watch_privdata = nullptr;
     utility::zoo_log_lvl m_zk_log_level = utility::zoo_log_lvl::zoo_log_lvl_info;
 
     /* callback fn. */

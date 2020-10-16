@@ -33,6 +33,16 @@ void ZookeeperMgr::set_zk_log(const std::string& path, utility::zoo_log_lvl leve
     }
 }
 
+void ZookeeperMgr::attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn,
+                                          ZkCallbackChildChangeFn* child_fn, void* watch_privdata) {
+    m_watch_privdata = watch_privdata;
+    if (m_zk != nullptr) {
+        m_zk->set_watch_privdata(watch_privdata);
+    }
+    m_watch_data_fn = data_fn;
+    m_child_change_fn = child_fn;
+}
+
 bool ZookeeperMgr::connect(const std::string& servers) {
     LOG_INFO("servers: %s", servers.c_str());
     if (servers.empty()) {
@@ -48,6 +58,10 @@ bool ZookeeperMgr::connect(const std::string& servers) {
 
     m_zk->set_log_lvl(m_zk_log_level);
     m_zk->set_log_stream(m_zk_log_file);
+
+    if (m_zk != nullptr && m_watch_privdata != nullptr) {
+        m_zk->set_watch_privdata(m_watch_privdata);
+    }
 
     utility::zoo_rc ret = m_zk->connect(servers);
     if (ret != utility::z_ok) {

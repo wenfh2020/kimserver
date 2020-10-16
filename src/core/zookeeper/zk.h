@@ -133,11 +133,11 @@ class zk_cpp : public noncopyable {
     /** callbacks */
     /** watch events */
 
-    /** the  path data change event call back */
-    typedef std::function<void(const std::string& path, const std::string& new_value)> data_change_event_handler_t;
+    /** the path data change event call back */
+    typedef std::function<void(const std::string& path, const std::string& new_value, void* privdata)> data_change_event_handler_t;
     typedef std::shared_ptr<data_change_event_handler_t> data_event_handler_ptr;
 
-    typedef std::function<void(const std::string& path, const std::vector<std::string>& new_children)> child_event_handler_t;
+    typedef std::function<void(const std::string& path, const std::vector<std::string>& new_children, void* privdata)> child_event_handler_t;
     typedef std::shared_ptr<child_event_handler_t> child_event_handler_ptr;
 
    protected:
@@ -147,9 +147,7 @@ class zk_cpp : public noncopyable {
    protected:
     void* m_zh;         // zhandle_t
     std::string m_url;  // zookeeper server urls
-    std::string m_log_path;
-    FILE* m_log_file = nullptr;
-    ZooLogLevel m_log_level = ZOO_LOG_LEVEL_INFO;
+    void* m_watch_privdata = nullptr;
 
     std::mutex m_mtx;
     data_event_map_type m_data_event_map;
@@ -239,6 +237,11 @@ class zk_cpp : public noncopyable {
      *
      */
     bool unrecoverable();
+
+    /**
+     * @brief set the privdata for callback.
+     */
+    void set_watch_privdata(void* privdata) { m_watch_privdata = privdata; }
 
    public:
     /** events */

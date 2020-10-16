@@ -2,7 +2,6 @@
 #include <unistd.h>
 
 #include <iostream>
-#include <sstream>
 #include <string>
 
 #include "../../../src/core/server.h"
@@ -10,55 +9,7 @@
 #include "../../../src/core/zookeeper/zk.h"
 #include "../../../src/core/zookeeper/zk_mgr.h"
 
-namespace utils {
-static std::string perms_to_string(int32_t perms) {
-    if (perms == utility::zoo_perm_all) {
-        return "all";
-    }
-
-    std::string ret;
-    if (perms & utility::zoo_perm_create) {
-        ret.append("c");
-    }
-    if (perms & utility::zoo_perm_read) {
-        ret.append("r");
-    }
-    if (perms & utility::zoo_perm_delete) {
-        ret.append("d");
-    }
-    if (perms & utility::zoo_perm_write) {
-        ret.append("w");
-    }
-    if (perms & utility::zoo_perm_admin) {
-        ret.append("a");
-    }
-    return ret;
-}
-
-static int32_t perms_string_to_int(const std::string& perm_str) {
-    if (perm_str == "all") {
-        return utility::zoo_perm_all;
-    }
-
-    int32_t perms = 0;
-    for (auto c : perm_str) {
-        if (c == 'c') {
-            perms |= utility::zoo_perm_create;
-        } else if (c == 'r') {
-            perms |= utility::zoo_perm_read;
-        } else if (c == 'd') {
-            perms |= utility::zoo_perm_delete;
-        } else if (c == 'w') {
-            perms |= utility::zoo_perm_write;
-        } else if (c == 'a') {
-            perms |= utility::zoo_perm_admin;
-        }
-    }
-    return perms;
-}
-
-}  // namespace utils
-
+/* 
 void print_zk_cpp_usage() {
     fprintf(stderr, "usage\n");
     fprintf(stderr,
@@ -78,6 +29,7 @@ void print_zk_cpp_usage() {
     fprintf(stderr, "    watch_data <path> \n");
     fprintf(stderr, "    watch_child <path> \n");
 }
+ */
 
 const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
     switch (oper) {
@@ -102,23 +54,27 @@ const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
     }
 }
 
-void data_change_event(const std::string& path, const std::string& new_value) {
-    printf("data_change_event, path[%s] new_data[%s]\n", path.c_str(), new_value.c_str());
+void data_change_event(const std::string& path, const std::string& new_value, void* privdata) {
+    printf("--------\n");
+    printf("data_change_event, path[%s] new_data[%s], privdata[%p]\n",
+           path.c_str(), new_value.c_str(), privdata);
 }
 
-void child_change_events(const std::string& path, const std::vector<std::string>& children) {
-    printf("child_change_events, path[%s] new_child_count[%d]\n", path.c_str(), (int32_t)children.size());
+void child_change_event(const std::string& path, const std::vector<std::string>& children, void* privdata) {
+    printf("--------\n");
+    printf("child_change_event, path[%s] new_child_count[%d], privdata[%p]\n",
+           path.c_str(), (int32_t)children.size(), privdata);
 
-    for (int32_t i = 0; i < (int32_t)children.size(); ++i) {
-        printf("%d, %s\n", i, children[i].c_str());
+    for (size_t i = 0; i < children.size(); i++) {
+        printf("%zu, %s\n", i, children[i].c_str());
     }
 }
 
-void callback_fn(const kim::zk_task_t* task) {
+void cmd_callback_fn(const kim::zk_task_t* task) {
     printf("----------\n");
-    printf("rsp\noper: %s\npath: %s\nvalue: %s\nflag:%d\nerror:%d\nerrstr: %s\n",
+    printf("cmd cb:\noper: %s\npath: %s\nvalue: %s\nflag:%d\nerror:%d\nerrstr: %s\nprivdata: %p\n",
            task_oper_to_string(task->oper), task->path.c_str(),
-           task->value.c_str(), task->flag, task->res.error, task->res.errstr.c_str());
+           task->value.c_str(), task->flag, task->res.error, task->res.errstr.c_str(), task->privdata);
 
     switch (task->oper) {
         case kim::zk_task_t::OPERATE::EXISTS:
@@ -170,12 +126,11 @@ int main() {
         return 1;
     }
 
-    mgr->attach_cmd_cb_fn(&callback_fn);
-    mgr->attach_watch_data_cb_fn(&data_change_event);
-    mgr->attach_child_change_cb_fn(&child_change_events);
+    mgr->attach_zk_cmd_event(&cmd_callback_fn);
+    mgr->attach_zk_watch_events(&data_change_event, &child_change_event, (void*)mgr);
 
     mgr->zk_list(path, (void*)mgr);
-    sleep(10);
+    sleep(5);
 
     mgr->zk_create(create_path, "1", 0, (void*)mgr);
     mgr->zk_create(create_path, "2", 1, (void*)mgr);
@@ -190,14 +145,16 @@ int main() {
     mgr->zk_watch_data(path, (void*)mgr);
     mgr->zk_watch_children(path, (void*)mgr);
 
-    sleep(10);
+    sleep(5);
 
     int i = 0;
     while (1) {
-        sleep(10);
+        sleep(5);
         mgr->zk_set(path, format_str("%d", i++), (void*)mgr);
         mgr->zk_create(create_path, "4", 3, (void*)mgr);
     }
+
+    sleep(100);
 
     SAFE_DELETE(m_logger);
     SAFE_DELETE(mgr);

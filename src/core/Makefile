@@ -2,7 +2,7 @@ CC = gcc
 CXX = $(shell command -v ccache >/dev/null 2>&1 && echo "ccache g++" || echo "g++")
 CFLAGS = -g -O0 -Wall -m64 -D__GUNC__ -fPIC
 CPP_VERSION=$(shell g++ -dumpversion | awk '{if ($$NF > 5.0) print "c++14"; else print "c++11";}')
-CXXFLAG = -std=$(CPP_VERSION) -g -O0 -Wall -Wno-unused-function -Wno-noexcept-type -m64 -D_GNU_SOURCE=1 -D_REENTRANT -D__GUNC__ -fPIC -DNODE_BEAT=10.0
+CXXFLAG = -std=$(CPP_VERSION) -g -O0 -Wall -Wno-unused-function -Wno-noexcept-type -m64 -D_GNU_SOURCE=1 -D_REENTRANT -D__GUNC__ -fPIC -DNODE_BEAT=10.0 -DTHREADED
 
 VPATH = .
 SUB_DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
@@ -16,7 +16,7 @@ LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
           -L /usr/local/opt/openssl/lib \
           -L /usr/local/lib/mariadb \
           -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
-		  -lmariadb -lssl -lcrypto
+		  -lmariadb -lssl -lcrypto -lzookeeper_mt
 
 CPP_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 CC_SRCS = $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))
