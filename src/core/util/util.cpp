@@ -1,5 +1,9 @@
 #include "util.h"
 
+#define CRYPTOPP_ENABLE_NAMESPACE_WEAK 1
+
+#include <cryptopp/hex.h>
+#include <cryptopp/md5.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -40,8 +44,14 @@ std::string format_str(const char* const fmt, ...) {
 }
 
 std::string format_addr(const std::string& host, int port) {
-    char identity[64];
-    snprintf(identity, sizeof(identity), "%s:%d", host.c_str(), port);
+    char addr[64];
+    snprintf(addr, sizeof(addr), "%s:%d", host.c_str(), port);
+    return std::string(addr);
+}
+
+std::string format_identity(const std::string& host, int port, int index) {
+    char identity[128];
+    snprintf(identity, sizeof(identity), "%s:%d.%d", host.c_str(), port, index);
     return std::string(identity);
 }
 
@@ -59,6 +69,16 @@ std::string format_redis_cmds(const std::vector<std::string>& argv) {
         oss << it << " ";
     }
     return oss.str();
+}
+
+std::string md5(const std::string& input) {
+    std::string hash;
+    CryptoPP::Weak1::MD5 m;
+    CryptoPP::HexEncoder oHexEncoder;
+    m.Update((const CryptoPP::byte*)input.c_str(), input.length());
+    hash.resize(m.DigestSize());
+    m.Final((CryptoPP::byte*)&hash[0]);
+    return hash;
 }
 
 void daemonize(void) {

@@ -58,5 +58,17 @@ int main() {
                   << std::endl;
         delete info;
     }
+
+    std::cout << "--------" << std::endl;
+    std::cout << config["zookeeper"]["subscribe"].ToFormattedString() << std::endl;
+    std::cout << config["zookeeper"]["subscribe"].IsArray() << std::endl;
+
+    kim::CJsonObject& o = config["zookeeper"]["subscribe"];
+    for (int i = 0; i < o.GetArraySize(); i++) {
+        std::cout << o(i) << std::endl;
+    }
+
+    std::cout << "--------" << std::endl;
+    std::cout << config.ToFormattedString() << std::endl;
     return 0;
 }

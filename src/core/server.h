@@ -1,5 +1,5 @@
-#ifndef __SERVER__
-#define __SERVER__
+#ifndef __KIM_SERVER__
+#define __KIM_SERVER__
 
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -7,7 +7,9 @@
 #include <fstream>
 #include <iosfwd>
 #include <iostream>
+#include <set>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 
 namespace kim {
@@ -73,4 +75,4 @@ enum class E_RDS_STATUS {
 
 }  // namespace kim
 
-#endif  //__SERVER__
+#endif  //__KIM_SERVER__

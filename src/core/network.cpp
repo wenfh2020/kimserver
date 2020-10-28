@@ -75,10 +75,11 @@ bool Network::load_config(const CJsonObject& config) {
     return true;
 }
 
-bool Network::create(const AddrInfo* addr_info,
+/* parent. */
+bool Network::create(const addr_info* ainfo,
                      INet* net, const CJsonObject& config, WorkerDataMgr* m) {
     int fd = -1;
-    if (addr_info == nullptr || net == nullptr || m == nullptr) {
+    if (ainfo == nullptr || net == nullptr || m == nullptr) {
         return false;
     }
 
@@ -87,25 +88,25 @@ bool Network::create(const AddrInfo* addr_info,
         return false;
     }
 
-    if (!addr_info->bind.empty()) {
-        fd = listen_to_port(addr_info->bind.c_str(), addr_info->port);
+    if (!ainfo->bind().empty()) {
+        fd = listen_to_port(ainfo->bind().c_str(), ainfo->port());
         if (fd == -1) {
-            LOG_ERROR("listen to port fail! %s:%d",
-                      addr_info->bind.c_str(), addr_info->port);
+            LOG_ERROR("listen to port fail! %s:%d", ainfo->bind().c_str(), ainfo->port());
             return false;
         }
         m_bind_fd = fd;
     }
 
-    if (!addr_info->gate_bind.empty()) {
-        fd = listen_to_port(addr_info->gate_bind.c_str(), addr_info->gate_port);
+    if (!ainfo->gate_bind().empty()) {
+        fd = listen_to_port(ainfo->gate_bind().c_str(), ainfo->gate_port());
         if (fd == -1) {
             LOG_ERROR("listen to gate fail! %s:%d",
-                      addr_info->gate_bind.c_str(), addr_info->gate_port);
+                      ainfo->gate_bind().c_str(), ainfo->gate_port());
             return false;
         }
         m_gate_bind_fd = fd;
     }
+
     LOG_INFO("bind fd: %d, gate bind fd: %d", m_bind_fd, m_gate_bind_fd);
 
     if (!create_events(net, m_bind_fd, m_gate_bind_fd, m_gate_codec, false)) {
@@ -124,9 +125,11 @@ bool Network::create(const AddrInfo* addr_info,
         LOG_ERROR("alloc session mgr failed!");
         return false;
     }
+
     return true;
 }
 
+/* children. */
 bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd) {
     if (!create_events(net, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");

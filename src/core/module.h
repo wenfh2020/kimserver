@@ -77,10 +77,10 @@ class Module : public Base {
     std::unordered_map<std::string, cmd_func> m_http_cmd_funcs;                   \
     std::unordered_map<int, cmd_func> m_cmd_funcs;
 
-#define REGISTER_HTTP_FUNC(path, func) \
+#define HANDLE_HTTP_FUNC(path, func) \
     m_http_cmd_funcs[path] = &func;
 
-#define REGISTER_FUNC(id, func) \
+#define HANDLE_PROTO_FUNC(id, func) \
     m_cmd_funcs[id] = &func;
 
 #define HANDLE_CMD(_cmd)                                                    \

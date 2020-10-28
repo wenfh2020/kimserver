@@ -1,3 +1,9 @@
+/* refer: 
+ * https://github.com/apache/zookeeper/tree/master/zookeeper-client/zookeeper-client-c 
+ * https://github.com/yandaren/zk_cpp
+ * https://wenfh2020.com/2020/10/17/zookeeper-c-client/
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 
@@ -7,29 +13,7 @@
 #include "../../../src/core/server.h"
 #include "../../../src/core/util/util.h"
 #include "../../../src/core/zookeeper/zk.h"
-#include "../../../src/core/zookeeper/zk_mgr.h"
-
-/* 
-void print_zk_cpp_usage() {
-    fprintf(stderr, "usage\n");
-    fprintf(stderr,
-            "    create <path> <value> <flag>\n"
-            "                          0 - persistence\n"
-            "                          1 - ephemeral \n"
-            "                          2 - sequence \n"
-            "                          3 - sequence and ephemeral\n");
-    fprintf(stderr, "    delete <path>\n");
-    fprintf(stderr, "    set <path> <data>\n");
-    fprintf(stderr, "    get <path>\n");
-    fprintf(stderr, "    ls <path>\n");
-    fprintf(stderr, "    exists <path>\n");
-    fprintf(stderr, "    setacl <path> scheme:id:perm\n");
-    fprintf(stderr, "    getacl <path>\n");
-    fprintf(stderr, "    addauth username passwd\n");
-    fprintf(stderr, "    watch_data <path> \n");
-    fprintf(stderr, "    watch_child <path> \n");
-}
- */
+#include "../../../src/core/zookeeper/zk_client.h"
 
 const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
     switch (oper) {
@@ -54,15 +38,15 @@ const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
     }
 }
 
-void data_change_event(const std::string& path, const std::string& new_value, void* privdata) {
+void on_zk_data_change(const std::string& path, const std::string& new_value, void* privdata) {
     printf("--------\n");
-    printf("data_change_event, path[%s] new_data[%s], privdata[%p]\n",
+    printf("on_zk_data_change, path[%s] new_data[%s], privdata[%p]\n",
            path.c_str(), new_value.c_str(), privdata);
 }
 
-void child_change_event(const std::string& path, const std::vector<std::string>& children, void* privdata) {
+void on_zk_child_change(const std::string& path, const std::vector<std::string>& children, void* privdata) {
     printf("--------\n");
-    printf("child_change_event, path[%s] new_child_count[%d], privdata[%p]\n",
+    printf("on_zk_child_change, path[%s] new_child_count[%d], privdata[%p]\n",
            path.c_str(), (int32_t)children.size(), privdata);
 
     for (size_t i = 0; i < children.size(); i++) {
@@ -70,7 +54,7 @@ void child_change_event(const std::string& path, const std::vector<std::string>&
     }
 }
 
-void cmd_callback_fn(const kim::zk_task_t* task) {
+void on_zk_commnad(const kim::zk_task_t* task) {
     printf("----------\n");
     printf("cmd cb:\noper: %s\npath: %s\nvalue: %s\nflag:%d\nerror:%d\nerrstr: %s\nprivdata: %p\n",
            task_oper_to_string(task->oper), task->path.c_str(),
@@ -118,7 +102,7 @@ int main() {
     std::string servers("127.0.0.1:2181");
     std::cout << "servers: " << servers << std::endl;
 
-    kim::ZookeeperMgr* mgr = new kim::ZookeeperMgr(m_logger);
+    kim::ZooKeeperClient* mgr = new kim::ZooKeeperClient(m_logger);
     mgr->set_zk_log("./zk.log", utility::zoo_log_lvl::zoo_log_lvl_info);
     if (!mgr->connect(servers)) {
         LOG_ERROR("init servers failed! servers: %s", servers.c_str());
@@ -126,9 +110,10 @@ int main() {
         return 1;
     }
 
-    mgr->attach_zk_cmd_event(&cmd_callback_fn);
-    mgr->attach_zk_watch_events(&data_change_event, &child_change_event, (void*)mgr);
+    mgr->attach_zk_cmd_event(&on_zk_commnad);
+    mgr->attach_zk_watch_events(&on_zk_data_change, &on_zk_child_change, (void*)mgr);
 
+    // mgr->zk_get_state((void*)mgr);
     mgr->zk_list(path, (void*)mgr);
     sleep(5);
 

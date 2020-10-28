@@ -1,5 +1,5 @@
-#ifndef __KIM_ZOOKEEPER_H__
-#define __KIM_ZOOKEEPER_H__
+#ifndef __KIM_ZOOKEEPER_CLINET_H__
+#define __KIM_ZOOKEEPER_CLINET_H__
 
 #include "bio.h"
 #include "zk.h"
@@ -11,12 +11,12 @@ typedef void(ZkCallbackCmdFn)(const zk_task_t* task);
 typedef void(ZkCallbackWatchDataChangeFn)(const std::string& path, const std::string& new_value, void* privdata);
 typedef void(ZkCallbackChildChangeFn)(const std::string& path, const std::vector<std::string>& children, void* privdata);
 
-class ZookeeperMgr : public Bio {
+class ZooKeeperClient : public Bio {
    public:
-    ZookeeperMgr(Log* logger);
-    virtual ~ZookeeperMgr();
+    ZooKeeperClient(Log* logger);
+    virtual ~ZooKeeperClient();
 
-    void set_zk_log(const std::string& path, utility::zoo_log_lvl level);
+    void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl::zoo_log_lvl_info);
     void close_log();
 
     /* connect to zk servers. */
@@ -27,6 +27,7 @@ class ZookeeperMgr : public Bio {
     void attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn, ZkCallbackChildChangeFn* child_fn, void* watch_privdata);
 
     /* zk api. */
+    utility::z_state zk_get_state(); /* no network operation. */
     bool zk_create(const std::string& path, const std::string& value, int flag, void* privdata);
     bool zk_delelte(const std::string& path, void* privdata);
     bool zk_exists(const std::string& path, void* privdata);
@@ -38,7 +39,8 @@ class ZookeeperMgr : public Bio {
 
    public:
     /* bio handler. */
-    virtual void process_tasks(zk_task_t* task) override;
+    virtual void process_req_tasks(zk_task_t* task) override;
+    void process_rsp_tasks();
 
    private:
     utility::zk_cpp* m_zk;
@@ -54,4 +56,4 @@ class ZookeeperMgr : public Bio {
 
 }  // namespace kim
 
-#endif  //__KIM_ZOOKEEPER_H__
+#endif  //__KIM_ZOOKEEPER_CLINET_H__

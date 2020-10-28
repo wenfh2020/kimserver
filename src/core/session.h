@@ -1,8 +1,6 @@
 #ifndef __KIM_SESSION_H__
 #define __KIM_SESSION_H__
 
-#include <unordered_map>
-
 #include "base.h"
 #include "timer.h"
 

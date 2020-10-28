@@ -8,7 +8,7 @@ server=kimserver
 server_file=$work_path/bin/$server
 core_path=$work_path/src/core/
 so_path=$work_path/src/modules/
-core_proto_path=$core_path/proto/
+core_proto_path=$core_path/protobuf/proto
 
 kill_process() {
     echo '\n<------------------'

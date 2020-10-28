@@ -107,31 +107,7 @@ bool CJsonObject::AddEmptySubArray(const std::string& strKey) {
 }
 
 CJsonObject& CJsonObject::operator[](const std::string& strKey) {
-    std::unordered_map<std::string, CJsonObject*>::iterator iter;
-    iter = m_mapJsonObjectRef.find(strKey);
-    if (iter == m_mapJsonObjectRef.end()) {
-        cJSON* pJsonStruct = NULL;
-        if (m_pJsonData != NULL) {
-            if (m_pJsonData->type == cJSON_Object) {
-                pJsonStruct = cJSON_GetObjectItem(m_pJsonData, strKey.c_str());
-            }
-        } else if (m_pExternJsonDataRef != NULL) {
-            if (m_pExternJsonDataRef->type == cJSON_Object) {
-                pJsonStruct = cJSON_GetObjectItem(m_pExternJsonDataRef, strKey.c_str());
-            }
-        }
-        if (pJsonStruct == NULL) {
-            CJsonObject* pJsonObject = new CJsonObject();
-            m_mapJsonObjectRef.insert(std::pair<std::string, CJsonObject*>(strKey, pJsonObject));
-            return (*pJsonObject);
-        } else {
-            CJsonObject* pJsonObject = new CJsonObject(pJsonStruct);
-            m_mapJsonObjectRef.insert(std::pair<std::string, CJsonObject*>(strKey, pJsonObject));
-            return (*pJsonObject);
-        }
-    } else {
-        return (*(iter->second));
-    }
+    return Get(strKey);
 }
 
 CJsonObject& CJsonObject::operator[](unsigned int uiWhich) {
@@ -338,6 +314,7 @@ bool CJsonObject::IsEmpty() const {
 
 bool CJsonObject::IsArray() const {
     cJSON* pFocusData = NULL;
+
     if (m_pJsonData != NULL) {
         pFocusData = m_pJsonData;
     } else if (m_pExternJsonDataRef != NULL) {
@@ -345,14 +322,9 @@ bool CJsonObject::IsArray() const {
     }
 
     if (pFocusData == NULL) {
-        return (false);
+        return false;
     }
-
-    if (pFocusData->type == cJSON_Array) {
-        return (true);
-    } else {
-        return (false);
-    }
+    return (pFocusData->type == cJSON_Array);
 }
 
 std::string CJsonObject::ToString() const {
@@ -383,6 +355,34 @@ std::string CJsonObject::ToFormattedString() const {
         free(pJsonString);
     }
     return (strJsonData);
+}
+
+CJsonObject& CJsonObject::Get(const std::string& strKey) {
+    std::unordered_map<std::string, CJsonObject*>::iterator iter;
+    iter = m_mapJsonObjectRef.find(strKey);
+    if (iter == m_mapJsonObjectRef.end()) {
+        cJSON* pJsonStruct = NULL;
+        if (m_pJsonData != NULL) {
+            if (m_pJsonData->type == cJSON_Object) {
+                pJsonStruct = cJSON_GetObjectItem(m_pJsonData, strKey.c_str());
+            }
+        } else if (m_pExternJsonDataRef != NULL) {
+            if (m_pExternJsonDataRef->type == cJSON_Object) {
+                pJsonStruct = cJSON_GetObjectItem(m_pExternJsonDataRef, strKey.c_str());
+            }
+        }
+        if (pJsonStruct == NULL) {
+            CJsonObject* pJsonObject = new CJsonObject();
+            m_mapJsonObjectRef.insert(std::pair<std::string, CJsonObject*>(strKey, pJsonObject));
+            return (*pJsonObject);
+        } else {
+            CJsonObject* pJsonObject = new CJsonObject(pJsonStruct);
+            m_mapJsonObjectRef.insert(std::pair<std::string, CJsonObject*>(strKey, pJsonObject));
+            return (*pJsonObject);
+        }
+    } else {
+        return (*(iter->second));
+    }
 }
 
 bool CJsonObject::Get(const std::string& strKey, CJsonObject& oJsonObject) const {

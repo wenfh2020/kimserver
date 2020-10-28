@@ -8,6 +8,7 @@
 #include "connection.h"
 #include "db/mysql_async_conn.h"
 #include "util/json/CJsonObject.hpp"
+#include "zookeeper/task.h"
 
 namespace kim {
 
@@ -15,10 +16,8 @@ class Cmd;
 class INet;
 class Session;
 class Events;
-class ZookeeperMgr;
-struct zk_task_t;
 
-// privdata for cmd callback.
+/* privdata for cmd callback. */
 typedef struct wait_cmd_info_s {
     wait_cmd_info_s(INet* n, uint64_t mid, uint64_t cid, int step = 0)
         : net(n), module_id(mid), cmd_id(cid), exec_step(step) {
@@ -39,10 +38,10 @@ class INet {
     virtual uint64_t new_seq() { return 0; }
     virtual CJsonObject& config() { return m_conf; }
     virtual Events* events() { return nullptr; }
-    virtual ZookeeperMgr* zkmgr() { return nullptr; }
 
     /* cmd */
-    virtual bool add_cmd(Cmd* cmd) { return false; }
+    virtual bool
+    add_cmd(Cmd* cmd) { return false; }
     virtual Cmd* get_cmd(uint64_t id) { return nullptr; }
     virtual bool del_cmd(Cmd* cmd) { return false; }
 
@@ -51,6 +50,7 @@ class INet {
     virtual Session* get_session(const std::string& sessid, bool re_active = false) { return nullptr; }
     virtual bool del_session(const std::string& sessid) { return false; }
 
+    /* callback. */
    public:
     /* signal. */
     virtual void on_terminated(ev_signal* s) {}
@@ -70,11 +70,6 @@ class INet {
     /* redis callback */
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
 
-    /* zookeeper callback */
-    void on_zk_cmd(const kim::zk_task_t* task) {}
-    void on_zk_data_change(const std::string& path, const std::string& new_value, void* privdata) {}
-    void on_zk_child_change(const std::string& path, const std::vector<std::string>& children, void* privdata) {}
-
     /* database callback */
     virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {}
     virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {}
@@ -85,9 +80,7 @@ class INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
-    virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) {
-        return false;
-    }
+    virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) { return false; }
 
     // database.
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) { return false; }

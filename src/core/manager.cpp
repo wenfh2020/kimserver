@@ -21,6 +21,7 @@ Manager::~Manager() {
 void Manager::destory() {
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
+    SAFE_DELETE(m_zk_mgr);
 }
 
 void Manager::run() {
@@ -34,7 +35,7 @@ bool Manager::init(const char* conf_path) {
     if (!getcwd(work_path, sizeof(work_path))) {
         return false;
     }
-    m_node_info.work_path = work_path;
+    m_node_info.set_work_path(work_path);
 
     if (!load_config(conf_path)) {
         LOG_ERROR("load config failed! %s", conf_path);
@@ -54,6 +55,12 @@ bool Manager::init(const char* conf_path) {
     create_workers();
     set_proc_title("%s", m_conf("server_name").c_str());
     LOG_INFO("init manager done!");
+
+    if (!load_zk_mgr()) {
+        LOG_ERROR("load zookeeper mgr failed!");
+        return false;
+    }
+
     return true;
 }
 
@@ -68,7 +75,7 @@ bool Manager::load_logger() {
 
     char path[MAX_PATH] = {0};
     snprintf(path, sizeof(path), "%s/%s",
-             m_node_info.work_path.c_str(), m_conf("log_path").c_str());
+             m_node_info.work_path().c_str(), m_conf("log_path").c_str());
 
     if (!m_logger->set_log_path(path)) {
         LOG_ERROR("set log path failed! path: %s", path);
@@ -90,19 +97,18 @@ bool Manager::load_config(const char* path) {
         return false;
     }
 
-    m_node_info.conf_path = path;
+    m_node_info.set_conf_path(path);
     m_old_conf = m_conf;
     m_conf = conf;
 
     if (m_old_conf.ToString() != m_conf.ToString()) {
         if (m_old_conf.ToString().empty()) {
-            m_conf.Get("worker_processes", m_node_info.worker_processes);
-            m_conf.Get("node_type", m_node_info.node_type);
-            m_conf.Get("bind", m_node_info.addr_info.bind);
-            m_conf.Get("port", m_node_info.addr_info.port);
-            m_conf.Get("gate_bind", m_node_info.addr_info.gate_bind);
-            m_conf.Get("gate_port", m_node_info.addr_info.gate_port);
-            LOG_DEBUG("worker processes: %d", m_node_info.worker_processes);
+            m_node_info.set_worker_cnt(atoi(m_conf("worker_processes").c_str()));
+            m_node_info.set_node_type(m_conf("node_type"));
+            m_node_info.mutable_addr_info()->set_bind(m_conf("bind"));
+            m_node_info.mutable_addr_info()->set_port(atoi(m_conf("port").c_str()));
+            m_node_info.mutable_addr_info()->set_gate_bind(m_conf("gate_bind"));
+            m_node_info.mutable_addr_info()->set_gate_port(atoi(m_conf("gate_port").c_str()));
         }
     }
 
@@ -116,12 +122,25 @@ bool Manager::load_network() {
         return false;
     }
 
-    if (!m_net->create(&m_node_info.addr_info, this, m_conf, &m_worker_data_mgr)) {
+    if (!m_net->create(m_node_info.mutable_addr_info(), this, m_conf, &m_worker_data_mgr)) {
         SAFE_DELETE(m_net);
         LOG_ERROR("init network fail!");
         return false;
     }
 
+    return true;
+}
+
+bool Manager::load_zk_mgr() {
+    m_zk_mgr = new ZkMgr(m_logger, &m_conf);
+    if (m_zk_mgr == nullptr) {
+        LOG_ERROR("new zk mgr failed!");
+        return false;
+    }
+
+    if (m_zk_mgr->load_zk_client()) {
+        LOG_INFO("load zk client done!");
+    }
     return true;
 }
 
@@ -176,9 +195,7 @@ void Manager::restart_workers() {
     for (; it != m_restart_workers.end();) {
         int worker_index = *it;
         LOG_DEBUG("restart worker, index: %d", worker_index);
-
-        bool ret = create_worker(worker_index);
-        if (ret) {
+        if (create_worker(worker_index)) {
             LOG_INFO("restart worker ok! index: %d", worker_index);
             m_restart_workers.erase(it++);
         } else {
@@ -192,7 +209,13 @@ void Manager::on_repeat_timer(void* privdata) {
     if (m_net != nullptr) {
         m_net->on_repeat_timer(privdata);
     }
+
+    if (m_zk_mgr != nullptr) {
+        m_zk_mgr->on_repeat_timer();
+    }
+
     restart_workers();
+    LOG_DEBUG(".......");
 }
 
 bool Manager::create_worker(int worker_index) {
@@ -216,8 +239,8 @@ bool Manager::create_worker(int worker_index) {
         close(ctrl_fds[0]);
         close(data_fds[0]);
 
-        WorkerInfo info;
-        info.work_path = m_node_info.work_path;
+        worker_info_t info;
+        info.work_path = m_node_info.work_path();
         info.ctrl_fd = ctrl_fds[1];
         info.data_fd = data_fds[1];
         info.index = worker_index;
@@ -258,7 +281,7 @@ bool Manager::create_worker(int worker_index) {
 }
 
 void Manager::create_workers() {
-    for (int i = 0; i < m_node_info.worker_processes; i++) {
+    for (int i = 0; i < m_node_info.worker_cnt(); i++) {
         if (!create_worker(i)) {
             LOG_ERROR("create worker failed! index: %d", i);
         }

@@ -1,8 +1,8 @@
-#ifndef __WORKER_H__
-#define __WORKER_H__
+#ifndef __KIM_WORKER_H__
+#define __KIM_WORKER_H__
 
 #include "network.h"
-#include "node_info.h"
+#include "nodes.h"
 #include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
 
@@ -13,7 +13,7 @@ class Worker : public INet {
     Worker(const std::string& name);
     virtual ~Worker();
 
-    bool init(const WorkerInfo* info, const CJsonObject& conf);
+    bool init(const worker_info_t* info, const CJsonObject& conf);
     void run();
 
     virtual void on_terminated(ev_signal* s) override;
@@ -24,12 +24,12 @@ class Worker : public INet {
     bool load_network();
 
    private:
-    Log* m_logger = nullptr;   // logger.
-    Network* m_net = nullptr;  // net work.
-    CJsonObject m_conf;        // current config.
-    WorkerInfo m_worker_info;  // current worker info.
+    Log* m_logger = nullptr;      // logger.
+    Network* m_net = nullptr;     // net work.
+    CJsonObject m_conf;           // current config.
+    worker_info_t m_worker_info;  // current worker info.
 };
 
 }  // namespace kim
 
-#endif  //__WORKER_H__
+#endif  //__KIM_WORKER_H__

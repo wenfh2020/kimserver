@@ -1,8 +1,13 @@
-/* create a new thread to handle the zk commands in the background. */
+/* 
+ * create a new thread to handle the zk sync commands in the background, 
+ * and callback for async.
+ */
 #ifndef __KIM_BIO_H__
 #define __KIM_BIO_H__
 
 #include <pthread.h>
+
+#include <list>
 
 #include "server.h"
 #include "task.h"
@@ -19,14 +24,20 @@ class Bio {
     void bio_stop() { m_stop_thread = true; }
     static void* bio_process_tasks(void* arg);
 
-    virtual void process_tasks(zk_task_t* task) {}
-    bool add_task(const std::string& path, zk_task_t::OPERATE oper,
-                  void* privdata, const std::string& value = "", int flag = 0);
+    virtual void process_req_tasks(zk_task_t* task) {}
+    bool add_req_task(const std::string& path, zk_task_t::OPERATE oper,
+                      void* privdata, const std::string& value = "", int flag = 0);
+    void add_rsp_tasks(zk_task_t* task);
 
    protected:
     Log* m_logger = nullptr;
     pthread_t m_thread = nullptr;
-    bool m_stop_thread = false;
+    volatile bool m_stop_thread = false;
+
+    pthread_cond_t m_cond;
+    pthread_mutex_t m_mutex;
+    std::list<zk_task_t*> m_req_tasks;
+    std::list<zk_task_t*> m_rsp_tasks;
 };
 
 }  // namespace kim

@@ -6,8 +6,6 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include <list>
-
 #include "task.h"
 #include "util/util.h"
 
@@ -17,37 +15,21 @@ namespace kim {
  * in the main thread. */
 #define REDIS_THREAD_STACK_SIZE (1024 * 1024 * 4)
 
-static pthread_mutex_t g_mutex;
-static std::list<zk_task_t*> g_tasks;
-
 Bio::Bio(Log* logger) : m_logger(logger) {
 }
 
 Bio::~Bio() {
-    for (auto& it : g_tasks) {
+    pthread_mutex_lock(&m_mutex);
+    for (auto& it : m_req_tasks) {
         delete it;
     }
-    g_tasks.clear();
-}
+    m_req_tasks.clear();
 
-bool Bio::add_task(const std::string& path, zk_task_t::OPERATE oper, void* privdata,
-                   const std::string& value, int flag) {
-    zk_task_t* task = new zk_task_t;
-    if (task == nullptr) {
-        LOG_ERROR("new task failed! path: %s", path.c_str());
-        return false;
+    for (auto& it : m_rsp_tasks) {
+        delete it;
     }
-    task->path = path;
-    task->oper = oper;
-    task->value = value;
-    task->flag = flag;
-    task->privdata = privdata;
-    task->create_time = time_now();
-
-    pthread_mutex_lock(&g_mutex);
-    g_tasks.push_back(task);
-    pthread_mutex_unlock(&g_mutex);
-    return true;
+    m_rsp_tasks.clear();
+    pthread_mutex_unlock(&m_mutex);
 }
 
 bool Bio::bio_init() {
@@ -55,7 +37,8 @@ bool Bio::bio_init() {
     pthread_t thread;
     size_t stacksize;
 
-    pthread_mutex_init(&g_mutex, NULL);
+    pthread_mutex_init(&m_mutex, NULL);
+    pthread_cond_init(&m_cond, NULL);
     /* Set the stack size as by default it may be small in some system */
     pthread_attr_init(&attr);
     pthread_attr_getstacksize(&attr, &stacksize);
@@ -74,9 +57,30 @@ bool Bio::bio_init() {
     return true;
 }
 
+bool Bio::add_req_task(const std::string& path, zk_task_t::OPERATE oper, void* privdata,
+                       const std::string& value, int flag) {
+    zk_task_t* task = new zk_task_t;
+    if (task == nullptr) {
+        LOG_ERROR("new task failed! path: %s", path.c_str());
+        return false;
+    }
+    task->path = path;
+    task->value = value;
+    task->oper = oper;
+    task->flag = flag;
+    task->privdata = privdata;
+    task->create_time = time_now();
+
+    pthread_mutex_lock(&m_mutex);
+    m_req_tasks.push_back(task);
+    pthread_cond_signal(&m_cond);
+    pthread_mutex_unlock(&m_mutex);
+    return true;
+}
+
 void* Bio::bio_process_tasks(void* arg) {
-    Bio* mgr = (Bio*)arg;
-    printf("mgr ptr: %p\n", mgr);
+    Bio* bio = (Bio*)arg;
+    printf("bio ptr: %p\n", bio);
 
     sigset_t sigset;
     /* Make the thread killable at any time, so that bioKillThreads()
@@ -92,29 +96,32 @@ void* Bio::bio_process_tasks(void* arg) {
         // LOG_WARN("Warning: can't mask SIGALRM in bio.c thread: %s", strerror(errno));
     }
 
-    while (!mgr->m_stop_thread) {
-        printf("task size: %lu\n", g_tasks.size());
+    while (!bio->m_stop_thread) {
         zk_task_t* task = nullptr;
 
-        /* no lock for logic, but data. 
-         * take one from task's list, and then handle it. */
-        pthread_mutex_lock(&g_mutex);
-        if (g_tasks.size() != 0) {
-            task = *g_tasks.begin();
-            g_tasks.erase(g_tasks.begin());
+        pthread_mutex_lock(&bio->m_mutex);
+        while (bio->m_req_tasks.size() == 0) {
+            /* wait for pthread_cond_signal. */
+            pthread_cond_wait(&bio->m_cond, &bio->m_mutex);
         }
-        pthread_mutex_unlock(&g_mutex);
+        task = *bio->m_req_tasks.begin();
+        bio->m_req_tasks.erase(bio->m_req_tasks.begin());
+        pthread_mutex_unlock(&bio->m_mutex);
 
-        if (task == nullptr) {
-            sleep(1);
-            continue;
+        if (task != nullptr) {
+            bio->process_req_tasks(task);
+            SAFE_DELETE(task);
+            // bio->add_rsp_tasks(task);
         }
-
-        mgr->process_tasks(task);
-        SAFE_DELETE(task);
     }
 
     return nullptr;
+}
+
+void Bio::add_rsp_tasks(zk_task_t* task) {
+    pthread_mutex_lock(&m_mutex);
+    m_rsp_tasks.push_back(task);
+    pthread_mutex_unlock(&m_mutex);
 }
 
 }  // namespace kim

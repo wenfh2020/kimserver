@@ -3,10 +3,10 @@
 
 #include "net.h"
 #include "network.h"
-#include "node_info.h"
+#include "nodes.h"
 #include "server.h"
-#include "util/json/CJsonObject.hpp"
 #include "worker_data_mgr.h"
+#include "zk_mgr.h"
 
 namespace kim {
 
@@ -28,6 +28,7 @@ class Manager : public INet {
     bool load_logger();
     bool load_network();
     bool load_config(const char* path);
+    bool load_zk_mgr();
 
     void create_workers();                 // fork processes.
     bool create_worker(int worker_index);  // for one process.
@@ -39,9 +40,11 @@ class Manager : public INet {
     Log* m_logger = nullptr;           // logger.
     Network* m_net = nullptr;          // net work.
     CJsonObject m_conf, m_old_conf;    // config.
-    NodeInfo m_node_info;              // cluster node.
+    node_info m_node_info;             // cluster node.
     WorkerDataMgr m_worker_data_mgr;   // worker node data manager.
     std::list<int> m_restart_workers;  // workers waiting to restart. restore worker's index.
+
+    ZkMgr* m_zk_mgr = nullptr;
 };
 
 }  // namespace kim

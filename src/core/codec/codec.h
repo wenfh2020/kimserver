@@ -1,8 +1,8 @@
 #ifndef __KIM_CODEC_H__
 #define __KIM_CODEC_H__
 
-#include "../proto/http.pb.h"
-#include "../proto/msg.pb.h"
+#include "../protobuf/proto/http.pb.h"
+#include "../protobuf/proto/msg.pb.h"
 #include "../server.h"
 #include "../util/log.h"
 #include "../util/socket_buffer.h"

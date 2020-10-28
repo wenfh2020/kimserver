@@ -7,7 +7,7 @@
 
 #include "codec/codec_http.h"
 #include "codec/codec_proto.h"
-#include "proto/http.pb.h"
+#include "protobuf/proto/http.pb.h"
 #include "timer.h"
 #include "util/log.h"
 #include "util/socket_buffer.h"

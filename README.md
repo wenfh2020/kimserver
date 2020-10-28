@@ -142,8 +142,8 @@ class MoudleTest : public Module {
 
    public:
     void register_handle_func() {
-        REGISTER_HTTP_FUNC("/kim/test/", MoudleTest::func_test_cmd);
-        REGISTER_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
+        HANDLE_HTTP_FUNC("/kim/test/", MoudleTest::func_test_cmd);
+        HANDLE_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
     }
 
    private:

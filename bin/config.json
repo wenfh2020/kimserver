@@ -28,5 +28,15 @@
             "charset": "utf8mb4",
             "max_conn_cnt": 5
         }
+    },
+    "zookeeper": {
+        "myname": "gate1",
+        "servers": "127.0.0.1:2181",
+        "root": "/kimserver",
+        "subscribe_node_type": [
+            "gate",
+            "logic"
+        ],
+        "log_path": "zk.log"
     }
 }

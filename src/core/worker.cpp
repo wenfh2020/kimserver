@@ -17,7 +17,7 @@ Worker::~Worker() {
     SAFE_DELETE(m_logger);
 }
 
-bool Worker::init(const WorkerInfo* info, const CJsonObject& conf) {
+bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
     m_worker_info.work_path = info->work_path;
     m_worker_info.ctrl_fd = info->ctrl_fd;
     m_worker_info.data_fd = info->data_fd;

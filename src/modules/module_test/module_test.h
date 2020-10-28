@@ -12,15 +12,15 @@ class MoudleTest : public Module {
 
    public:
     void register_handle_func() {
-        // protobuf
-        REGISTER_FUNC(KP_TEST_PROTO, MoudleTest::func_test_proto);
-
         // http
-        REGISTER_HTTP_FUNC("/kim/test_cmd/", MoudleTest::func_test_cmd);
-        REGISTER_HTTP_FUNC("/kim/test_redis/", MoudleTest::func_test_redis);
-        REGISTER_HTTP_FUNC("/kim/test_mysql/", MoudleTest::func_test_mysql);
-        REGISTER_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
-        REGISTER_HTTP_FUNC("/kim/test_timeout/", MoudleTest::func_test_timeout);
+        HANDLE_HTTP_FUNC("/kim/test_cmd/", MoudleTest::func_test_cmd);
+        HANDLE_HTTP_FUNC("/kim/test_redis/", MoudleTest::func_test_redis);
+        HANDLE_HTTP_FUNC("/kim/test_mysql/", MoudleTest::func_test_mysql);
+        HANDLE_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
+        HANDLE_HTTP_FUNC("/kim/test_timeout/", MoudleTest::func_test_timeout);
+
+        // protobuf
+        HANDLE_PROTO_FUNC(KP_TEST_PROTO, MoudleTest::func_test_proto);
     }
 
    private:

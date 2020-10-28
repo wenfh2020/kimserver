@@ -1,22 +1,22 @@
-#include "zk_mgr.h"
+#include "zk_client.h"
 
 namespace kim {
 
-ZookeeperMgr::ZookeeperMgr(Log* logger) : Bio(logger), m_zk(nullptr) {
+ZooKeeperClient::ZooKeeperClient(Log* logger) : Bio(logger), m_zk(nullptr) {
 }
 
-ZookeeperMgr::~ZookeeperMgr() {
+ZooKeeperClient::~ZooKeeperClient() {
     close_log();
 }
 
-void ZookeeperMgr::close_log() {
+void ZooKeeperClient::close_log() {
     if (m_zk_log_file != nullptr) {
         fclose(m_zk_log_file);
         m_zk_log_file = nullptr;
     }
 }
 
-void ZookeeperMgr::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
+void ZooKeeperClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
     FILE* fp = fopen(path.c_str(), "a");
     if (fp == nullptr) {
         LOG_ERROR("open file failed! path: %s", path.c_str());
@@ -33,8 +33,8 @@ void ZookeeperMgr::set_zk_log(const std::string& path, utility::zoo_log_lvl leve
     }
 }
 
-void ZookeeperMgr::attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn,
-                                          ZkCallbackChildChangeFn* child_fn, void* watch_privdata) {
+void ZooKeeperClient::attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn,
+                                             ZkCallbackChildChangeFn* child_fn, void* watch_privdata) {
     m_watch_privdata = watch_privdata;
     if (m_zk != nullptr) {
         m_zk->set_watch_privdata(watch_privdata);
@@ -43,7 +43,7 @@ void ZookeeperMgr::attach_zk_watch_events(ZkCallbackWatchDataChangeFn* data_fn,
     m_child_change_fn = child_fn;
 }
 
-bool ZookeeperMgr::connect(const std::string& servers) {
+bool ZooKeeperClient::connect(const std::string& servers) {
     LOG_INFO("servers: %s", servers.c_str());
     if (servers.empty()) {
         return false;
@@ -77,82 +77,86 @@ bool ZookeeperMgr::connect(const std::string& servers) {
     return true;
 }
 
-bool ZookeeperMgr::zk_create(const std::string& path,
-                             const std::string& value, int flag, void* privdata) {
-    if (path.empty() || privdata == nullptr || flag < 0 || flag > 3) {
+utility::z_state ZooKeeperClient::zk_get_state() {
+    return m_zk->get_state();
+}
+
+bool ZooKeeperClient::zk_create(const std::string& path,
+                                const std::string& value, int flag, void* privdata) {
+    if (path.empty() || flag < 0 || flag > 3) {
         LOG_ERROR("invalid param!");
         return false;
     }
 
     LOG_DEBUG("zk_create path: %s, value: %s, flag: %d",
               path.c_str(), value.c_str(), flag);
-    return add_task(path, zk_task_t::OPERATE::CREATE, privdata, value, flag);
+    return add_req_task(path, zk_task_t::OPERATE::CREATE, privdata, value, flag);
 }
 
-bool ZookeeperMgr::zk_delelte(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_delelte(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_delelte path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::DELETE, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::DELETE, privdata);
 }
 
-bool ZookeeperMgr::zk_exists(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_exists(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_exists path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::EXISTS, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::EXISTS, privdata);
 }
 
-bool ZookeeperMgr::zk_list(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_list(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_list path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::LIST, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::LIST, privdata);
 }
 
-bool ZookeeperMgr::zk_get(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_get(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_get path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::GET, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::GET, privdata);
 }
 
-bool ZookeeperMgr::zk_set(const std::string& path, const std::string& value, void* privdata) {
+bool ZooKeeperClient::zk_set(const std::string& path, const std::string& value, void* privdata) {
     LOG_DEBUG("zk_set path: %s, value: %s", path.c_str(), value.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::SET, privdata, value);
+    return add_req_task(path, zk_task_t::OPERATE::SET, privdata, value);
 }
 
-bool ZookeeperMgr::zk_watch_data(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_watch_data(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_watch_data path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::WATCH_DATA, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::WATCH_DATA, privdata);
 }
 
-bool ZookeeperMgr::zk_watch_children(const std::string& path, void* privdata) {
+bool ZooKeeperClient::zk_watch_children(const std::string& path, void* privdata) {
     LOG_DEBUG("zk_watch_children path: %s", path.c_str());
-    if (path.empty() || privdata == nullptr) {
+    if (path.empty()) {
         LOG_ERROR("invalid param!");
         return false;
     }
-    return add_task(path, zk_task_t::OPERATE::WATCH_CHILD, privdata);
+    return add_req_task(path, zk_task_t::OPERATE::WATCH_CHILD, privdata);
 }
 
-void ZookeeperMgr::process_tasks(zk_task_t* task) {
+void ZooKeeperClient::process_req_tasks(zk_task_t* task) {
     LOG_DEBUG("process task, path: %s, oper: %d", task->path.c_str(), task->oper);
     utility::zoo_rc ret = utility::zoo_rc::z_system_error;
 
@@ -241,6 +245,10 @@ void ZookeeperMgr::process_tasks(zk_task_t* task) {
         task->res.errstr = utility::zk_cpp::error_string(ret);
     }
     m_cmd_fn(task);
+}
+
+void ZooKeeperClient::process_rsp_tasks() {
+    // std::list<task>
 }
 
 }  // namespace kim

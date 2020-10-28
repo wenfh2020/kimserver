@@ -1,11 +1,7 @@
-#ifndef __NETWORK_H__
-#define __NETWORK_H__
+#ifndef __KIM_NETWORK_H__
+#define __KIM_NETWORK_H__
 
 #include <sys/socket.h>
-
-#include <iostream>
-#include <list>
-#include <unordered_map>
 
 #include "connection.h"
 #include "db/db_mgr.h"
@@ -36,8 +32,8 @@ class Network : public INet {
 
     Network(Log* logger, TYPE type);
     virtual ~Network();
-    bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                     // for worker.
-    bool create(const AddrInfo* addr_info, INet* net, const CJsonObject& config, WorkerDataMgr* m);  // for manager.
+    bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                  // for worker.
+    bool create(const addr_info* ainfo, INet* net, const CJsonObject& config, WorkerDataMgr* m);  // for manager.
     void destory();
 
     bool load_config(const CJsonObject& config);
@@ -162,4 +158,4 @@ class Network : public INet {
 
 }  // namespace kim
 
-#endif  // __NETWORK_H__
+#endif  // __KIM_NETWORK_H__

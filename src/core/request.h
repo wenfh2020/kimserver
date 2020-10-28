@@ -2,8 +2,8 @@
 #define __REQUEST_H__
 
 #include "connection.h"
-#include "proto/http.pb.h"
-#include "proto/msg.pb.h"
+#include "protobuf/proto/http.pb.h"
+#include "protobuf/proto/msg.pb.h"
 
 namespace kim {
 

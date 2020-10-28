@@ -52,6 +52,7 @@ class CJsonObject {
     CJsonObject& operator[](const std::string& strKey);
     std::string operator()(const std::string& strKey);
     std::string operator()(const std::string& strKey) const;
+    CJsonObject& Get(const std::string& strKey);
     bool Get(const std::string& strKey, CJsonObject& oJsonObject) const;
     bool Get(const std::string& strKey, std::string& strValue) const;
     bool Get(const std::string& strKey, int32& iValue) const;
