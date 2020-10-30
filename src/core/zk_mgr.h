@@ -16,7 +16,7 @@ namespace kim {
 
 class ZkMgr {
    public:
-    enum class ZK_OPERATION {
+    enum class ZK_CMD {
         CHECK_NODE = 0,
         REGISTER,
         WATCH_NODES,
@@ -29,7 +29,7 @@ class ZkMgr {
     virtual ~ZkMgr();
 
     bool load_zk_client();
-    void watch_nodes(ZK_OPERATION oper); /* watch nodes by zookeeper client. */
+    void watch_nodes(ZK_CMD oper); /* watch nodes by zookeeper client. */
 
     void on_repeat_timer();
 
@@ -46,7 +46,7 @@ class ZkMgr {
     Log* m_logger = nullptr;
     CJsonObject* m_config;
     ZooKeeperClient* m_zk_client = nullptr;
-    ZK_OPERATION m_zk_oper = ZK_OPERATION::CHECK_NODE;
+    ZK_CMD m_zk_oper = ZK_CMD::CHECK_NODE;
 };
 
 }  // namespace kim

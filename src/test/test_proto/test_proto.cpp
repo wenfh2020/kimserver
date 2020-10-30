@@ -6,11 +6,11 @@
 #include <iostream>
 #include <sstream>
 
+#include "config.pb.h"
 #include "protobuf/proto/msg.pb.h"
 #include "protobuf/sys/nodes.pb.h"
 #include "util/log.h"
 #include "util/util.h"
-using google::protobuf::util::JsonStringToMessage;
 
 #define PROTO_MSG_HEAD_LEN 15
 
@@ -116,11 +116,11 @@ class addr_info_t {
 
 class node_info_t {
    public:
-    addr_info_t addr_info;     // network addr info.
-    std::string node_type;     // node type in cluster.
-    std::string conf_path;     // config path.
-    std::string work_path;     // process work path.
-    int worker_processes = 0;  // number of worker's processes.
+    addr_info_t addr_info;  // network addr info.
+    std::string node_type;  // node type in cluster.
+    std::string conf_path;  // config path.
+    std::string work_path;  // process work path.
+    int worker_cnt = 0;     // number of worker's processes.
 };
 
 void compare_struct() {
@@ -136,7 +136,7 @@ void compare_struct() {
         node.node_type = "34rw343";
         node.conf_path = "reuwyruiwe";
         node.work_path = "ewiruwe";
-        node.worker_processes = 3;
+        node.worker_cnt = 3;
     }
     printf("struct spend time: %f\n", mstime() - begin);
 
@@ -189,10 +189,26 @@ void test_proto_json() {
     }
 }
 
+void test_proto_convert_json() {
+    kim::config config;
+    if (json_file_to_proto("config.json", config)) {
+        printf("json convert to proto done!\n");
+        auto it = config.database().find("test");
+        if (it != config.database().end()) {
+            printf("host: %s\n", it->second.host().c_str());
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // check_protobuf();
     // test_server(argc, argv);
     // compare_struct();
-    // test_proto_json();
+    test_proto_json();
+
+    // std::string str("123");
+    // std::stoi(str);
+
+    // test_proto_convert_json();
     return 0;
 }

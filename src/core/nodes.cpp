@@ -54,7 +54,6 @@ bool Nodes::add_zk_node(const zk_node& node) {
 bool Nodes::del_zk_node(const std::string& path) {
     auto it = m_zk_nodes.find(path);
     if (it == m_zk_nodes.end()) {
-        LOG_ERROR("******");
         return false;
     }
 

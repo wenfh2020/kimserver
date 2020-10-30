@@ -14,7 +14,7 @@ void init_server(int argc, char** argv) {
 
     spt_init(argc, argv);
 #ifdef DAEMONSIZE
-    // daemonize();
+    daemonize();
 #endif
 }
 

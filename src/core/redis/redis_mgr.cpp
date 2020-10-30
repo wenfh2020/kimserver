@@ -23,7 +23,7 @@ bool RedisMgr::init(CJsonObject& config) {
     for (const auto& node : nodes) {
         const CJsonObject& obj = config[node];
         host = obj("host");
-        port = atoi(obj("port").c_str());
+        port = std::stoi(obj("port"));
         if (host.empty() || port == 0) {
             LOG_ERROR("invalid redis node addr: %s", node.c_str());
             m_addrs.clear();

@@ -1,0 +1,26 @@
+syntax = "proto3";
+package kim;
+
+message database {
+    string host = 1;
+    uint32 port = 2;
+    string user = 3;
+    string password = 4;
+    string charset = 5;
+    uint32 max_conn_cnt = 6;
+}
+
+message config {
+    uint32 worker_cnt = 1;
+    string node_type = 2;
+    string server_name = 3;
+    string bind = 4;
+    uint32 port = 5;
+    string gate_bind = 6;
+    uint32 gate_port = 7;
+    string gate_codec = 8;
+    uint32 keep_alive = 9;
+    string log_path = 10;
+    string log_level = 11;
+    map<string, database> database = 12;
+}

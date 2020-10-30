@@ -6,7 +6,7 @@
 #include "nodes.h"
 #include "server.h"
 #include "worker_data_mgr.h"
-#include "zk_mgr.h"
+#include "zookeeper/zk_client.h"
 
 namespace kim {
 
@@ -44,7 +44,7 @@ class Manager : public INet {
     WorkerDataMgr m_worker_data_mgr;   // worker node data manager.
     std::list<int> m_restart_workers;  // workers waiting to restart. restore worker's index.
 
-    ZkMgr* m_zk_mgr = nullptr;
+    ZooKeeperClient* m_zk_client = nullptr;
 };
 
 }  // namespace kim

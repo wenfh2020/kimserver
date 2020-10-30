@@ -15,12 +15,13 @@ struct zk_result {
     int error = 0;
     std::string errstr;
     std::string value;
-    std::vector<std::string> values;
 };
 
 typedef struct zk_task_s {
-    enum class OPERATE {
-        EXISTS = 0,
+    enum class CMD {
+        UNKNOWN = 0,
+        REGISTER,
+        EXISTS,
         CREATE,
         DELETE,
         GET,
@@ -28,11 +29,11 @@ typedef struct zk_task_s {
         LIST,
         WATCH_DATA,
         WATCH_CHILD,
+        END,
     };
     std::string path;
-    std::string value;
-    OPERATE oper = OPERATE::EXISTS;
-    bool watch = false;
+    std::string value;  // json
+    CMD oper = CMD::UNKNOWN;
     int flag = 0;
     void* privdata = nullptr;
     double create_time = 0.0;

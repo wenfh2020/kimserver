@@ -13,34 +13,39 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <iostream>
 #include <random>
 #include <sstream>
 
 #define MAX_PATH 256
 #define CONFIG_MIN_RESERVED_FDS 32
 
-std::vector<std::string> split_str(const std::string& s, char delim) {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream ss(s);
-    while (std::getline(ss, token, delim)) {
-        tokens.push_back(token);
+void split_str(const std::string& s, std::vector<std::string>& vec, const std::string& seq, bool trim_blank) {
+    std::size_t pre = 0, cur = 0;
+    while ((pre = s.find_first_not_of(seq, cur)) != std::string::npos) {
+        cur = s.find(seq, pre);
+        if (cur == std::string::npos) {
+            vec.push_back(s.substr(pre, s.length() - pre));
+            break;
+        }
+        vec.push_back(s.substr(pre, cur - pre));
     }
-    return tokens;
+
+    if (trim_blank && seq != " ") {
+        for (auto& v : vec) {
+            v.erase(0, v.find_first_not_of(" "));
+            v.erase(v.find_last_not_of(" ") + 1);
+        }
+    }
 }
-
 std::string format_str(const char* const fmt, ...) {
-    char* buffer = NULL;
+    char s[256];
     va_list ap;
-
     va_start(ap, fmt);
-    (void)vasprintf(&buffer, fmt, ap);
+    vsnprintf(s, sizeof(s), fmt, ap);
     va_end(ap);
-
-    std::string result = buffer;
-    free(buffer);
-
-    return result;
+    return std::string(s);
 }
 
 std::string format_addr(const std::string& host, int port) {
@@ -79,6 +84,31 @@ std::string md5(const std::string& input) {
     hash.resize(m.DigestSize());
     m.Final((CryptoPP::byte*)&hash[0]);
     return hash;
+}
+
+bool proto_to_json(const google::protobuf::Message& message, std::string& json) {
+    google::protobuf::util::JsonPrintOptions options;
+    options.add_whitespace = true;
+    options.always_print_primitive_fields = true;
+    options.preserve_proto_field_names = true;
+    return MessageToJsonString(message, &json, options).ok();
+}
+
+bool json_file_to_proto(const std::string& file, google::protobuf::Message& message) {
+    std::ifstream is(file);
+    if (!is.good()) {
+        printf("open json file failed, file: %s\n", file.c_str());
+        return false;
+    }
+    std::stringstream json;
+    json << is.rdbuf();
+    is.close();
+    printf("--------\n %s\n", json.str().c_str());
+    return JsonStringToMessage(json.str(), &message).ok();
+}
+
+bool json_to_proto(const std::string& json, google::protobuf::Message& message) {
+    return JsonStringToMessage(json, &message).ok();
 }
 
 void daemonize(void) {

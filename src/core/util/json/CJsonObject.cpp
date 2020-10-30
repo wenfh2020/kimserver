@@ -1,6 +1,7 @@
 #include "CJsonObject.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace kim {

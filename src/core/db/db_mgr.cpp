@@ -42,8 +42,8 @@ bool DBMgr::init(CJsonObject& config) {
         info->password = obj("password");
         info->charset = obj("charset");
         info->user = obj("user");
-        info->port = atoi(obj("port").c_str());
-        info->max_conn_cnt = atoi(obj("max_conn_cnt").c_str());
+        info->port = std::stoi(obj("port"));
+        info->max_conn_cnt = std::stoi(obj("max_conn_cnt"));
 
         if (info->max_conn_cnt == 0) {
             info->max_conn_cnt = DEF_CONN_CNT;

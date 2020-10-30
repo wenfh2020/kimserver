@@ -25,7 +25,7 @@ class Bio {
     static void* bio_process_tasks(void* arg);
 
     virtual void process_req_tasks(zk_task_t* task) {}
-    bool add_req_task(const std::string& path, zk_task_t::OPERATE oper,
+    bool add_req_task(const std::string& path, zk_task_t::CMD oper,
                       void* privdata, const std::string& value = "", int flag = 0);
     void add_rsp_tasks(zk_task_t* task);
 

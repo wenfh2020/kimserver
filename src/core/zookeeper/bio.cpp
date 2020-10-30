@@ -57,7 +57,7 @@ bool Bio::bio_init() {
     return true;
 }
 
-bool Bio::add_req_task(const std::string& path, zk_task_t::OPERATE oper, void* privdata,
+bool Bio::add_req_task(const std::string& path, zk_task_t::CMD oper, void* privdata,
                        const std::string& value, int flag) {
     zk_task_t* task = new zk_task_t;
     if (task == nullptr) {
@@ -110,8 +110,7 @@ void* Bio::bio_process_tasks(void* arg) {
 
         if (task != nullptr) {
             bio->process_req_tasks(task);
-            SAFE_DELETE(task);
-            // bio->add_rsp_tasks(task);
+            bio->add_rsp_tasks(task);
         }
     }
 

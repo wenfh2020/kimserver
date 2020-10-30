@@ -21,7 +21,7 @@ Manager::~Manager() {
 void Manager::destory() {
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
-    SAFE_DELETE(m_zk_mgr);
+    SAFE_DELETE(m_zk_client);
 }
 
 void Manager::run() {
@@ -103,12 +103,12 @@ bool Manager::load_config(const char* path) {
 
     if (m_old_conf.ToString() != m_conf.ToString()) {
         if (m_old_conf.ToString().empty()) {
-            m_node_info.set_worker_cnt(atoi(m_conf("worker_processes").c_str()));
+            m_node_info.set_worker_cnt(std::stoi(m_conf("worker_cnt")));
             m_node_info.set_node_type(m_conf("node_type"));
             m_node_info.mutable_addr_info()->set_bind(m_conf("bind"));
-            m_node_info.mutable_addr_info()->set_port(atoi(m_conf("port").c_str()));
+            m_node_info.mutable_addr_info()->set_port(std::stoi(m_conf("port")));
             m_node_info.mutable_addr_info()->set_gate_bind(m_conf("gate_bind"));
-            m_node_info.mutable_addr_info()->set_gate_port(atoi(m_conf("gate_port").c_str()));
+            m_node_info.mutable_addr_info()->set_gate_port(std::stoi(m_conf("gate_port")));
         }
     }
 
@@ -132,13 +132,13 @@ bool Manager::load_network() {
 }
 
 bool Manager::load_zk_mgr() {
-    m_zk_mgr = new ZkMgr(m_logger, &m_conf);
-    if (m_zk_mgr == nullptr) {
+    m_zk_client = new ZooKeeperClient(m_logger);
+    if (m_zk_client == nullptr) {
         LOG_ERROR("new zk mgr failed!");
         return false;
     }
 
-    if (m_zk_mgr->load_zk_client()) {
+    if (m_zk_client->init(m_conf)) {
         LOG_INFO("load zk client done!");
     }
     return true;
@@ -210,12 +210,12 @@ void Manager::on_repeat_timer(void* privdata) {
         m_net->on_repeat_timer(privdata);
     }
 
-    if (m_zk_mgr != nullptr) {
-        m_zk_mgr->on_repeat_timer();
+    if (m_zk_client != nullptr) {
+        m_zk_client->on_repeat_timer();
     }
 
     restart_workers();
-    LOG_DEBUG(".......");
+    // LOG_DEBUG(".......");
 }
 
 bool Manager::create_worker(int worker_index) {

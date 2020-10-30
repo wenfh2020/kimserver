@@ -1,16 +1,23 @@
 #ifndef __KIM_UTIL_H__
 #define __KIM_UTIL_H__
 
+#include <google/protobuf/util/json_util.h>
+
 #include <string>
 #include <vector>
+using google::protobuf::util::JsonStringToMessage;
 
-std::vector<std::string> split_str(const std::string& s, char delim);
+void split_str(const std::string& s, std::vector<std::string>& vec, const std::string& seq = " ", bool trim_blank = true);
 std::string format_addr(const std::string& host, int port);
 std::string format_identity(const std::string& host, int port, int index);
 std::string format_str(const char* const fmt, ...);
 std::string work_path();
 std::string format_redis_cmds(const std::vector<std::string>& argv);
 std::string md5(const std::string& data);
+
+bool proto_to_json(const google::protobuf::Message& message, std::string& json);
+bool json_file_to_proto(const std::string& file, google::protobuf::Message& message);
+bool json_to_proto(const std::string& json, google::protobuf::Message& message);
 
 #ifdef __cplusplus
 extern "C" {

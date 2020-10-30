@@ -15,23 +15,23 @@
 #include "../../../src/core/zookeeper/zk.h"
 #include "../../../src/core/zookeeper/zk_client.h"
 
-const char* task_oper_to_string(kim::zk_task_t::OPERATE oper) {
+const char* task_oper_to_string(kim::zk_task_t::CMD oper) {
     switch (oper) {
-        case kim::zk_task_t::OPERATE::EXISTS:
+        case kim::zk_task_t::CMD::EXISTS:
             return "exists";
-        case kim::zk_task_t::OPERATE::SET:
+        case kim::zk_task_t::CMD::SET:
             return "set";
-        case kim::zk_task_t::OPERATE::GET:
+        case kim::zk_task_t::CMD::GET:
             return "get";
-        case kim::zk_task_t::OPERATE::WATCH_DATA:
+        case kim::zk_task_t::CMD::WATCH_DATA:
             return "watch_data";
-        case kim::zk_task_t::OPERATE::WATCH_CHILD:
+        case kim::zk_task_t::CMD::WATCH_CHILD:
             return "watch_child";
-        case kim::zk_task_t::OPERATE::CREATE:
+        case kim::zk_task_t::CMD::CREATE:
             return "create";
-        case kim::zk_task_t::OPERATE::DELETE:
+        case kim::zk_task_t::CMD::DELETE:
             return "delete";
-        case kim::zk_task_t::OPERATE::LIST:
+        case kim::zk_task_t::CMD::LIST:
             return "list";
         default:
             return "invalid";
@@ -61,17 +61,17 @@ void on_zk_commnad(const kim::zk_task_t* task) {
            task->value.c_str(), task->flag, task->res.error, task->res.errstr.c_str(), task->privdata);
 
     switch (task->oper) {
-        case kim::zk_task_t::OPERATE::EXISTS:
-        case kim::zk_task_t::OPERATE::SET:
-        case kim::zk_task_t::OPERATE::WATCH_DATA:
-        case kim::zk_task_t::OPERATE::WATCH_CHILD:
-        case kim::zk_task_t::OPERATE::DELETE:
+        case kim::zk_task_t::CMD::EXISTS:
+        case kim::zk_task_t::CMD::SET:
+        case kim::zk_task_t::CMD::WATCH_DATA:
+        case kim::zk_task_t::CMD::WATCH_CHILD:
+        case kim::zk_task_t::CMD::DELETE:
             break;
-        case kim::zk_task_t::OPERATE::GET:
-        case kim::zk_task_t::OPERATE::CREATE:
+        case kim::zk_task_t::CMD::GET:
+        case kim::zk_task_t::CMD::CREATE:
             printf("res value: %s\n", task->res.value.c_str());
             break;
-        case kim::zk_task_t::OPERATE::LIST: {
+        case kim::zk_task_t::CMD::LIST: {
             std::string list;
             list.append("[");
             for (size_t i = 0; i < task->res.values.size(); i++) {
@@ -112,8 +112,6 @@ int main() {
 
     mgr->attach_zk_cmd_event(&on_zk_commnad);
     mgr->attach_zk_watch_events(&on_zk_data_change, &on_zk_child_change, (void*)mgr);
-
-    // mgr->zk_get_state((void*)mgr);
     mgr->zk_list(path, (void*)mgr);
     sleep(5);
 
@@ -134,9 +132,9 @@ int main() {
 
     int i = 0;
     while (1) {
-        sleep(5);
-        mgr->zk_set(path, format_str("%d", i++), (void*)mgr);
-        mgr->zk_create(create_path, "4", 3, (void*)mgr);
+        sleep(20);
+        // mgr->zk_set(path, format_str("%d", i++), (void*)mgr);
+        // mgr->zk_create(create_path, "4", 3, (void*)mgr);
     }
 
     sleep(100);
