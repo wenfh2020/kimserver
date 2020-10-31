@@ -14,7 +14,6 @@
 
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -132,8 +131,6 @@ class zk_cpp : public noncopyable {
    protected:
     void* m_zh;         // zhandle_t
     std::string m_url;  // zookeeper server urls
-    void* m_watch_privdata = nullptr;
-    std::mutex m_mtx;
 
    public:
     zk_cpp();
@@ -156,9 +153,9 @@ class zk_cpp : public noncopyable {
     static void set_log_lvl(zoo_log_lvl lvl);
 
     /** 
-     * @brief set the log stream
+     * @brief set the log path
      */
-    static void set_log_stream(FILE* file);
+    static bool set_log_stream(const std::string& path);
 
     /** 
      * @brief create world acl
@@ -219,11 +216,6 @@ class zk_cpp : public noncopyable {
      *
      */
     bool unrecoverable();
-
-    /**
-     * @brief set the privdata for callback.
-     */
-    void set_watch_privdata(void* privdata) { m_watch_privdata = privdata; }
 
    public:
     /** events */

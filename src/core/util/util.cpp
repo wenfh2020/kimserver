@@ -21,7 +21,8 @@
 #define MAX_PATH 256
 #define CONFIG_MIN_RESERVED_FDS 32
 
-void split_str(const std::string& s, std::vector<std::string>& vec, const std::string& seq, bool trim_blank) {
+void split_str(const std::string& s, std::vector<std::string>& vec,
+               const std::string& seq, bool trim_blank) {
     std::size_t pre = 0, cur = 0;
     while ((pre = s.find_first_not_of(seq, cur)) != std::string::npos) {
         cur = s.find(seq, pre);

@@ -11,31 +11,14 @@ ZkClient::ZkClient(Log* logger) : Bio(logger), m_zk(nullptr) {
 }
 
 ZkClient::~ZkClient() {
-    close_log();
     SAFE_DELETE(m_nodes);
 }
 
-void ZkClient::close_log() {
-    if (m_zk_log_file != nullptr) {
-        fclose(m_zk_log_file);
-        m_zk_log_file = nullptr;
-    }
-}
-
 void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
-    FILE* fp = fopen(path.c_str(), "a");
-    if (fp == nullptr) {
-        LOG_ERROR("open file failed! path: %s", path.c_str());
-        return;
-    }
-
-    close_log();
-    m_zk_log_file = fp;
-    m_zk_log_level = level;
-
     if (m_zk != nullptr) {
-        m_zk->set_log_lvl(m_zk_log_level);
-        m_zk->set_log_stream(m_zk_log_file);
+        m_zk->set_log_lvl(level);
+        bool ret = m_zk->set_log_stream(path);
+        printf("-------------- %d", ret);
     }
 }
 
@@ -45,21 +28,7 @@ bool ZkClient::connect(const std::string& servers) {
         return false;
     }
 
-    SAFE_DELETE(m_zk);
-    m_zk = new utility::zk_cpp;
-    if (m_zk == nullptr) {
-        LOG_ERROR("alloc zk_cpp failed!");
-        return false;
-    }
-
-    m_zk->set_log_lvl(m_zk_log_level);
-    m_zk->set_log_stream(m_zk_log_file);
-
-    if (m_zk != nullptr && m_watch_privdata != nullptr) {
-        m_zk->set_watch_privdata(m_watch_privdata);
-    }
-
-    utility::zoo_rc ret = m_zk->connect(servers, on_zk_watch_events, (void*)this);
+    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
     if (ret != utility::z_ok) {
         LOG_ERROR("try connect zk server failed, code[%d][%s]",
                   ret, utility::zk_cpp::error_string(ret));
@@ -88,6 +57,18 @@ bool ZkClient::init(const CJsonObject& config) {
         return false;
     }
 
+    m_zk = new utility::zk_cpp;
+    if (m_zk == nullptr) {
+        LOG_ERROR("alloc zk_cpp failed!");
+        return false;
+    }
+
+    m_nodes = new Nodes(m_logger);
+    if (m_nodes == nullptr) {
+        LOG_ERROR("alloc nodes obj failed!");
+        return false;
+    }
+
     /* set zk log firstly. */
     set_zk_log(zk_log_path, utility::zoo_log_lvl::zoo_log_lvl_debug);
     if (!connect(zk_servers)) {
@@ -95,18 +76,11 @@ bool ZkClient::init(const CJsonObject& config) {
         return false;
     }
 
-    if (m_nodes != nullptr) {
-        m_nodes = new Nodes(m_logger);
-        if (m_nodes == nullptr) {
-            LOG_ERROR("alloc nodes obj failed!");
-            return false;
-        }
-    }
-
     if (!node_register()) {
         LOG_ERROR("register node to zookeeper failed!");
         return false;
     }
+
     return true;
 }
 
@@ -265,43 +239,22 @@ bool ZkClient::node_register() {
     return add_cmd_task(node_path, zk_task_t::CMD::REGISTER, json_value.ToString());
 }
 
-void ZkClient::handle_acks() {
-    int i = 0;
-    std::list<zk_task_t*> tasks;
-
-    /* fetch 100 acks to handle. */
-    pthread_mutex_lock(&m_mutex);
-    if (m_ack_tasks.size() > 0) {
-        auto it = m_ack_tasks.begin();
-        for (; it != m_ack_tasks.end() && i++ < 100;) {
-            tasks.push_back(*it);
-            m_ack_tasks.erase(it++);
-        }
-    }
-    pthread_mutex_unlock(&m_mutex);
-
-    for (auto& v : tasks) {
-        process_ack_tasks(v);
-        SAFE_DELETE(v);
-    }
-}
-
 void ZkClient::process_ack_tasks(zk_task_t* task) {
     switch (task->cmd) {
         case zk_task_t::CMD::REGISTER:
-            on_zookeeper_command(task);
+            on_zk_command(task);
             break;
 
         case zk_task_t::CMD::NOTIFY_NODE_DELETED:
-            on_zookeeper_node_deleted(task);
+            on_zk_node_deleted(task);
             break;
 
         case zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED:
-            on_zookeeper_data_change(task);
+            on_zk_data_change(task);
             break;
 
         case zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED:
-            on_zookeeper_child_change(task);
+            on_zk_child_change(task);
             break;
 
         default:
@@ -319,6 +272,7 @@ void ZkClient::process_cmd_tasks(zk_task_t* task) {
             ret = bio_register_node(task);
             break;
         }
+        case zk_task_t::CMD::NOTIFY_SESSION_CONNECTD:
         case zk_task_t::CMD::NOTIFY_NODE_DELETED: {
             break;
         }
@@ -342,7 +296,7 @@ void ZkClient::process_cmd_tasks(zk_task_t* task) {
     }
 }
 
-void ZkClient::on_zookeeper_command(const zk_task_t* task) {
+void ZkClient::on_zk_command(const zk_task_t* task) {
     LOG_DEBUG(
         "cmd cb: oper [%d], path: [%s], error: [%d], errstr: [%s]",
         task->cmd, task->path.c_str(),
@@ -380,17 +334,12 @@ void ZkClient::on_zookeeper_command(const zk_task_t* task) {
     }
 }
 
-void ZkClient::on_repeat_timer() {
-    /* acks */
-    handle_acks();
-}
-
-void ZkClient::on_zk_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata) {
+void ZkClient::on_zookeeper_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata) {
     ZkClient* mgr = (ZkClient*)privdata;
-    mgr->on_zookeeper_watch_events(type, state, path, privdata);
+    mgr->on_zk_watch_events(type, state, path, privdata);
 }
 
-void ZkClient::on_zookeeper_watch_events(int type, int state, const char* path, void* privdata) {
+void ZkClient::on_zk_watch_events(int type, int state, const char* path, void* privdata) {
     std::string path_str = path ? path : "";
 
     if (type == ZOO_SESSION_EVENT) {
@@ -412,16 +361,16 @@ void ZkClient::on_zookeeper_watch_events(int type, int state, const char* path, 
     }
 }
 
-void ZkClient::on_zookeeper_node_deleted(const kim::zk_task_t* task) {
+void ZkClient::on_zk_node_deleted(const kim::zk_task_t* task) {
     LOG_INFO("zk node: %s deleted!", task->path.c_str());
 }
 
-void ZkClient::on_zookeeper_data_change(const kim::zk_task_t* task) {
+void ZkClient::on_zk_data_change(const kim::zk_task_t* task) {
     LOG_INFO("zk node data change! path: %s, new value: %s.",
              task->path.c_str(), task->res.value.c_str());
 }
 
-void ZkClient::on_zookeeper_child_change(const kim::zk_task_t* task) {
+void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
     const std::vector<std::string>& children = task->res.values;
     if (children.size() == 0) {
         return;

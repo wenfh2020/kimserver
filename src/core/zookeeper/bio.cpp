@@ -119,4 +119,30 @@ void Bio::add_ack_task(zk_task_t* task) {
     pthread_mutex_unlock(&m_mutex);
 }
 
+void Bio::on_repeat_timer() {
+    /* acks */
+    handle_acks();
+}
+
+void Bio::handle_acks() {
+    int i = 0;
+    std::list<zk_task_t*> tasks;
+
+    /* fetch 100 acks to handle. */
+    pthread_mutex_lock(&m_mutex);
+    if (m_ack_tasks.size() > 0) {
+        auto it = m_ack_tasks.begin();
+        for (; it != m_ack_tasks.end() && i++ < 100;) {
+            tasks.push_back(*it);
+            m_ack_tasks.erase(it++);
+        }
+    }
+    pthread_mutex_unlock(&m_mutex);
+
+    for (auto& v : tasks) {
+        process_ack_tasks(v);
+        SAFE_DELETE(v);
+    }
+}
+
 }  // namespace kim

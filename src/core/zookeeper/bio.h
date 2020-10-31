@@ -22,11 +22,20 @@ class Bio {
 
     bool bio_init();
     void bio_stop() { m_stop_thread = true; }
-    static void* bio_process_tasks(void* arg);
 
-    virtual void process_cmd_tasks(zk_task_t* task) {}
     bool add_cmd_task(const std::string& path, zk_task_t::CMD cmd, const std::string& value = "");
     void add_ack_task(zk_task_t* task);
+
+    /* bio thread. */
+    static void* bio_process_tasks(void* arg);
+    /* call by bio. */
+    virtual void process_cmd_tasks(zk_task_t* task) {}
+    /* call by timer. */
+    virtual void process_ack_tasks(zk_task_t* task) {}
+
+    /* timer. */
+    void on_repeat_timer();
+    void handle_acks();
 
    protected:
     Log* m_logger = nullptr;

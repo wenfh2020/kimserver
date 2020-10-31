@@ -6,6 +6,8 @@ static const int32_t zoo_path_buf_len = 1024;
 static const int32_t zoo_value_buf_len = 10240;
 static const int32_t zoo_recv_time_out = 10000;  // in milliseconds
 
+static FILE* m_zk_log_file = nullptr;
+
 namespace details {
 
 static const char* state_to_string(int state) {
@@ -59,6 +61,10 @@ zk_cpp::zk_cpp() : m_zh(0) {
 
 zk_cpp::~zk_cpp() {
     close();
+    if (m_zk_log_file != nullptr) {
+        fclose(m_zk_log_file);
+        m_zk_log_file = nullptr;
+    }
 }
 
 void zk_cpp::close() {
@@ -80,8 +86,20 @@ void zk_cpp::set_log_lvl(zoo_log_lvl lvl) {
     zoo_set_debug_level((ZooLogLevel)lvl);
 }
 
-void zk_cpp::set_log_stream(FILE* file) {
-    zoo_set_log_stream(file);
+bool zk_cpp::set_log_stream(const std::string& path) {
+    FILE* fp = fopen(path.c_str(), "a");
+    if (fp == nullptr) {
+        return false;
+    }
+
+    zoo_set_log_stream(fp);
+
+    if (m_zk_log_file != nullptr) {
+        fclose(m_zk_log_file);
+        m_zk_log_file = nullptr;
+    }
+    m_zk_log_file = fp;
+    return true;
 }
 
 zoo_acl_t zk_cpp::create_world_acl(int32_t perms) {
