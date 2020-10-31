@@ -97,13 +97,13 @@ bool proto_to_json(const google::protobuf::Message& message, std::string& json) 
 bool json_file_to_proto(const std::string& file, google::protobuf::Message& message) {
     std::ifstream is(file);
     if (!is.good()) {
-        printf("open json file failed, file: %s\n", file.c_str());
+        // printf("open json file failed, file: %s\n", file.c_str());
         return false;
     }
     std::stringstream json;
     json << is.rdbuf();
     is.close();
-    printf("--------\n %s\n", json.str().c_str());
+    // printf("--------\n %s\n", json.str().c_str());
     return JsonStringToMessage(json.str(), &message).ok();
 }
 

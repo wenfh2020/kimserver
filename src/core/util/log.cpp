@@ -78,8 +78,13 @@ bool Log::log_data(const char* file_name, int file_line, const char* func_name, 
 
 bool Log::log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg) {
     FILE* fp;
+    bool is_log_file;
+
     fp = m_path.empty() ? stdout : fopen(m_path.c_str(), "a");
-    if (!fp) return false;
+    if (fp == nullptr) {
+        return false;
+    }
+    is_log_file = m_path.empty();
 
     int off;
     char buf[64] = {0};
@@ -95,7 +100,9 @@ bool Log::log_raw(const char* file_name, int file_line, const char* func_name, i
             levels[level], (int)getpid(), buf, file_name, func_name, file_line, msg);
 
     fflush(fp);
-    if (!m_path.empty()) fclose(fp);
+    if (is_log_file) {
+        fclose(fp);
+    }
     return true;
 }
 

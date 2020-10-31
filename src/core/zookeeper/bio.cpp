@@ -77,7 +77,6 @@ bool Bio::add_cmd_task(const std::string& path, zk_task_t::CMD cmd, const std::s
 
 void* Bio::bio_process_tasks(void* arg) {
     Bio* bio = (Bio*)arg;
-    printf("bio ptr: %p\n", bio);
 
     sigset_t sigset;
     /* Make the thread killable at any time, so that bioKillThreads()
@@ -106,7 +105,7 @@ void* Bio::bio_process_tasks(void* arg) {
         pthread_mutex_unlock(&bio->m_mutex);
 
         if (task != nullptr) {
-            bio->process_req_tasks(task);
+            bio->process_cmd_tasks(task);
             bio->add_ack_task(task);
         }
     }

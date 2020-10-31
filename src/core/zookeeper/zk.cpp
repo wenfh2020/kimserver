@@ -7,6 +7,7 @@ static const int32_t zoo_value_buf_len = 10240;
 static const int32_t zoo_recv_time_out = 10000;  // in milliseconds
 
 namespace details {
+
 static const char* state_to_string(int state) {
     if (state == 0)
         return "zoo_closed_state";
@@ -41,36 +42,8 @@ static const char* type_to_string(int state) {
     return "zoo_event_unknow";
 }
 
-static void zookeeper_watch_func(zhandle_t* zh, int type,
-                                 int state, const char* path, void* watcherCtx) {
-    zk_cpp* zk = (zk_cpp*)watcherCtx;
-
-    std::string path_str = path ? path : "";
-
-    printf("zk_watcher, type[%d:%s] state[%d:%s] path[%s]\n",
-           type, type_to_string(type), state, state_to_string(state), path_str.c_str());
-
-    if (type == ZOO_SESSION_EVENT) {
-        if (state == ZOO_CONNECTED_STATE) {
-            zk->on_session_connected();
-        } else if (state == ZOO_EXPIRED_SESSION_STATE) {
-            zk->on_session_expired();
-        } else {
-            // nothing
-        }
-    } else if (type == ZOO_CREATED_EVENT) {
-        zk->on_path_created(path);
-    } else if (type == ZOO_DELETED_EVENT) {
-        zk->on_path_delete(path);
-    } else if (type == ZOO_CHANGED_EVENT) {
-        zk->on_path_data_change(path);
-    } else if (type == ZOO_CHILD_EVENT) {
-        zk->on_path_child_change(path);
-    }
-}
-
 static void default_void_completion_func(int rc, const void* data) {
-    printf("default_void_completion_func, rc = %d, data: %p\n", rc, data);
+    // printf("default_void_completion_func, rc = %d, data: %p\n", rc, data);
 }
 
 static void state_to_zoo_state_t(const struct Stat& s, zoo_state_t* state) {
@@ -133,45 +106,16 @@ zoo_acl_t zk_cpp::create_ip_acl(int32_t perms, const std::string& ip_info) {
     return acl;
 }
 
-zoo_rc zk_cpp::connect(const std::string& url) {
+zoo_rc zk_cpp::connect(const std::string& url, watcher_fn fn, void* privdata) {
     m_url = url;
 
     /* try close first */
     close();
 
     /* init zk. */
-    m_zh = zookeeper_init(url.c_str(), details::zookeeper_watch_func,
-                          zoo_recv_time_out, nullptr, this, 0);
+    m_zh = zookeeper_init(
+        url.c_str(), fn, zoo_recv_time_out, nullptr, privdata, 0);
     return z_ok;
-}
-
-void zk_cpp::reconnect() {
-    zoo_rc rt = connect(m_url);
-    if (rt != z_ok) {
-        return;
-    }
-
-    // try rewatch the watchs
-    data_event_map_type data_watch_event_map;
-    child_event_map_type child_watch_event_map;
-
-    {
-        std::lock_guard<std::mutex> locker(m_mtx);
-        data_watch_event_map = m_data_event_map;
-        m_data_event_map.clear();
-        child_watch_event_map = m_child_event_map;
-        m_child_event_map.clear();
-    }
-
-    // rewatch data events
-    for (auto& dkv : data_watch_event_map) {
-        watch_data_change(dkv.first.c_str(), *dkv.second, nullptr);
-    }
-
-    // rewatch child events
-    for (auto& ckv : child_watch_event_map) {
-        watch_children_event(ckv.first.c_str(), *ckv.second, nullptr);
-    }
 }
 
 int32_t zk_cpp::get_recv_time_out() {
@@ -362,130 +306,26 @@ zoo_rc zk_cpp::add_auth(const std::string& user_name, const std::string& user_pa
                                 (int)cert.size(), details::default_void_completion_func, this);
 }
 
-zoo_rc zk_cpp::watch_data_change(const char* path, const data_change_event_handler_t& handler, std::string* value) {
+zoo_rc zk_cpp::watch_data_change(const char* path, std::string& value) {
     std::string out_value;
     zoo_rc rt = get_node(path, out_value, nullptr, true);
     if (rt != z_ok) {
         return rt;
     }
 
-    data_event_handler_ptr hptr(new data_change_event_handler_t(handler));
-    std::string path_str(path);
-    add_data_event_handler(path_str, hptr);
-
-    if (value) {
-        *value = out_value;
-    }
-
+    value = out_value;
     return rt;
 }
 
-zoo_rc zk_cpp::watch_children_event(const char* path, const child_event_handler_t& handler, std::vector<std::string>* out_children) {
+zoo_rc zk_cpp::watch_children_event(const char* path, std::vector<std::string>& out_children) {
     std::vector<std::string> children;
-
     zoo_rc rt = get_children(path, children, true);
     if (rt != z_ok) {
         return rt;
     }
 
-    child_event_handler_ptr hptr(new child_event_handler_t(handler));
-    std::string path_str(path);
-    add_child_event_handler(path_str, hptr);
-
-    if (out_children) {
-        *out_children = children;
-    }
-
+    out_children = children;
     return rt;
-}
-
-void zk_cpp::add_data_event_handler(const std::string& path, zk_cpp::data_event_handler_ptr handler) {
-    std::lock_guard<std::mutex> locker(m_mtx);
-
-    m_data_event_map[path] = handler;
-}
-
-void zk_cpp::add_child_event_handler(const std::string& path, zk_cpp::child_event_handler_ptr handler) {
-    std::lock_guard<std::mutex> locker(m_mtx);
-
-    m_child_event_map[path] = handler;
-}
-
-zk_cpp::data_event_handler_ptr zk_cpp::get_data_event_handler(const std::string& path) {
-    std::lock_guard<std::mutex> locker(m_mtx);
-
-    auto iter = m_data_event_map.find(path);
-    if (iter != m_data_event_map.end()) {
-        return iter->second;
-    }
-    return data_event_handler_ptr();
-}
-
-zk_cpp::child_event_handler_ptr zk_cpp::get_child_event_handler(const std::string& path) {
-    std::lock_guard<std::mutex> locker(m_mtx);
-
-    auto iter = m_child_event_map.find(path);
-    if (iter != m_child_event_map.end()) {
-        return iter->second;
-    }
-    return child_event_handler_ptr();
-}
-
-void zk_cpp::on_session_connected() {
-    printf("zk_cpp::on_session_connected\n");
-}
-
-void zk_cpp::on_session_expired() {
-    printf("zk_cpp::on_session_expired\n");
-
-    // try reconnect
-    reconnect();
-}
-
-void zk_cpp::on_path_created(const char* path) {
-    printf("zk_cpp::on_path_created, path[%s]\n", path);
-}
-
-void zk_cpp::on_path_delete(const char* path) {
-    printf("zk_cpp::on_path_delete, path[%s]\n", path);
-}
-
-void zk_cpp::on_path_data_change(const char* path) {
-    printf("zk_cpp::on_path_data_change, path[%s]\n", path);
-
-    std::string path_str(path);
-    auto handler = get_data_event_handler(path_str);
-    if (!handler) {
-        return;
-    }
-
-    std::string out_value;
-    zoo_rc ret = get_node(path, out_value, nullptr, true);
-    if (ret != z_ok) {
-        return;
-    }
-
-    // call callback
-    (*handler)(path_str, out_value, m_watch_privdata);
-}
-
-void zk_cpp::on_path_child_change(const char* path) {
-    printf("zk_cpp::on_path_child_change, path[%s]\n", path);
-
-    std::string path_str(path);
-    auto handler = get_child_event_handler(path_str);
-    if (!handler) {
-        return;
-    }
-
-    std::vector<std::string> children;
-    zoo_rc ret = get_children(path, children, true);
-    if (ret != z_ok) {
-        return;
-    }
-
-    // call callback
-    (*handler)(path_str, children, m_watch_privdata);
 }
 
 }  // namespace utility

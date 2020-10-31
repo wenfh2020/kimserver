@@ -102,7 +102,7 @@ int main() {
     std::string servers("127.0.0.1:2181");
     std::cout << "servers: " << servers << std::endl;
 
-    kim::ZooKeeperClient* mgr = new kim::ZooKeeperClient(m_logger);
+    kim::ZkClient* mgr = new kim::ZkClient(m_logger);
     mgr->set_zk_log("./zk.log", utility::zoo_log_lvl::zoo_log_lvl_info);
     if (!mgr->connect(servers)) {
         LOG_ERROR("init servers failed! servers: %s", servers.c_str());
@@ -110,8 +110,6 @@ int main() {
         return 1;
     }
 
-    mgr->attach_zk_cmd_event(&on_zk_commnad);
-    mgr->attach_zk_watch_events(&on_zk_data_change, &on_zk_child_change, (void*)mgr);
     mgr->zk_list(path, (void*)mgr);
     sleep(5);
 

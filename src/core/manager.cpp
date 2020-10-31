@@ -132,7 +132,7 @@ bool Manager::load_network() {
 }
 
 bool Manager::load_zk_mgr() {
-    m_zk_client = new ZooKeeperClient(m_logger);
+    m_zk_client = new ZkClient(m_logger);
     if (m_zk_client == nullptr) {
         LOG_ERROR("new zk mgr failed!");
         return false;

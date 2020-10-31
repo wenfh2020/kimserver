@@ -44,7 +44,7 @@ class Manager : public INet {
     WorkerDataMgr m_worker_data_mgr;   // worker node data manager.
     std::list<int> m_restart_workers;  // workers waiting to restart. restore worker's index.
 
-    ZooKeeperClient* m_zk_client = nullptr;
+    ZkClient* m_zk_client = nullptr;
 };
 
 }  // namespace kim

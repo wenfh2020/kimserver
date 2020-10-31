@@ -129,29 +129,11 @@ class noncopyable {
 };
 
 class zk_cpp : public noncopyable {
-   public:
-    /** callbacks */
-    /** watch events */
-
-    /** the path data change event call back */
-    typedef std::function<void(const std::string& path, const std::string& new_value, void* privdata)> data_change_event_handler_t;
-    typedef std::shared_ptr<data_change_event_handler_t> data_event_handler_ptr;
-
-    typedef std::function<void(const std::string& path, const std::vector<std::string>& new_children, void* privdata)> child_event_handler_t;
-    typedef std::shared_ptr<child_event_handler_t> child_event_handler_ptr;
-
-   protected:
-    typedef std::unordered_map<std::string, data_event_handler_ptr> data_event_map_type;
-    typedef std::unordered_map<std::string, child_event_handler_ptr> child_event_map_type;
-
    protected:
     void* m_zh;         // zhandle_t
     std::string m_url;  // zookeeper server urls
     void* m_watch_privdata = nullptr;
-
     std::mutex m_mtx;
-    data_event_map_type m_data_event_map;
-    child_event_map_type m_child_event_map;
 
    public:
     zk_cpp();
@@ -213,11 +195,11 @@ class zk_cpp : public noncopyable {
 
    public:
     /** 
-     * @brief try connect zookeeper servers
+     * @brief try connect zookeeper servers and attach notify calllback fn.
      * 
      * @param url : format is "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
      */
-    zoo_rc connect(const std::string& url);
+    zoo_rc connect(const std::string& url, watcher_fn fn, void* privdata);
 
     /**
      * @brief return the timeout for this session, only valid if the connections
@@ -477,33 +459,28 @@ class zk_cpp : public noncopyable {
      * 
      * @param   path            - the node name
      * @param   handler         - the path's data change callback fuction
-     * @param   value           - return the node's name if not NULL
+     * @param   value           - return the node's name
      *
      * @return  see {@link #get_node}
      */
-    zoo_rc watch_data_change(const char* path, const data_change_event_handler_t& handler, std::string* value);
+    zoo_rc watch_data_change(const char* path, std::string& value);
 
     /** 
      * @brief request watch the path's child change event, child create/delete
      *
      * @param   path            - the node name
      * @param   handler         - the path's child change callback fuction
-     * @param   out_children    - return value of children paths if not NULL
+     * @param   out_children    - return value of children paths
      *
      * @return  see {@link #get_children}
      */
-    zoo_rc watch_children_event(const char* path, const child_event_handler_t& handler, std::vector<std::string>* out_children);
+    zoo_rc watch_children_event(const char* path, std::vector<std::string>& out_children);
 
    public:
     /*  asynchronous apis */
 
    protected:
     void close();
-    void reconnect();
-    void add_data_event_handler(const std::string& path, data_event_handler_ptr handler);
-    void add_child_event_handler(const std::string& path, child_event_handler_ptr handler);
-    data_event_handler_ptr get_data_event_handler(const std::string& path);
-    child_event_handler_ptr get_child_event_handler(const std::string& path);
 };
 
 }  // namespace utility

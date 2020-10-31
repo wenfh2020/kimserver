@@ -24,7 +24,7 @@ class Bio {
     void bio_stop() { m_stop_thread = true; }
     static void* bio_process_tasks(void* arg);
 
-    virtual void process_req_tasks(zk_task_t* task) {}
+    virtual void process_cmd_tasks(zk_task_t* task) {}
     bool add_cmd_task(const std::string& path, zk_task_t::CMD cmd, const std::string& value = "");
     void add_ack_task(zk_task_t* task);
 

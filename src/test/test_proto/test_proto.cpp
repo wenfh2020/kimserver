@@ -156,7 +156,7 @@ void compare_struct() {
     printf("proto spend time: %f\n", mstime() - begin);
 }
 
-void test_proto_json() {
+void convert() {
     kim::node_info node;
     node.set_name("111111");
     node.mutable_addr_info()->set_bind("wruryeuwryeuwrw");
@@ -180,6 +180,8 @@ void test_proto_json() {
     std::cout << json_string << std::endl;
 
     node.Clear();
+    std::cout << "clear: " << node.name() << std::endl;
+
     if (JsonStringToMessage(json_string, &node).ok()) {
         std::cout << "json to protobuf: "
                   << node.name()
@@ -204,7 +206,7 @@ int main(int argc, char** argv) {
     // check_protobuf();
     // test_server(argc, argv);
     // compare_struct();
-    test_proto_json();
+    convert();
 
     // std::string str("123");
     // std::stoi(str);
