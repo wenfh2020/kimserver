@@ -1,10 +1,11 @@
 #ifndef __KIM_ZOOKEEPER_CLINET_H__
 #define __KIM_ZOOKEEPER_CLINET_H__
 
-#include "bio.h"
+#include "nodes.h"
 #include "util/json/CJsonObject.hpp"
 #include "util/log.h"
-#include "zk.h"
+#include "zookeeper/bio.h"
+#include "zookeeper/zk.h"
 
 namespace kim {
 
@@ -44,7 +45,7 @@ class ZooKeeperClient : public Bio {
     /* timer. */
     void on_repeat_timer();
     void handle_cmds();
-    void handle_rsps();
+    void handle_acks();
 
     /* bio handler. */
     virtual void process_req_tasks(zk_task_t* task) override;
@@ -53,15 +54,18 @@ class ZooKeeperClient : public Bio {
     utility::zoo_rc bio_register_node(zk_task_t* task);
 
    private:
+    Nodes* m_nodes;
     CJsonObject m_config;
+
+    /* zk. */
     utility::zk_cpp* m_zk;
     FILE* m_zk_log_file = nullptr;
     void* m_watch_privdata = nullptr;
     utility::zoo_log_lvl m_zk_log_level = utility::zoo_log_lvl::zoo_log_lvl_info;
     zk_task_t::CMD m_zk_cmd = zk_task_t::CMD::REGISTER;
-    zk_task_t::CMD m_zk_old = zk_task_t::CMD::UNKNOWN;
+    zk_task_t::CMD m_zk_old_cmd = zk_task_t::CMD::UNKNOWN;
 
-    /* callback fn. */
+    /* zk callback func. */
     ZkCallbackChildChangeFn* m_child_change_fn = nullptr;
     ZkCallbackWatchDataChangeFn* m_watch_data_fn = nullptr;
 };

@@ -25,10 +25,10 @@ Bio::~Bio() {
     }
     m_req_tasks.clear();
 
-    for (auto& it : m_rsp_tasks) {
+    for (auto& it : m_ack_tasks) {
         delete it;
     }
-    m_rsp_tasks.clear();
+    m_ack_tasks.clear();
     pthread_mutex_unlock(&m_mutex);
 }
 
@@ -57,8 +57,7 @@ bool Bio::bio_init() {
     return true;
 }
 
-bool Bio::add_req_task(const std::string& path, zk_task_t::CMD oper, void* privdata,
-                       const std::string& value, int flag) {
+bool Bio::add_cmd_task(const std::string& path, zk_task_t::CMD cmd, const std::string& value) {
     zk_task_t* task = new zk_task_t;
     if (task == nullptr) {
         LOG_ERROR("new task failed! path: %s", path.c_str());
@@ -66,9 +65,7 @@ bool Bio::add_req_task(const std::string& path, zk_task_t::CMD oper, void* privd
     }
     task->path = path;
     task->value = value;
-    task->oper = oper;
-    task->flag = flag;
-    task->privdata = privdata;
+    task->cmd = cmd;
     task->create_time = time_now();
 
     pthread_mutex_lock(&m_mutex);
@@ -110,16 +107,16 @@ void* Bio::bio_process_tasks(void* arg) {
 
         if (task != nullptr) {
             bio->process_req_tasks(task);
-            bio->add_rsp_tasks(task);
+            bio->add_ack_task(task);
         }
     }
 
     return nullptr;
 }
 
-void Bio::add_rsp_tasks(zk_task_t* task) {
+void Bio::add_ack_task(zk_task_t* task) {
     pthread_mutex_lock(&m_mutex);
-    m_rsp_tasks.push_back(task);
+    m_ack_tasks.push_back(task);
     pthread_mutex_unlock(&m_mutex);
 }
 

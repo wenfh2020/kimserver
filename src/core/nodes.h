@@ -37,6 +37,8 @@ class Nodes {
     bool add_zk_node(const zk_node& node);
     bool del_zk_node(const std::string& path);
 
+    void set_my_zk_node_path(const std::string& path) { m_my_zk_node_path = path; }
+
     /* ketama algorithm for node's distribution. */
     bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
     bool del_node(const std::string& node_id);
@@ -52,6 +54,8 @@ class Nodes {
     Log* m_logger = nullptr;
     int m_vnode_cnt = 200;
     HASH_ALGORITHM m_ha = HASH_ALGORITHM::FNV1A_64;
+
+    std::string m_my_zk_node_path;
 
     /* key: zk path, value: zk node info. */
     std::unordered_map<std::string, zk_node> m_zk_nodes;

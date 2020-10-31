@@ -6,7 +6,7 @@
 #include "nodes.h"
 #include "server.h"
 #include "worker_data_mgr.h"
-#include "zookeeper/zk_client.h"
+#include "zk_client.h"
 
 namespace kim {
 
