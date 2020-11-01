@@ -3,8 +3,6 @@
 #include "protobuf/sys/nodes.pb.h"
 #include "util/util.h"
 
-#define __NO_LOG__
-
 namespace kim {
 
 ZkClient::ZkClient(Log* logger) : Bio(logger), m_zk(nullptr) {
@@ -12,14 +10,6 @@ ZkClient::ZkClient(Log* logger) : Bio(logger), m_zk(nullptr) {
 
 ZkClient::~ZkClient() {
     SAFE_DELETE(m_nodes);
-}
-
-void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
-    if (m_zk != nullptr) {
-        m_zk->set_log_lvl(level);
-        bool ret = m_zk->set_log_stream(path);
-        printf("-------------- %d", ret);
-    }
 }
 
 bool ZkClient::connect(const std::string& servers) {
@@ -35,11 +25,19 @@ bool ZkClient::connect(const std::string& servers) {
         return false;
     }
 
+    /* crearte bio thread. */
     if (!bio_init()) {
         LOG_ERROR("create thread failed!");
         return false;
     }
     return true;
+}
+
+void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
+    if (m_zk != nullptr) {
+        m_zk->set_log_lvl(level);
+        m_zk->set_log_stream(path);
+    }
 }
 
 bool ZkClient::init(const CJsonObject& config) {
@@ -82,6 +80,69 @@ bool ZkClient::init(const CJsonObject& config) {
     }
 
     return true;
+}
+
+bool ZkClient::node_register() {
+    std::string node_path;
+    std::string ip(m_config("bind"));
+    std::string node_type(m_config("node_type"));
+    std::string node_root(m_config["zookeeper"]("root"));
+    std::string server_name(m_config("server_name"));
+    std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
+    int port = std::stoi(m_config("port"));
+    int worker_cnt = std::stoi(m_config("worker_cnt"));
+
+    if (node_type.empty() || node_root.empty() ||
+        server_name.empty() || ip.empty() || port <= 0 || worker_cnt <= 0) {
+        LOG_ERROR("invalid node info!");
+        return false;
+    }
+
+    node_path = format_str(
+        "%s/%s/%s", node_root.c_str(), node_type.c_str(), node_name.c_str());
+    CJsonObject json_node, json_value;
+    json_node.Add("path", node_path);
+    json_node.Add("type", node_type);
+    json_node.Add("ip", ip);
+    json_node.Add("port", port);
+    json_node.Add("worker_cnt", worker_cnt);
+    json_value.Add("node", json_node);
+    json_value.Add("zookeeper", m_config["zookeeper"]);
+    // LOG_DEBUG("config: %s", json_value.ToFormattedString().c_str());
+    return add_cmd_task(node_path, zk_task_t::CMD::REGISTER, json_value.ToString());
+}
+
+/* bio thread handle. */
+void ZkClient::process_cmd(zk_task_t* task) {
+    LOG_DEBUG("process task, path: %s, cmd: %d", task->path.c_str(), task->cmd);
+    utility::zoo_rc ret = utility::zoo_rc::z_system_error;
+
+    switch (task->cmd) {
+        case zk_task_t::CMD::REGISTER: {
+            ret = bio_register_node(task);
+            break;
+        }
+        case zk_task_t::CMD::NOTIFY_SESSION_CONNECTD:
+        case zk_task_t::CMD::NOTIFY_NODE_DELETED:
+            break;
+        case zk_task_t::CMD::GET:
+        case zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED:
+            ret = m_zk->watch_data_change(task->path.c_str(), task->res.value);
+            break;
+        case zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED: {
+            ret = m_zk->watch_children_event(task->path.c_str(), task->res.values);
+            break;
+        }
+        default: {
+            LOG_ERROR("invalid task oper: %d", task->cmd);
+            break;
+        }
+    }
+
+    task->res.error = ret;
+    if (task->res.errstr.empty()) {
+        task->res.errstr = utility::zk_cpp::error_string(ret);
+    }
 }
 
 /* 
@@ -209,128 +270,50 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
     return ret;
 }
 
-bool ZkClient::node_register() {
-    std::string node_path;
-    std::string ip(m_config("bind"));
-    std::string node_type(m_config("node_type"));
-    std::string node_root(m_config["zookeeper"]("root"));
-    std::string server_name(m_config("server_name"));
-    std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
-    int port = std::stoi(m_config("port"));
-    int worker_cnt = std::stoi(m_config("worker_cnt"));
-
-    if (node_type.empty() || node_root.empty() ||
-        server_name.empty() || ip.empty() || port <= 0 || worker_cnt <= 0) {
-        LOG_ERROR("invalid node info!");
-        return false;
-    }
-
-    node_path = format_str(
-        "%s/%s/%s", node_root.c_str(), node_type.c_str(), node_name.c_str());
-    CJsonObject json_node, json_value;
-    json_node.Add("path", node_path);
-    json_node.Add("type", node_type);
-    json_node.Add("ip", ip);
-    json_node.Add("port", port);
-    json_node.Add("worker_cnt", worker_cnt);
-    json_value.Add("node", json_node);
-    json_value.Add("zookeeper", m_config["zookeeper"]);
-    // LOG_DEBUG("config: %s", json_value.ToFormattedString().c_str());
-    return add_cmd_task(node_path, zk_task_t::CMD::REGISTER, json_value.ToString());
-}
-
-void ZkClient::process_ack_tasks(zk_task_t* task) {
+void ZkClient::process_ack(zk_task_t* task) {
     switch (task->cmd) {
         case zk_task_t::CMD::REGISTER:
-            on_zk_command(task);
+            on_zk_register(task);
             break;
-
+        case zk_task_t::CMD::GET:
+            on_zk_get_data(task);
+            break;
         case zk_task_t::CMD::NOTIFY_NODE_DELETED:
             on_zk_node_deleted(task);
             break;
-
         case zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED:
             on_zk_data_change(task);
             break;
-
         case zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED:
             on_zk_child_change(task);
             break;
-
         default:
             break;
     }
 }
 
-/* bio thread handle. */
-void ZkClient::process_cmd_tasks(zk_task_t* task) {
-    LOG_DEBUG("process task, path: %s, oper: %d", task->path.c_str(), task->cmd);
-    utility::zoo_rc ret = utility::zoo_rc::z_system_error;
-
-    switch (task->cmd) {
-        case zk_task_t::CMD::REGISTER: {
-            ret = bio_register_node(task);
-            break;
-        }
-        case zk_task_t::CMD::NOTIFY_SESSION_CONNECTD:
-        case zk_task_t::CMD::NOTIFY_NODE_DELETED: {
-            break;
-        }
-        case zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED: {
-            ret = m_zk->watch_data_change(task->path.c_str(), task->res.value);
-            break;
-        }
-        case zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED: {
-            ret = m_zk->watch_children_event(task->path.c_str(), task->res.values);
-            break;
-        }
-        default: {
-            LOG_ERROR("invalid task oper: %d", task->cmd);
-            break;
-        }
+void ZkClient::on_zk_register(const zk_task_t* task) {
+    CJsonObject res;
+    if (!res.Parse(task->res.value)) {
+        LOG_ERROR("parase ack data failed! path: %s", task->path.c_str());
+        return;
     }
 
-    task->res.error = ret;
-    if (task->res.errstr.empty()) {
-        task->res.errstr = utility::zk_cpp::error_string(ret);
-    }
-}
+    m_nodes->set_my_zk_node_path(res("my_zk_path"));
+    LOG_DEBUG("ack data: %s", res.ToFormattedString().c_str());
 
-void ZkClient::on_zk_command(const zk_task_t* task) {
-    LOG_DEBUG(
-        "cmd cb: oper [%d], path: [%s], error: [%d], errstr: [%s]",
-        task->cmd, task->path.c_str(),
-        task->res.error, task->res.errstr.c_str());
-
-    switch (task->cmd) {
-        case zk_task_t::CMD::REGISTER: {
-            CJsonObject res;
-            if (!res.Parse(task->res.value)) {
-                LOG_ERROR("parase ack data failed! path: %s", task->path.c_str());
-                return;
-            }
-
-            m_nodes->set_my_zk_node_path(res("my_zk_path"));
-            LOG_DEBUG("ack data: %s", res.ToFormattedString().c_str());
-
-            zk_node node;
-            CJsonObject& nodes = res["nodes"];
-            for (int i = 0; i < nodes.GetArraySize(); i++) {
-                if (!json_to_proto(nodes[i].ToString(), node)) {
-                    LOG_ERROR("json to proto failed!");
-                    continue;
-                }
-                if (!m_nodes->add_zk_node(node)) {
-                    LOG_ERROR("add zk node failed! path: %s", nodes[i]("path").c_str());
-                    continue;
-                }
-                LOG_INFO("add zk node done! path: %s", nodes[i]("path").c_str());
-            }
-            break;
+    zk_node node;
+    CJsonObject& nodes = res["nodes"];
+    for (int i = 0; i < nodes.GetArraySize(); i++) {
+        if (!json_to_proto(nodes[i].ToString(), node)) {
+            LOG_ERROR("json to proto failed!");
+            continue;
         }
-
-        default:
-            break;
+        if (!m_nodes->add_zk_node(node)) {
+            LOG_ERROR("add zk node failed! path: %s", nodes[i]("path").c_str());
+            continue;
+        }
+        LOG_INFO("add zk node done! path: %s", nodes[i]("path").c_str());
     }
 }
 
@@ -363,26 +346,63 @@ void ZkClient::on_zk_watch_events(int type, int state, const char* path, void* p
 
 void ZkClient::on_zk_node_deleted(const kim::zk_task_t* task) {
     LOG_INFO("zk node: %s deleted!", task->path.c_str());
+    m_nodes->del_zk_node(task->path);
+}
+
+void ZkClient::on_zk_get_data(const kim::zk_task_t* task) {
+    LOG_INFO("zk get node data! path: %s, new value: %s.",
+             task->path.c_str(), task->res.value.c_str());
+    zk_node node;
+    if (!json_to_proto(task->res.value, node)) {
+        LOG_ERROR("invalid node info! path: %s", task->path.c_str());
+        return;
+    }
+    m_nodes->add_zk_node(node);
 }
 
 void ZkClient::on_zk_data_change(const kim::zk_task_t* task) {
     LOG_INFO("zk node data change! path: %s, new value: %s.",
              task->path.c_str(), task->res.value.c_str());
+    zk_node node;
+    if (!json_to_proto(task->res.value, node)) {
+        LOG_ERROR("invalid node info! path: %s", task->path.c_str());
+        return;
+    }
+    m_nodes->add_zk_node(node);
 }
 
 void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
-    const std::vector<std::string>& children = task->res.values;
-    if (children.size() == 0) {
+    if (task->res.values.size() == 0) {
         return;
     }
 
-    std::string items("[");
-    for (size_t i = 0; i < children.size(); i++) {
-        items.append(children[i]).append(",");
+    std::string child;
+    std::vector<std::string> children;
+    std::vector<std::string> new_paths, del_paths;
+    const std::vector<std::string>& res = task->res.values;
+
+    for (size_t i = 0; i < res.size(); i++) {
+        child = format_str("%s/%s", task->path.c_str(), res[i].c_str());
+        children.push_back(child);
+        LOG_DEBUG("child change, num: %d, %s", i, child.c_str());
     }
-    items.append("]");
-    LOG_INFO("zk child change! path: %s. children size: %lu, items: %s",
-             task->path.c_str(), children.size(), items.c_str());
+
+    m_nodes->get_zk_diff_nodes(children, new_paths, del_paths);
+
+    /* add new nodes. */
+    if (new_paths.size() > 0) {
+        for (size_t i = 0; i < new_paths.size(); i++) {
+            /* get / watch new node data. */
+            add_cmd_task(new_paths[i], zk_task_t::CMD::GET);
+        }
+    }
+
+    /* delete paths. */
+    if (del_paths.size() > 0) {
+        for (size_t i = 0; i < del_paths.size(); i++) {
+            m_nodes->del_node(del_paths[i]);
+        }
+    }
 }
 
 }  // namespace kim

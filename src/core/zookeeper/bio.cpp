@@ -105,7 +105,7 @@ void* Bio::bio_process_tasks(void* arg) {
         pthread_mutex_unlock(&bio->m_mutex);
 
         if (task != nullptr) {
-            bio->process_cmd_tasks(task);
+            bio->process_cmd(task);
             bio->add_ack_task(task);
         }
     }
@@ -140,7 +140,7 @@ void Bio::handle_acks() {
     pthread_mutex_unlock(&m_mutex);
 
     for (auto& v : tasks) {
-        process_ack_tasks(v);
+        process_ack(v);
         SAFE_DELETE(v);
     }
 }

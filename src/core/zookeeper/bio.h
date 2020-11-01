@@ -29,9 +29,9 @@ class Bio {
     /* bio thread. */
     static void* bio_process_tasks(void* arg);
     /* call by bio. */
-    virtual void process_cmd_tasks(zk_task_t* task) {}
+    virtual void process_cmd(zk_task_t* task) {}
     /* call by timer. */
-    virtual void process_ack_tasks(zk_task_t* task) {}
+    virtual void process_ack(zk_task_t* task) {}
 
     /* timer. */
     void on_repeat_timer();

@@ -3,8 +3,6 @@
 #include "util/hash.h"
 #include "util/util.h"
 
-/* 除了定时推送，也需要时钟定时获取。一致性哈希。*/
-
 namespace kim {
 
 Nodes::Nodes(Log* logger, int vnode_cnt, HASH_ALGORITHM ha)
@@ -33,18 +31,19 @@ bool Nodes::add_zk_node(const zk_node& node) {
     if (it == m_zk_nodes.end()) {
         m_zk_nodes[node.path()] = node;
         for (int i = 1; i <= node.worker_cnt(); i++) {
-            add_node(node.type(), node.ip(), node.port(), i);
+            add_node(node.path(), node.type(), node.ip(), node.port(), i);
         }
     } else {
         auto old = it->second;
         if (old.SerializeAsString() != node.SerializeAsString()) {
             m_zk_nodes[node.path()] = node;
             for (int i = 1; i < old.worker_cnt(); i++) {
-                del_node(format_identity(old.ip(), old.port(), i));
+                del_node(format_nodes_id(old.path(), old.ip(), old.port(), i));
             }
             for (int i = 1; i <= node.worker_cnt(); i++) {
-                add_node(node.type(), node.ip(), node.port(), i);
+                add_node(node.path(), node.type(), node.ip(), node.port(), i);
             }
+            LOG_DEBUG("update zk node info done! path: %s", node.path().c_str());
         }
     }
 
@@ -60,7 +59,7 @@ bool Nodes::del_zk_node(const std::string& path) {
     /* delete nodes. */
     const zk_node& znode = it->second;
     for (int i = 1; i <= znode.worker_cnt(); i++) {
-        del_node(format_identity(znode.ip(), znode.port(), i));
+        del_node(format_nodes_id(znode.path(), znode.ip(), znode.port(), i));
     }
 
     LOG_INFO("delete zk node, path: %s, type: %s, ip: %s, port: %d, worker_cnt: %d",
@@ -70,11 +69,25 @@ bool Nodes::del_zk_node(const std::string& path) {
     return true;
 }
 
-bool Nodes::add_node(const std::string& node_type, const std::string& ip, int port, int worker) {
+void Nodes::get_zk_diff_nodes(std::vector<std::string>& in,
+                              std::vector<std::string>& adds, std::vector<std::string>& dels) {
+    std::vector<std::string> vec;
+    for (auto& v : m_zk_nodes) {
+        vec.push_back(v.first);
+    }
+
+    adds = diff_cmp(in, vec);
+    dels = diff_cmp(vec, in);
+    LOG_DEBUG("cur nodes size: %lu, add size: %lu, dels size: %lu",
+              vec.size(), adds.size(), dels.size());
+}
+
+bool Nodes::add_node(const std::string& path, const std::string& node_type,
+                     const std::string& ip, int port, int worker) {
     LOG_INFO("add node, node type: %s, ip: %s, port: %d, worker: %d",
              node_type.c_str(), ip.c_str(), port, worker);
 
-    std::string node_id = format_identity(ip, port, worker);
+    std::string node_id = format_nodes_id(path, ip, port, worker);
     if (m_nodes.find(node_id) != m_nodes.end()) {
         LOG_DEBUG("node (%s) has been added!", node_id.c_str());
         return true;
@@ -86,7 +99,7 @@ bool Nodes::add_node(const std::string& node_type, const std::string& ip, int po
     int old_vnode_cnt = vnode2node.size();
 
     vnodes = gen_vnodes(node_id);
-    node = new node_t{node_id, node_type, ip, port, vnodes, time_now()};
+    node = new node_t{node_id, node_type, ip, port, vnodes};
 
     for (auto& v : vnodes) {
         if (!vnode2node.insert({v, node}).second) {
@@ -110,7 +123,7 @@ bool Nodes::add_node(const std::string& node_type, const std::string& ip, int po
 }
 
 bool Nodes::del_node(const std::string& node_id) {
-    LOG_INFO("delete node: %s", node_id.c_str());
+    LOG_DEBUG("delete node: %s", node_id.c_str());
     auto it = m_nodes.find(node_id);
     if (it == m_nodes.end()) {
         return false;
@@ -125,7 +138,6 @@ bool Nodes::del_node(const std::string& node_id) {
         }
     }
 
-    LOG_INFO("delete node: %s done!", node->id.c_str());
     delete node;
     m_nodes.erase(it);
     return true;

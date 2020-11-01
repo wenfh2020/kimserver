@@ -20,6 +20,7 @@ typedef struct zk_task_s {
     enum class CMD {
         UNKNOWN = 0,
         REGISTER,
+        GET,
         NOTIFY_SESSION_CONNECTD,
         NOTIFY_SESSION_EXPIRED,
         NOTIFY_NODE_CREATED,

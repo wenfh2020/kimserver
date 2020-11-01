@@ -18,7 +18,6 @@ typedef struct node_s {
     std::string ip;               /* node ip. */
     int port;                     /* node port. */
     std::vector<uint32_t> vnodes; /* virtual nodes which point to me. */
-    double active_time;           /* time for checking online. */
 } node_t;
 
 class Nodes {
@@ -36,11 +35,12 @@ class Nodes {
     /* nodes. */
     bool add_zk_node(const zk_node& node);
     bool del_zk_node(const std::string& path);
-
-    void set_my_zk_node_path(const std::string& path) { m_my_zk_node_path = path; }
+    void get_zk_diff_nodes(std::vector<std::string>& in,
+                           std::vector<std::string>& adds, std::vector<std::string>& dels);
+    void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
 
     /* ketama algorithm for node's distribution. */
-    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
+    bool add_node(const std::string& path, const std::string& node_type, const std::string& ip, int port, int worker);
     bool del_node(const std::string& node_id);
     node_t* get_node(const std::string& node_id);
     node_t* get_node_in_hash(const std::string& node_type, int obj);
@@ -55,7 +55,7 @@ class Nodes {
     int m_vnode_cnt = 200;
     HASH_ALGORITHM m_ha = HASH_ALGORITHM::FNV1A_64;
 
-    std::string m_my_zk_node_path;
+    std::string m_my_zk_node;
 
     /* key: zk path, value: zk node info. */
     std::unordered_map<std::string, zk_node> m_zk_nodes;
