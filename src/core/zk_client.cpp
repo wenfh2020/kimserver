@@ -249,7 +249,7 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
         }
 
         /* get and watch children's data. */
-        for (int i = 0; i < children.size(); i++) {
+        for (size_t i = 0; i < children.size(); i++) {
             path = format_str("%s/%s", parent.c_str(), children[i].c_str());
             ret = m_zk->watch_data_change(path.c_str(), out);
             if (ret != utility::zoo_rc::z_ok) {

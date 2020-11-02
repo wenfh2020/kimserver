@@ -88,7 +88,7 @@ struct zoo_acl_t {
     }
 };
 
-/** zoo_state 
+/** zoo_state
  * These constants represent the states of a zookeeper connection. They are
  * possible parameters of the watcher callback.
  */
@@ -118,61 +118,61 @@ struct zoo_state_t {
 };
 
 class noncopyable {
-   protected:
+protected:
     noncopyable() {}
     ~noncopyable() {}
 
-   private:
+private:
     noncopyable(const noncopyable&);
     noncopyable& operator=(const noncopyable&);
 };
 
 class zk_cpp : public noncopyable {
-   protected:
+protected:
     void* m_zh;         // zhandle_t
     std::string m_url;  // zookeeper server urls
 
-   public:
+public:
     zk_cpp();
     ~zk_cpp();
 
-   public:
+public:
     /**
      * @brief get the errocode string
      */
     static const char* error_string(int32_t rc);
 
-    /** 
+    /**
      * @brief state to string
      */
     static const char* state_to_string(int32_t state);
 
-    /** 
+    /**
      * @brief set zookeeper client internal log level
      */
     static void set_log_lvl(zoo_log_lvl lvl);
 
-    /** 
+    /**
      * @brief set the log path
      */
     static bool set_log_stream(const std::string& path);
 
-    /** 
+    /**
      * @brief create world acl
      * @param perms     - see {@link #zoo_perm}
      */
     static zoo_acl_t create_world_acl(int32_t perms);
 
-    /** 
+    /**
      * @brief create auth acl
      * @param perms     - see {@link #zoo_perm}
-     * @notice:         auth_acl need the session {@link #addauth} first, 
+     * @notice:         auth_acl need the session {@link #addauth} first,
                         and then use the authentic user:passwd as id, scheme is 'auth';
                         if not addauth yet, will return {@link #z_invalid_acl }
      */
     static zoo_acl_t create_auth_acl(int32_t perms);
 
-    /** 
+    /**
      * @brief create digest acl
      * @param perms     - see {@link #zoo_perm}
      * @param user      - username
@@ -180,20 +180,20 @@ class zk_cpp : public noncopyable {
      */
     static zoo_acl_t create_digest_acl(int32_t perms, const std::string& user, const std::string& passwd);
 
-    /** 
+    /**
      * @brief create ip acl
      * @param perms     - see {@link #zoo_perm}
-     * @param ip_info   - the form is addr/bits where the most significant bits of addr 
+     * @param ip_info   - the form is addr/bits where the most significant bits of addr
                         - are matched against the most significant bits of the client host IP.
                         - eg:  ip:192.168.1.0/16, the 16 bits of the '192.168.1.0' is 192.168,
                         - the expression matches all the ip start with '192.168'
      */
     static zoo_acl_t create_ip_acl(int32_t perms, const std::string& ip_info);
 
-   public:
-    /** 
+public:
+    /**
      * @brief try connect zookeeper servers and attach notify calllback fn.
-     * 
+     *
      * @param url : format is "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
      */
     zoo_rc connect(const std::string& url, watcher_fn fn, void* privdata);
@@ -204,7 +204,7 @@ class zk_cpp : public noncopyable {
      */
     int32_t get_recv_time_out();
 
-    /** 
+    /**
      * @brief get current state
      */
     z_state get_state();
@@ -217,7 +217,7 @@ class zk_cpp : public noncopyable {
      */
     bool unrecoverable();
 
-   public:
+public:
     /** events */
 
     /** event sesion connected */
@@ -238,8 +238,8 @@ class zk_cpp : public noncopyable {
     /** event path child change */
     void on_path_child_change(const char* path);
 
-   protected:
-    /** 
+protected:
+    /**
      * @brief   try create a node synchronously
      *
      * @param   path            - the node name
@@ -255,7 +255,7 @@ class zk_cpp : public noncopyable {
      *                          - the path string will be truncated to fit.  The actual path of the
      *                          - new node in the server will not be affected by the truncation.
      *                          - The path string will always be null-terminated.
-     * @return  
+     * @return
      *          - z_ok              : operation completed successfully
      *          - z_nonode          : the parent node does not exist.
      *          - z_node_exists     : the node already exists
@@ -267,15 +267,15 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc create_node(const char* path, const std::string& value, const std::vector<zoo_acl_t>& acl, int32_t create_flags, char* path_buffer, int32_t path_buffer_len);
 
-   public:
+public:
     /** synchronous apis */
 
-    /** 
+    /**
      * @brief create persistent node
      */
     zoo_rc create_persistent_node(const char* path, const std::string& value, const std::vector<zoo_acl_t>& acl);
 
-    /** 
+    /**
      * @brief create sequence_node
      *
      * sequance node's name is 'path-xx' rather than 'path', the xx is auto-increment number
@@ -285,21 +285,21 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc create_sequence_node(const char* path, const std::string& value, const std::vector<zoo_acl_t>& acl, std::string& returned_path_name);
 
-    /** 
+    /**
      * @brief create ephemeral node
      *
      * the ephemeral node will auto delete if the session is disconnect
      */
     zoo_rc create_ephemeral_node(const char* path, const std::string& value, const std::vector<zoo_acl_t>& acl);
 
-    /** 
+    /**
      * @brief create sequance and ephemeral node
      *
      * @param returned_path_name    - return the real path name of the node
      */
     zoo_rc create_sequance_ephemeral_node(const char* path, const std::string& value, const std::vector<zoo_acl_t>& acl, std::string& returned_path_name);
 
-    /** 
+    /**
      * @brief   try delete a node  synchronously
      *
      * @param   path            - the node name
@@ -318,7 +318,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc delete_node(const char* path, int32_t version);
 
-    /** 
+    /**
      * @brief   check the node exist synchronously
      *
      * @param   path            - the node name
@@ -327,7 +327,7 @@ class zk_cpp : public noncopyable {
      *                          - client if the node changes. The watch will be set even if the node does not
      *                          - exist. This allows clients to watch for nodes to appear.
      *                          - but the watch take affect only once
-     * @return 
+     * @return
      *          - z_ok              : operation completed successfully
      *          - z_nonode          : the node does not exist.
      *          - z_noauth          : the client does not have permission.
@@ -337,7 +337,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc exists_node(const char* path, zoo_state_t* info, bool watch);
 
-    /** 
+    /**
      * @brief gets the data associated with a node synchronously.
      *
      * @param   path            - the node name
@@ -357,15 +357,15 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc get_node(const char* path, std::string& out_value, zoo_state_t* info, bool watch);
 
-    /** 
+    /**
      * @brief  sets the data associated with a node.
      *
      * @param   path            - the node name
      * @param   value           - the new data to written to the node
      * @param   version         - the expected version of the node. The function will fail if
-     *                          - the actual version of the node does not match the expected version. 
+     *                          - the actual version of the node does not match the expected version.
      *                          - If -1 is used the version check will not take place.
-     * @return 
+     * @return
      *          - z_ok              : operation completed successfully
      *          - z_nonode          : the node does not exist.
      *          - z_noauth          : the client does not have permission.
@@ -376,7 +376,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc set_node(const char* path, const std::string& value, int32_t version);
 
-    /** 
+    /**
      * @brief lists the children of a node synchronously.
      *
      * @param   path            - the node name
@@ -384,7 +384,7 @@ class zk_cpp : public noncopyable {
      * @param   watch           - watch if true, a watch will be set at the server to notify
      *                          - the client if the node changes.
      *                          - but the watch take affect only once
-     * @return 
+     * @return
      *          - z_ok              : operation completed successfully
      *          - z_nonode          : the node does not exist.
      *          - z_noauth          : the client does not have permission.
@@ -394,7 +394,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc get_children(const char* path, std::vector<std::string>& children, bool watch);
 
-    /** 
+    /**
      * @brief   sets the acl associated with a node synchronously.
      *
      * @param   path            - the node name
@@ -403,7 +403,7 @@ class zk_cpp : public noncopyable {
      *                          - the actual version of the node does not match the expected version.
      *                          - If -1 is used the version check will not take place.
      *
-     * @retrun  
+     * @retrun
      *          - z_ok              : operation completed successfully
      *          - z_nonode          : the node does not exist.
      *          - z_noauth          : the client does not have permission.
@@ -415,7 +415,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc set_acl(const char* path, const std::vector<zoo_acl_t>& acl, int32_t version);
 
-    /** 
+    /**
      * @brief   gets the acl associated with a node synchronously.
      *
      * @param   path            - the node name
@@ -431,12 +431,12 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc get_acl(const char* path, std::vector<zoo_acl_t>& acl);
 
-    /** 
+    /**
      * @brief   specify application credentials.
      *
      * @param   - user_name
      * @param   - user_passwd (Plaintext no encryption)
-     * 
+     *
      * @return
      *          - z_ok              : operation completed successfully
      *          - z_bad_arguments   : invalid input parameters
@@ -446,9 +446,9 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc add_auth(const std::string& user_name, const std::string& user_passwd);
 
-    /** 
+    /**
      * @brief request watch the path's data change event
-     * 
+     *
      * @param   path            - the node name
      * @param   handler         - the path's data change callback fuction
      * @param   value           - return the node's name
@@ -457,7 +457,7 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc watch_data_change(const char* path, std::string& value);
 
-    /** 
+    /**
      * @brief request watch the path's child change event, child create/delete
      *
      * @param   path            - the node name
@@ -468,10 +468,10 @@ class zk_cpp : public noncopyable {
      */
     zoo_rc watch_children_event(const char* path, std::vector<std::string>& out_children);
 
-   public:
+public:
     /*  asynchronous apis */
 
-   protected:
+protected:
     void close();
 };
 

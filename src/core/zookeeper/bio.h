@@ -39,7 +39,7 @@ class Bio {
 
    protected:
     Log* m_logger = nullptr;
-    pthread_t m_thread = nullptr;
+    pthread_t m_thread;
     volatile bool m_stop_thread = false;
 
     pthread_cond_t m_cond;

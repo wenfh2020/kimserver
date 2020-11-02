@@ -42,6 +42,7 @@ void split_str(const std::string& s, std::vector<std::string>& vec,
         }
     }
 }
+
 std::string format_str(const char* const fmt, ...) {
     char s[256];
     va_list ap;
@@ -89,9 +90,9 @@ std::string md5(const std::string& input) {
     std::string hash;
     CryptoPP::Weak1::MD5 m;
     CryptoPP::HexEncoder oHexEncoder;
-    m.Update((const CryptoPP::byte*)input.c_str(), input.length());
+    m.Update((unsigned char*)input.c_str(), input.length());
     hash.resize(m.DigestSize());
-    m.Final((CryptoPP::byte*)&hash[0]);
+    m.Final((unsigned char*)&hash[0]);
     return hash;
 }
 
