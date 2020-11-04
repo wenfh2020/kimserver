@@ -17,6 +17,7 @@ typedef struct node_s {
     std::string type;             /* node type. */
     std::string ip;               /* node ip. */
     int port;                     /* node port. */
+    int worker;                   /* worker index. */
     std::vector<uint32_t> vnodes; /* virtual nodes which point to me. */
 } node_t;
 
@@ -38,9 +39,10 @@ class Nodes {
     void get_zk_diff_nodes(std::vector<std::string>& in,
                            std::vector<std::string>& adds, std::vector<std::string>& dels);
     void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
+    std::string get_my_zk_node_path() { return m_my_zk_node; }
 
     /* ketama algorithm for node's distribution. */
-    bool add_node(const std::string& path, const std::string& node_type, const std::string& ip, int port, int worker);
+    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
     bool del_node(const std::string& node_id);
     node_t* get_node(const std::string& node_id);
     node_t* get_node_in_hash(const std::string& node_type, int obj);

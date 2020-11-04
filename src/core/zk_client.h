@@ -23,6 +23,9 @@ class ZkClient : public Bio {
     bool node_register();
     void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl::zoo_log_lvl_info);
 
+    /* timer. */
+    virtual void on_repeat_timer() override;
+
     /* call by timer. */
     virtual void process_ack(zk_task_t* task) override;
     /* call by bio. */
@@ -38,6 +41,10 @@ class ZkClient : public Bio {
     void on_zk_data_change(const kim::zk_task_t* task);
     void on_zk_child_change(const kim::zk_task_t* task);
     void on_zk_node_deleted(const kim::zk_task_t* task);
+    void on_zk_node_created(const kim::zk_task_t* task);
+    void on_zk_session_connected(const kim::zk_task_t* task);
+    void on_zk_session_connecting(const kim::zk_task_t* task); /* reconnect. */
+    void on_zk_session_expired(const kim::zk_task_t* task);
 
    private:
     utility::zoo_rc bio_register_node(zk_task_t* task);
@@ -48,6 +55,9 @@ class ZkClient : public Bio {
 
     /* zk. */
     utility::zk_cpp* m_zk;
+    bool m_is_connected = false;
+    bool m_is_registered = false;
+    int m_register_index = 0; /* for reconnect. */
 };
 
 }  // namespace kim

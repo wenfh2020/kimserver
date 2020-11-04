@@ -22,6 +22,7 @@ typedef struct zk_task_s {
         REGISTER,
         GET,
         NOTIFY_SESSION_CONNECTD,
+        NOTIFY_SESSION_CONNECTING,
         NOTIFY_SESSION_EXPIRED,
         NOTIFY_NODE_CREATED,
         NOTIFY_NODE_DELETED,

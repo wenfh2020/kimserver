@@ -31,17 +31,17 @@ bool Nodes::add_zk_node(const zk_node& node) {
     if (it == m_zk_nodes.end()) {
         m_zk_nodes[node.path()] = node;
         for (size_t i = 1; i <= node.worker_cnt(); i++) {
-            add_node(node.path(), node.type(), node.ip(), node.port(), i);
+            add_node(node.type(), node.ip(), node.port(), i);
         }
     } else {
         auto old = it->second;
         if (old.SerializeAsString() != node.SerializeAsString()) {
             m_zk_nodes[node.path()] = node;
             for (size_t i = 1; i < old.worker_cnt(); i++) {
-                del_node(format_nodes_id(old.path(), old.ip(), old.port(), i));
+                del_node(format_nodes_id(old.ip(), old.port(), i));
             }
             for (size_t i = 1; i <= node.worker_cnt(); i++) {
-                add_node(node.path(), node.type(), node.ip(), node.port(), i);
+                add_node(node.type(), node.ip(), node.port(), i);
             }
             LOG_DEBUG("update zk node info done! path: %s", node.path().c_str());
         }
@@ -59,7 +59,7 @@ bool Nodes::del_zk_node(const std::string& path) {
     /* delete nodes. */
     const zk_node& znode = it->second;
     for (size_t i = 1; i <= znode.worker_cnt(); i++) {
-        del_node(format_nodes_id(znode.path(), znode.ip(), znode.port(), i));
+        del_node(format_nodes_id(znode.ip(), znode.port(), i));
     }
 
     LOG_INFO("delete zk node, path: %s, type: %s, ip: %s, port: %d, worker_cnt: %d",
@@ -82,12 +82,11 @@ void Nodes::get_zk_diff_nodes(std::vector<std::string>& in,
               vec.size(), adds.size(), dels.size());
 }
 
-bool Nodes::add_node(const std::string& path, const std::string& node_type,
-                     const std::string& ip, int port, int worker) {
+bool Nodes::add_node(const std::string& node_type, const std::string& ip, int port, int worker) {
     LOG_INFO("add node, node type: %s, ip: %s, port: %d, worker: %d",
              node_type.c_str(), ip.c_str(), port, worker);
 
-    std::string node_id = format_nodes_id(path, ip, port, worker);
+    std::string node_id = format_nodes_id(ip, port, worker);
     if (m_nodes.find(node_id) != m_nodes.end()) {
         LOG_DEBUG("node (%s) has been added!", node_id.c_str());
         return true;
@@ -99,7 +98,7 @@ bool Nodes::add_node(const std::string& path, const std::string& node_type,
     size_t old_vnode_cnt = vnode2node.size();
 
     vnodes = gen_vnodes(node_id);
-    node = new node_t{node_id, node_type, ip, port, vnodes};
+    node = new node_t{node_id, node_type, ip, port, worker, vnodes};
 
     for (auto& v : vnodes) {
         if (!vnode2node.insert({v, node}).second) {

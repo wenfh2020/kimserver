@@ -19,8 +19,7 @@ std::vector<T> diff_cmp(std::vector<T>& first, std::vector<T>& second) {
 
 void split_str(const std::string& s, std::vector<std::string>& vec, const std::string& seq = " ", bool trim_blank = true);
 std::string format_addr(const std::string& host, int port);
-std::string format_identity(const std::string& host, int port, int index);
-std::string format_nodes_id(const std::string& path, const std::string& host, int port, int index);
+std::string format_nodes_id(const std::string& host, int port, int index);
 std::string format_str(const char* const fmt, ...);
 std::string work_path();
 std::string format_redis_cmds(const std::vector<std::string>& argv);

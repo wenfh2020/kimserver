@@ -15,6 +15,7 @@ Events::Events(Log* logger) : m_logger(logger) {
 }
 
 Events::~Events() {
+    end_ev_loop();
     destory();
 }
 
@@ -31,7 +32,7 @@ bool Events::create() {
 void Events::destory() {
     if (m_ev_loop != nullptr) {
         ev_loop_destroy(m_ev_loop);
-        m_ev_loop = NULL;
+        m_ev_loop = nullptr;
     }
 }
 

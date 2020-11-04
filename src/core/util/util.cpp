@@ -58,15 +58,9 @@ std::string format_addr(const std::string& host, int port) {
     return std::string(addr);
 }
 
-std::string format_identity(const std::string& host, int port, int index) {
+std::string format_nodes_id(const std::string& host, int port, int index) {
     char identity[128];
     snprintf(identity, sizeof(identity), "%s:%d.%d", host.c_str(), port, index);
-    return std::string(identity);
-}
-
-std::string format_nodes_id(const std::string& path, const std::string& host, int port, int index) {
-    char identity[256];
-    snprintf(identity, sizeof(identity), "%s:%s:%d.%d", path.c_str(), host.c_str(), port, index);
     return std::string(identity);
 }
 

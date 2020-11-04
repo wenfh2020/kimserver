@@ -21,6 +21,8 @@ void Network::destory() {
         m_timer = nullptr;
     }
 
+    end_ev_loop();
+
     SAFE_DELETE(m_db_pool);
     SAFE_DELETE(m_redis_pool);
     SAFE_DELETE(m_session_mgr);
@@ -36,7 +38,6 @@ void Network::destory() {
     }
     m_cmds.clear();
 
-    end_ev_loop();
     SAFE_DELETE(m_events);
 }
 

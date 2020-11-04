@@ -19,9 +19,9 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
+    SAFE_DELETE(m_zk_client);
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
-    SAFE_DELETE(m_zk_client);
 }
 
 void Manager::run() {
@@ -65,15 +65,13 @@ bool Manager::init(const char* conf_path) {
 }
 
 bool Manager::load_logger() {
+    m_logger = new Log;
     if (m_logger == nullptr) {
-        m_logger = new Log;
-        if (m_logger == nullptr) {
-            LOG_ERROR("new log failed!");
-            return false;
-        }
+        LOG_ERROR("new log failed!");
+        return false;
     }
 
-    char path[MAX_PATH] = {0};
+    char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/%s",
              m_node_info.work_path().c_str(), m_conf("log_path").c_str());
 
@@ -209,13 +207,10 @@ void Manager::on_repeat_timer(void* privdata) {
     if (m_net != nullptr) {
         m_net->on_repeat_timer(privdata);
     }
-
     if (m_zk_client != nullptr) {
         m_zk_client->on_repeat_timer();
     }
-
     restart_workers();
-    // LOG_DEBUG(".......");
 }
 
 bool Manager::create_worker(int worker_index) {
