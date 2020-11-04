@@ -23,6 +23,10 @@
 #define MAX_PATH 256
 #define CONFIG_MIN_RESERVED_FDS 32
 
+int str_to_int(const std::string& d) {
+    return d.empty() ? 0 : std::stoi(d);
+}
+
 void split_str(const std::string& s, std::vector<std::string>& vec,
                const std::string& seq, bool trim_blank) {
     std::size_t pre = 0, cur = 0;

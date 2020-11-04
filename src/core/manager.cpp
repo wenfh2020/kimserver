@@ -101,12 +101,12 @@ bool Manager::load_config(const char* path) {
 
     if (m_old_conf.ToString() != m_conf.ToString()) {
         if (m_old_conf.ToString().empty()) {
-            m_node_info.set_worker_cnt(std::stoi(m_conf("worker_cnt")));
+            m_node_info.set_worker_cnt(str_to_int(m_conf("worker_cnt")));
             m_node_info.set_node_type(m_conf("node_type"));
             m_node_info.mutable_addr_info()->set_bind(m_conf("bind"));
-            m_node_info.mutable_addr_info()->set_port(std::stoi(m_conf("port")));
+            m_node_info.mutable_addr_info()->set_port(str_to_int(m_conf("port")));
             m_node_info.mutable_addr_info()->set_gate_bind(m_conf("gate_bind"));
-            m_node_info.mutable_addr_info()->set_gate_port(std::stoi(m_conf("gate_port")));
+            m_node_info.mutable_addr_info()->set_gate_port(str_to_int(m_conf("gate_port")));
         }
     }
 

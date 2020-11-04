@@ -116,8 +116,8 @@ bool ZkClient::node_register() {
     std::string node_root(m_config["zookeeper"]("root"));
     std::string server_name(m_config("server_name"));
     std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
-    int port = std::stoi(m_config("port"));
-    int worker_cnt = std::stoi(m_config("worker_cnt"));
+    int port = str_to_int(m_config("port"));
+    int worker_cnt = str_to_int(m_config("worker_cnt"));
 
     if (node_type.empty() || node_root.empty() ||
         server_name.empty() || ip.empty() || port <= 0 || worker_cnt <= 0) {
@@ -302,6 +302,11 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
         }
     }
 
+    /* if watch node failed, continue! */
+    if (ret != utility::zoo_rc::z_ok) {
+        ret = utility::zoo_rc::z_ok;
+    }
+
     /* delele old. */
     path = json_value["zookeeper"]("old_path");
     if (!path.empty()) {
@@ -310,7 +315,7 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
     }
 
     task->res.value = json_res.ToString();
-    LOG_INFO("nodes data: %s", json_res.ToFormattedString().c_str());
+    LOG_INFO("ret: %d, nodes data: %s", int(ret), json_res.ToFormattedString().c_str());
     return ret;
 }
 

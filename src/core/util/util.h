@@ -17,6 +17,7 @@ std::vector<T> diff_cmp(std::vector<T>& first, std::vector<T>& second) {
     return diff;
 }
 
+int str_to_int(const std::string& d);
 void split_str(const std::string& s, std::vector<std::string>& vec, const std::string& seq = " ", bool trim_blank = true);
 std::string format_addr(const std::string& host, int port);
 std::string format_nodes_id(const std::string& host, int port, int index);

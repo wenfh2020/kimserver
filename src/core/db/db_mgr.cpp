@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "util/util.h"
+
 #define DEF_CONN_CNT 10
 #define MAX_CONN_CNT 30
 
@@ -42,8 +44,8 @@ bool DBMgr::init(CJsonObject& config) {
         info->password = obj("password");
         info->charset = obj("charset");
         info->user = obj("user");
-        info->port = std::stoi(obj("port"));
-        info->max_conn_cnt = std::stoi(obj("max_conn_cnt"));
+        info->port = str_to_int(obj("port"));
+        info->max_conn_cnt = str_to_int(obj("max_conn_cnt"));
 
         if (info->max_conn_cnt == 0) {
             info->max_conn_cnt = DEF_CONN_CNT;

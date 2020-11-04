@@ -13,8 +13,9 @@ INC := $(INC) \
 	   -I /usr/local/include/mariadb
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
+		  -L /usr/local/lib \
+		  -L /usr/local/lib/mariadb \
           -L /usr/local/opt/openssl/lib \
-          -L /usr/local/lib/mariadb \
           -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
 		  -lmariadb -lssl -lcrypto -lzookeeper_mt -lpthread
 

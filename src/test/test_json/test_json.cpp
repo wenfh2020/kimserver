@@ -41,7 +41,7 @@ void test_children(kim::CJsonObject& config) {
         info->password = obj("password");
         info->charset = obj("charset");
         info->user = obj("user");
-        info->port = std::stoi(obj("port"));
+        info->port = str_to_int(obj("port"));
         std::cout << info->host << " "
                   << info->port << " "
                   << info->db_name << " "
