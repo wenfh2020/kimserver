@@ -1,12 +1,12 @@
 {
-    "worker_processes": 1,
+    "worker_cnt": 1,
     "node_type": "gate",
     "server_name": "kimserver",
     "bind": "127.0.0.1",
     "port": 3344,
     "gate_bind": "127.0.0.1",
     "gate_port": 3355,
-    "gate_codec": "protobuf",
+    "gate_codec": "http",
     "keep_alive": 30,
     "log_path": "kimserver.log",
     "log_level": "debug",
@@ -30,7 +30,6 @@
         }
     },
     "zookeeper": {
-        "myname": "gate1",
         "servers": "127.0.0.1:2181",
         "root": "/kimserver",
         "subscribe_node_type": [

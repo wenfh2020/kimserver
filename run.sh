@@ -11,7 +11,7 @@ so_path=$work_path/src/modules/
 core_proto_path=$core_path/protobuf
 
 kill_process() {
-    echo '\n<------------------'
+    echo '<------------------'
     name=$1
     local processes=$(ps -ef | grep $name | grep -v 'grep\|log\|vim' | awk '{if ($2 > 1) print $2;}')
     for p in $processes; do
