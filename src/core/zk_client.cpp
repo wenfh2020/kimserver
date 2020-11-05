@@ -60,6 +60,23 @@ bool ZkClient::connect(const std::string& servers) {
     return true;
 }
 
+bool ZkClient::reconnect() {
+    std::string servers(m_config["zookeeper"]("servers"));
+    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
+    if (ret != utility::z_ok) {
+        LOG_ERROR("try reconnect zk server failed, code[%d][%s]",
+                  ret, utility::zk_cpp::error_string(ret));
+        return false;
+    }
+
+    if (!node_register()) {
+        LOG_ERROR("register node to zookeeper failed!");
+        return false;
+    }
+
+    return true;
+}
+
 void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
     if (m_zk != nullptr) {
         m_zk->set_log_lvl(level);
@@ -190,7 +207,8 @@ void ZkClient::process_cmd(zk_task_t* task) {
             "type": "gate",
             "ip": "127.0.0.1",
             "port": "3344",
-            "worker_cnt": "1"
+            "worker_cnt": "1",
+            "active_time": 123.134
         },
         "zookeeper": {
             "root": "/kimserver",
@@ -321,9 +339,9 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
 }
 
 void ZkClient::on_repeat_timer() {
-    if (m_is_connected) {
-        if (!m_is_registered && ++m_register_index > 10) {
-            node_register();
+    if (m_is_connected || m_is_expired) {
+        if (!m_is_registered && ++m_register_index > 9) {
+            reconnect();
             m_register_index = 0;
         }
     }
@@ -381,7 +399,7 @@ void ZkClient::on_zk_register(const zk_task_t* task) {
     m_is_registered = true;
 
     /* delete old. */
-    m_nodes->del_zk_node(m_nodes->get_my_zk_node_path());
+    m_nodes->clear();
 
     /* set new. */
     m_nodes->set_my_zk_node_path(res("my_zk_path"));
@@ -449,6 +467,7 @@ void ZkClient::on_zk_node_created(const kim::zk_task_t* task) {
 void ZkClient::on_zk_session_connected(const kim::zk_task_t* task) {
     LOG_INFO("session conneted! path: %s", task->path.c_str());
     m_is_connected = true;
+    m_is_expired = false;
 }
 
 void ZkClient::on_zk_session_connecting(const kim::zk_task_t* task) {
@@ -458,6 +477,10 @@ void ZkClient::on_zk_session_connecting(const kim::zk_task_t* task) {
 
 void ZkClient::on_zk_session_expired(const kim::zk_task_t* task) {
     LOG_INFO("session expired! path: %s", task->path.c_str());
+    m_is_connected = false;
+    m_is_registered = false;
+    m_is_expired = true;
+    reconnect();
 }
 
 void ZkClient::on_zk_get_data(const kim::zk_task_t* task) {

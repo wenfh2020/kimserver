@@ -10,10 +10,7 @@ Nodes::Nodes(Log* logger, int vnode_cnt, HASH_ALGORITHM ha)
 }
 
 Nodes::~Nodes() {
-    for (auto& it : m_nodes) {
-        delete it.second;
-    }
-    m_nodes.clear();
+    clear();
 }
 
 bool Nodes::is_valid_zk_node(const zk_node& znode) {
@@ -278,6 +275,17 @@ void Nodes::print_debug_nodes_info() {
                   node->ip.c_str(), node->port, node->worker);
     }
     LOG_DEBUG("------------");
+}
+
+void Nodes::clear() {
+    m_my_zk_node.clear();
+    m_host_zk_paths.clear();
+    m_zk_nodes.clear();
+    for (auto& it : m_nodes) {
+        delete it.second;
+    }
+    m_nodes.clear();
+    m_vnodes.clear();
 }
 
 }  // namespace kim

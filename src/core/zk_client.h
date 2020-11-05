@@ -19,8 +19,11 @@ class ZkClient : public Bio {
    public:
     /* connect to zk servers. */
     bool connect(const std::string& servers);
-    /* my node register to zookeeper. */
+    /* when notify expired, reconnect to zookeeper. */
+    bool reconnect();
+    /* register to zookeeper. */
     bool node_register();
+
     void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl::zoo_log_lvl_info);
 
     /* timer. */
@@ -57,6 +60,7 @@ class ZkClient : public Bio {
     utility::zk_cpp* m_zk;
     bool m_is_connected = false;
     bool m_is_registered = false;
+    bool m_is_expired = false;
     int m_register_index = 0; /* for reconnect. */
 };
 

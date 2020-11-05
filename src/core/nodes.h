@@ -41,13 +41,13 @@ class Nodes {
                            std::vector<std::string>& adds, std::vector<std::string>& dels);
     void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
     std::string get_my_zk_node_path() { return m_my_zk_node; }
+    void print_debug_nodes_info();
+    void clear();
 
     /* ketama algorithm for node's distribution. */
     node_t* get_node(const std::string& node_id);
     node_t* get_node_in_hash(const std::string& node_type, int obj);
     node_t* get_node_in_hash(const std::string& node_type, const std::string& obj);
-
-    void print_debug_nodes_info();
 
    protected:
     bool check_zk_node_host(const zk_node& cur);
