@@ -34,21 +34,25 @@ class Nodes {
     virtual ~Nodes();
 
     /* nodes. */
-    bool add_zk_node(const zk_node& node);
+    bool add_zk_node(const zk_node& znode);
     bool del_zk_node(const std::string& path);
-    void get_zk_diff_nodes(std::vector<std::string>& in,
+    bool is_valid_zk_node(const zk_node& znode);
+    void get_zk_diff_nodes(const std::string& type, std::vector<std::string>& in,
                            std::vector<std::string>& adds, std::vector<std::string>& dels);
     void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
     std::string get_my_zk_node_path() { return m_my_zk_node; }
 
     /* ketama algorithm for node's distribution. */
-    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
-    bool del_node(const std::string& node_id);
     node_t* get_node(const std::string& node_id);
     node_t* get_node_in_hash(const std::string& node_type, int obj);
     node_t* get_node_in_hash(const std::string& node_type, const std::string& obj);
 
+    void print_debug_nodes_info();
+
    protected:
+    bool check_zk_node_host(const zk_node& cur);
+    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
+    bool del_node(const std::string& node_id);
     uint32_t hash(const std::string& obj);
     std::vector<uint32_t> gen_vnodes(const std::string& node_id);
 
@@ -59,9 +63,12 @@ class Nodes {
 
     std::string m_my_zk_node;
 
+    /* key: host (ip:port), value: zk path. */
+    std::unordered_map<std::string, std::string> m_host_zk_paths;
+
     /* key: zk path, value: zk node info. */
     std::unordered_map<std::string, zk_node> m_zk_nodes;
-    /* key: node_id, value: node info. */
+    /* key: node_id (ip:port.worker_index), value: node info. */
     std::unordered_map<std::string, node_t*> m_nodes;
 
     /* key: vnode(hash) -> node. */

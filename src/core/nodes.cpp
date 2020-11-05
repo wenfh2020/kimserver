@@ -16,37 +16,78 @@ Nodes::~Nodes() {
     m_nodes.clear();
 }
 
-bool Nodes::add_zk_node(const zk_node& node) {
-    if (node.path().empty() || node.ip().empty() || node.port() == 0 ||
-        node.type().empty() || node.worker_cnt() == 0) {
+bool Nodes::is_valid_zk_node(const zk_node& znode) {
+    return !(znode.path().empty() || znode.ip().empty() || znode.port() == 0 ||
+             znode.type().empty() || znode.worker_cnt() == 0 || znode.active_time() == 0);
+}
+
+bool Nodes::check_zk_node_host(const zk_node& cur) {
+    std::string host = format_str("%s:%d", cur.ip().c_str(), cur.port());
+    auto it = m_host_zk_paths.find(host);
+    if (it == m_host_zk_paths.end()) {
+        return true;
+    }
+
+    auto znode_it = m_zk_nodes.find(it->second);
+    if (znode_it == m_zk_nodes.end()) {
+        m_host_zk_paths.erase(it);
+        return true;
+    }
+
+    const zk_node& old = znode_it->second;
+    if (cur.path() == old.path()) {
+        return true;
+    }
+
+    /* the old can not replace the new. */
+    if (cur.active_time() <= old.active_time()) {
+        LOG_WARN("cur znode is old, old path: %s, cur path: %s",
+                 old.path().c_str(), cur.path().c_str());
+        return false;
+    } else {
+        /* delete old. */
+        del_zk_node(old.path());
+        LOG_INFO("del old zk node, path: %s", old.path().c_str());
+        return true;
+    }
+}
+
+bool Nodes::add_zk_node(const zk_node& znode) {
+    if (!is_valid_zk_node(znode)) {
         LOG_ERROR(
-            "add zk node failed, invalid node data! "
-            "node path: %s, ip: %s,  port: %d, type: %s, worker_cnt: %d",
-            node.path().c_str(), node.ip().c_str(), node.port(),
-            node.type().c_str(), node.worker_cnt());
+            "add zk znode failed, invalid znode data! "
+            "znode path: %s, ip: %s,  port: %d, type: %s, worker_cnt: %d",
+            znode.path().c_str(), znode.ip().c_str(), znode.port(),
+            znode.type().c_str(), znode.worker_cnt());
         return false;
     }
 
-    auto it = m_zk_nodes.find(node.path());
+    if (!check_zk_node_host(znode)) {
+        return false;
+    }
+
+    auto it = m_zk_nodes.find(znode.path());
     if (it == m_zk_nodes.end()) {
-        m_zk_nodes[node.path()] = node;
-        for (size_t i = 1; i <= node.worker_cnt(); i++) {
-            add_node(node.type(), node.ip(), node.port(), i);
+        m_zk_nodes[znode.path()] = znode;
+        for (size_t i = 1; i <= znode.worker_cnt(); i++) {
+            add_node(znode.type(), znode.ip(), znode.port(), i);
         }
     } else {
-        auto old = it->second;
-        if (old.SerializeAsString() != node.SerializeAsString()) {
-            m_zk_nodes[node.path()] = node;
+        const zk_node& old = it->second;
+        if (old.SerializeAsString() != znode.SerializeAsString()) {
+            m_zk_nodes[znode.path()] = znode;
             for (size_t i = 1; i < old.worker_cnt(); i++) {
                 del_node(format_nodes_id(old.ip(), old.port(), i));
             }
-            for (size_t i = 1; i <= node.worker_cnt(); i++) {
-                add_node(node.type(), node.ip(), node.port(), i);
+            for (size_t i = 1; i <= znode.worker_cnt(); i++) {
+                add_node(znode.type(), znode.ip(), znode.port(), i);
             }
-            LOG_DEBUG("update zk node info done! path: %s", node.path().c_str());
+            LOG_DEBUG("update zk znode info done! path: %s", znode.path().c_str());
         }
     }
 
+    std::string host = format_str("%s:%d", znode.ip().c_str(), znode.port());
+    m_host_zk_paths[host] = znode.path();
     return true;
 }
 
@@ -62,6 +103,13 @@ bool Nodes::del_zk_node(const std::string& path) {
         del_node(format_nodes_id(znode.ip(), znode.port(), i));
     }
 
+    /* delete host & path info. */
+    std::string host = format_str("%s:%d", znode.ip().c_str(), znode.port());
+    auto itr = m_host_zk_paths.find(host);
+    if (itr != m_host_zk_paths.end()) {
+        m_host_zk_paths.erase(itr);
+    }
+
     LOG_INFO("delete zk node, path: %s, type: %s, ip: %s, port: %d, worker_cnt: %d",
              znode.path().c_str(), znode.type().c_str(),
              znode.ip().c_str(), znode.port(), znode.worker_cnt());
@@ -69,11 +117,13 @@ bool Nodes::del_zk_node(const std::string& path) {
     return true;
 }
 
-void Nodes::get_zk_diff_nodes(std::vector<std::string>& in,
+void Nodes::get_zk_diff_nodes(const std::string& type, std::vector<std::string>& in,
                               std::vector<std::string>& adds, std::vector<std::string>& dels) {
     std::vector<std::string> vec;
     for (auto& v : m_zk_nodes) {
-        vec.push_back(v.first);
+        if (type == v.second.type()) {
+            vec.push_back(v.first);
+        }
     }
 
     adds = diff_cmp(in, vec);
@@ -194,6 +244,40 @@ std::vector<uint32_t> Nodes::gen_vnodes(const std::string& node_id) {
         }
     }
     return vnodes;
+}
+
+void Nodes::print_debug_nodes_info() {
+    LOG_DEBUG("------------");
+    /* host zk path */
+    LOG_DEBUG("host zk path (%lu):", m_host_zk_paths.size());
+    for (auto& v : m_host_zk_paths) {
+        LOG_DEBUG("host: %s, zk path: %s", v.first.c_str(), v.second.c_str());
+    }
+
+    /* zk nodes */
+    LOG_DEBUG("zk nodes (%lu):", m_zk_nodes.size());
+    for (auto& v : m_zk_nodes) {
+        const zk_node& znode = v.second;
+        LOG_DEBUG("zk node type: %s, path: %s, ip: %s, port: %d, wc: %d",
+                  znode.type().c_str(), znode.path().c_str(),
+                  znode.ip().c_str(), znode.port(), znode.worker_cnt());
+    }
+
+    /* vnodes */
+    LOG_DEBUG("vnodes(%lu):", m_vnodes.size());
+    for (auto& v : m_vnodes) {
+        LOG_DEBUG("type: %s, vnode size: %lu", v.first.c_str(), v.second.size());
+    }
+
+    /* nodes */
+    LOG_DEBUG("nodes (%lu):", m_nodes.size());
+    for (auto& v : m_nodes) {
+        node_t* node = v.second;
+        LOG_DEBUG("id: %s, node type: %s, ip: %s, port: %d, worker: %d",
+                  v.first.c_str(), node->type.c_str(),
+                  node->ip.c_str(), node->port, node->worker);
+    }
+    LOG_DEBUG("------------");
 }
 
 }  // namespace kim
