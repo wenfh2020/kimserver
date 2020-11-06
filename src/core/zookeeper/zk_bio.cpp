@@ -1,13 +1,13 @@
 /* refer: https://github.com/redis/redis/blob/unstable/src/bio.c */
 
-#include "bio.h"
+#include "zk_bio.h"
 
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
 
-#include "task.h"
 #include "util/util.h"
+#include "zk_task.h"
 
 namespace kim {
 
@@ -132,7 +132,7 @@ void Bio::handle_acks() {
     pthread_mutex_lock(&m_mutex);
     if (m_ack_tasks.size() > 0) {
         auto it = m_ack_tasks.begin();
-        for (; it != m_ack_tasks.end() && i++ < 100;) {
+        while (it != m_ack_tasks.end() && i++ < 100) {
             tasks.push_back(*it);
             m_ack_tasks.erase(it++);
         }

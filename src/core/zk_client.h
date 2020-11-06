@@ -1,11 +1,11 @@
-#ifndef __KIM_ZOOKEEPER_CLINET_H__
-#define __KIM_ZOOKEEPER_CLINET_H__
+#ifndef __KIM_ZOOKEEPER_CLIENT_H__
+#define __KIM_ZOOKEEPER_CLIENT_H__
 
 #include "nodes.h"
 #include "util/json/CJsonObject.hpp"
 #include "util/log.h"
-#include "zookeeper/bio.h"
 #include "zookeeper/zk.h"
+#include "zookeeper/zk_bio.h"
 
 namespace kim {
 
@@ -23,16 +23,15 @@ class ZkClient : public Bio {
     bool reconnect();
     /* register to zookeeper. */
     bool node_register();
+    /* set zk log before connect. */
+    void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl_info);
 
-    void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl::zoo_log_lvl_info);
-
-    /* timer. */
-    virtual void on_repeat_timer() override;
-
-    /* call by timer. */
-    virtual void process_ack(zk_task_t* task) override;
-    /* call by bio. */
+    /* call by bio (sync). */
     virtual void process_cmd(zk_task_t* task) override;
+    /* timer (async). */
+    virtual void on_repeat_timer() override;
+    /* call by timer (async). */
+    virtual void process_ack(zk_task_t* task) override;
 
     /* callback by zookeeper-c-client. */
     static void on_zookeeper_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata);
@@ -66,4 +65,4 @@ class ZkClient : public Bio {
 
 }  // namespace kim
 
-#endif  //__KIM_ZOOKEEPER_CLINET_H__
+#endif  //__KIM_ZOOKEEPER_CLIENT_H__

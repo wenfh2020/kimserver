@@ -2,16 +2,16 @@
  * create a new thread to handle the zk sync commands in the background, 
  * and callback for async.
  */
-#ifndef __KIM_BIO_H__
-#define __KIM_BIO_H__
+#ifndef __KIM_ZK_BIO_H__
+#define __KIM_ZK_BIO_H__
 
 #include <pthread.h>
 
 #include <list>
 
 #include "server.h"
-#include "task.h"
 #include "util/log.h"
+#include "zk_task.h"
 
 namespace kim {
 
@@ -35,6 +35,7 @@ class Bio {
 
     /* timer. */
     virtual void on_repeat_timer();
+    /* async handle task ack. */
     void handle_acks();
 
    protected:
@@ -50,4 +51,4 @@ class Bio {
 
 }  // namespace kim
 
-#endif  // __KIM_BIO_H__
+#endif  // __KIM_ZK_BIO_H__

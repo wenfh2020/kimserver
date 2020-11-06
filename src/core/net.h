@@ -8,7 +8,7 @@
 #include "connection.h"
 #include "db/mysql_async_conn.h"
 #include "util/json/CJsonObject.hpp"
-#include "zookeeper/task.h"
+#include "zookeeper/zk_task.h"
 
 namespace kim {
 

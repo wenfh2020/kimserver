@@ -1,5 +1,5 @@
-#ifndef __KIM_ZOOKEEPER_TASK_H__
-#define __KIM_ZOOKEEPER_TASK_H__
+#ifndef __KIM_Zk_TASK_H__
+#define __KIM_Zk_TASK_H__
 
 #include <iostream>
 #include <vector>
@@ -39,4 +39,4 @@ typedef struct zk_task_s {
 
 }  // namespace kim
 
-#endif  //__KIM_ZOOKEEPER_TASK_H__
+#endif  //__KIM_Zk_TASK_H__

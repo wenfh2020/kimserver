@@ -35,53 +35,9 @@ ZkClient::ZkClient(Log* logger) : Bio(logger), m_zk(nullptr) {
 }
 
 ZkClient::~ZkClient() {
+    bio_stop();
     SAFE_DELETE(m_zk);
     SAFE_DELETE(m_nodes);
-}
-
-bool ZkClient::connect(const std::string& servers) {
-    LOG_DEBUG("servers: %s", servers.c_str());
-    if (servers.empty()) {
-        return false;
-    }
-
-    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
-    if (ret != utility::z_ok) {
-        LOG_ERROR("try connect zk server failed, code[%d][%s]",
-                  ret, utility::zk_cpp::error_string(ret));
-        return false;
-    }
-
-    /* crearte bio thread. */
-    if (!bio_init()) {
-        LOG_ERROR("create thread failed!");
-        return false;
-    }
-    return true;
-}
-
-bool ZkClient::reconnect() {
-    std::string servers(m_config["zookeeper"]("servers"));
-    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
-    if (ret != utility::z_ok) {
-        LOG_ERROR("try reconnect zk server failed, code[%d][%s]",
-                  ret, utility::zk_cpp::error_string(ret));
-        return false;
-    }
-
-    if (!node_register()) {
-        LOG_ERROR("register node to zookeeper failed!");
-        return false;
-    }
-
-    return true;
-}
-
-void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
-    if (m_zk != nullptr) {
-        m_zk->set_log_lvl(level);
-        m_zk->set_log_stream(path);
-    }
 }
 
 bool ZkClient::init(const CJsonObject& config) {
@@ -115,6 +71,44 @@ bool ZkClient::init(const CJsonObject& config) {
     set_zk_log(zk_log_path, utility::zoo_log_lvl::zoo_log_lvl_debug);
     if (!connect(zk_servers)) {
         LOG_ERROR("init servers failed! servers: %s", zk_servers.c_str());
+        return false;
+    }
+
+    if (!node_register()) {
+        LOG_ERROR("register node to zookeeper failed!");
+        return false;
+    }
+
+    return true;
+}
+
+bool ZkClient::connect(const std::string& servers) {
+    LOG_DEBUG("servers: %s", servers.c_str());
+    if (servers.empty()) {
+        return false;
+    }
+
+    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
+    if (ret != utility::z_ok) {
+        LOG_ERROR("try connect zk server failed, code[%d][%s]",
+                  ret, utility::zk_cpp::error_string(ret));
+        return false;
+    }
+
+    /* crearte bio thread. */
+    if (!bio_init()) {
+        LOG_ERROR("create thread failed!");
+        return false;
+    }
+    return true;
+}
+
+bool ZkClient::reconnect() {
+    std::string servers(m_config["zookeeper"]("servers"));
+    utility::zoo_rc ret = m_zk->connect(servers, on_zookeeper_watch_events, (void*)this);
+    if (ret != utility::z_ok) {
+        LOG_ERROR("try reconnect zk server failed, code[%d][%s]",
+                  ret, utility::zk_cpp::error_string(ret));
         return false;
     }
 
@@ -161,6 +155,13 @@ bool ZkClient::node_register() {
     return add_cmd_task(node_path, zk_task_t::CMD::REGISTER, json_value.ToString());
 }
 
+void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
+    if (m_zk != nullptr) {
+        m_zk->set_log_lvl(level);
+        m_zk->set_log_stream(path);
+    }
+}
+
 /* bio thread handle. */
 void ZkClient::process_cmd(zk_task_t* task) {
     LOG_DEBUG("process task, path: %s, cmd: %d, cmd str: %s",
@@ -199,6 +200,16 @@ void ZkClient::process_cmd(zk_task_t* task) {
     }
 }
 
+void ZkClient::on_repeat_timer() {
+    if (m_is_connected || m_is_expired) {
+        if (!m_is_registered && ++m_register_index > 9) {
+            reconnect();
+            m_register_index = 0;
+        }
+    }
+    Bio::on_repeat_timer();
+}
+
 /* 
     json_value: 
     {
@@ -225,7 +236,8 @@ void ZkClient::process_cmd(zk_task_t* task) {
             "ip": "127.0.0.1",
             "port": 3344,
             "type": "gate",
-            "worker_cnt": 1
+            "worker_cnt": 1,
+            "active_time": 123.134
         }]
     }
 */
@@ -338,14 +350,35 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
     return ret;
 }
 
-void ZkClient::on_repeat_timer() {
-    if (m_is_connected || m_is_expired) {
-        if (!m_is_registered && ++m_register_index > 9) {
-            reconnect();
-            m_register_index = 0;
+void ZkClient::on_zookeeper_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata) {
+    ZkClient* mgr = (ZkClient*)privdata;
+    mgr->on_zk_watch_events(type, state, path, privdata);
+}
+
+void ZkClient::on_zk_watch_events(int type, int state, const char* path, void* privdata) {
+    std::string path_str = path ? path : "";
+
+    if (type == ZOO_SESSION_EVENT) {
+        if (state == ZOO_CONNECTING_STATE) {
+            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_CONNECTING);
+        } else if (state == ZOO_CONNECTED_STATE) {
+            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_CONNECTD);
+        } else if (state == ZOO_EXPIRED_SESSION_STATE) {
+            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_EXPIRED);
+        } else {
+            // nothing
         }
+    } else if (type == ZOO_CREATED_EVENT) {
+        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_CREATED);
+    } else if (type == ZOO_DELETED_EVENT) {
+        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_DELETED);
+    } else if (type == ZOO_CHANGED_EVENT) {
+        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED);
+    } else if (type == ZOO_CHILD_EVENT) {
+        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED);
+    } else {
+        // nothing
     }
-    Bio::on_repeat_timer();
 }
 
 void ZkClient::process_ack(zk_task_t* task) {
@@ -395,11 +428,9 @@ void ZkClient::on_zk_register(const zk_task_t* task) {
         return;
     }
 
+    m_nodes->clear();
     m_register_index = 0;
     m_is_registered = true;
-
-    /* delete old. */
-    m_nodes->clear();
 
     /* set new. */
     m_nodes->set_my_zk_node_path(res("my_zk_path"));
@@ -422,37 +453,6 @@ void ZkClient::on_zk_register(const zk_task_t* task) {
 
     LOG_INFO("on zk register done! path: %s", task->path.c_str());
     m_nodes->print_debug_nodes_info();
-}
-
-void ZkClient::on_zookeeper_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata) {
-    ZkClient* mgr = (ZkClient*)privdata;
-    mgr->on_zk_watch_events(type, state, path, privdata);
-}
-
-void ZkClient::on_zk_watch_events(int type, int state, const char* path, void* privdata) {
-    std::string path_str = path ? path : "";
-
-    if (type == ZOO_SESSION_EVENT) {
-        if (state == ZOO_CONNECTING_STATE) {
-            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_CONNECTING);
-        } else if (state == ZOO_CONNECTED_STATE) {
-            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_CONNECTD);
-        } else if (state == ZOO_EXPIRED_SESSION_STATE) {
-            add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_SESSION_EXPIRED);
-        } else {
-            // nothing
-        }
-    } else if (type == ZOO_CREATED_EVENT) {
-        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_CREATED);
-    } else if (type == ZOO_DELETED_EVENT) {
-        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_DELETED);
-    } else if (type == ZOO_CHANGED_EVENT) {
-        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED);
-    } else if (type == ZOO_CHILD_EVENT) {
-        add_cmd_task(path_str, zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED);
-    } else {
-        // nothing
-    }
 }
 
 void ZkClient::on_zk_node_deleted(const kim::zk_task_t* task) {
@@ -543,7 +543,6 @@ void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
     }
 
     type = task->path.substr(task->path.find_last_of("/") + 1);
-    // LOG_DEBUG("----------type: %s", type.c_str());
     m_nodes->get_zk_diff_nodes(type, children, new_paths, del_paths);
 
     /* add new nodes. */
