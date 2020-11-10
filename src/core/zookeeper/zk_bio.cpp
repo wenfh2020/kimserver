@@ -20,14 +20,9 @@ Bio::Bio(Log* logger) : m_logger(logger) {
 
 Bio::~Bio() {
     pthread_mutex_lock(&m_mutex);
-    for (auto& it : m_req_tasks) {
-        delete it;
-    }
+    for (auto& v : m_req_tasks) delete v;
+    for (auto& v : m_ack_tasks) delete v;
     m_req_tasks.clear();
-
-    for (auto& it : m_ack_tasks) {
-        delete it;
-    }
     m_ack_tasks.clear();
     pthread_mutex_unlock(&m_mutex);
 }
@@ -58,15 +53,11 @@ bool Bio::bio_init() {
 }
 
 bool Bio::add_cmd_task(const std::string& path, zk_task_t::CMD cmd, const std::string& value) {
-    zk_task_t* task = new zk_task_t;
+    zk_task_t* task = new zk_task_t{path, value, cmd, time_now()};
     if (task == nullptr) {
         LOG_ERROR("new task failed! path: %s", path.c_str());
         return false;
     }
-    task->path = path;
-    task->value = value;
-    task->cmd = cmd;
-    task->create_time = time_now();
 
     pthread_mutex_lock(&m_mutex);
     m_req_tasks.push_back(task);
@@ -105,7 +96,7 @@ void* Bio::bio_process_tasks(void* arg) {
         pthread_mutex_unlock(&bio->m_mutex);
 
         if (task != nullptr) {
-            bio->process_cmd(task);
+            bio->bio_process_cmd(task);
             bio->add_ack_task(task);
         }
     }
@@ -140,7 +131,7 @@ void Bio::handle_acks() {
     pthread_mutex_unlock(&m_mutex);
 
     for (auto& v : tasks) {
-        process_ack(v);
+        timer_process_ack(v);
         SAFE_DELETE(v);
     }
 }

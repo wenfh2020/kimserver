@@ -11,11 +11,11 @@ namespace kim {
 class CmdTestMysql : public Cmd {
    public:
     enum E_STEP {
-        ES_PARSE_REQUEST = 0,
-        ES_DATABASE_INSERT,
-        ES_DATABASE_INSERT_CALLBACK,
-        ES_DATABASE_QUERY,
-        ES_DATABASE_QUERY_CALLBACK,
+        STEP_PARSE_REQUEST = 0,
+        STEP_DATABASE_INSERT,
+        STEP_DATABASE_INSERT_CALLBACK,
+        STEP_DATABASE_QUERY,
+        STEP_DATABASE_QUERY_CALLBACK,
     };
 
     CmdTestMysql(Log* logger, INet* net,
@@ -26,7 +26,7 @@ class CmdTestMysql : public Cmd {
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
-            case ES_PARSE_REQUEST: {
+            case STEP_PARSE_REQUEST: {
                 const HttpMsg* msg = m_req->http_msg();
                 if (msg == nullptr) {
                     response_http(ERR_FAILED, "invalid request!");
@@ -36,47 +36,51 @@ class CmdTestMysql : public Cmd {
                 LOG_DEBUG("cmd test database, http path: %s, data: %s",
                           msg->path().c_str(), msg->body().c_str());
 
-                CJsonObject req_data(msg->body());
-                m_key = req_data("id");
-                m_value = req_data("value");
-                m_oper = req_data("oper");
-                m_is_session = (req_data("session") == "true");
+                CJsonObject req(msg->body());
+                m_key = req("id");
+                m_oper = req("oper");
+                m_value = req("value");
+                m_is_session = (req("session") == "true");
+
                 if (m_key.empty() || m_value.empty()) {
                     LOG_ERROR("invalid request data! pls check!");
                     return response_http(ERR_FAILED, "invalid request data");
                 }
 
-                if (m_oper == "read") {
-                    return execute_next_step(err, data, ES_DATABASE_QUERY);
-                }
-                return execute_next_step(err, data);
+                return (m_oper == "read")
+                           ? execute_next_step(err, data, STEP_DATABASE_QUERY)
+                           : execute_next_step(err, data);
             }
 
-            case ES_DATABASE_INSERT: {
+            case STEP_DATABASE_INSERT: {
                 LOG_DEBUG("step: database insert, value: %s", m_value.c_str());
-                snprintf(m_sql, sizeof(m_sql), "insert into mytest.test_async_mysql (value) values ('%s');", m_value.c_str());
+                snprintf(m_sql, sizeof(m_sql),
+                         "insert into mytest.test_async_mysql (value) values ('%s');",
+                         m_value.c_str());
+
                 Cmd::STATUS status = db_exec("test", m_sql);
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "insert data failed!");
                     return status;
                 }
+
                 set_next_step();
                 return status;
             }
 
-            case ES_DATABASE_INSERT_CALLBACK: {
+            case STEP_DATABASE_INSERT_CALLBACK: {
                 LOG_DEBUG("step: database insert callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database inert callback failed! eror: %d");
                     return response_http(ERR_FAILED, "database insert data failed!");
                 }
-                if (m_oper == "write") {
-                    return response_http(ERR_OK, "database write data done!");
-                }
-                return execute_next_step(err, data);
+
+                return (m_oper == "write")
+                           ? response_http(ERR_OK, "database write data done!")
+                           : execute_next_step(err, data);
             }
 
-            case ES_DATABASE_QUERY: {
+            case STEP_DATABASE_QUERY: {
                 LOG_DEBUG("step: database query, id: %s.", m_key.c_str());
                 if (m_is_session) {
                     // query from session.
@@ -89,17 +93,20 @@ class CmdTestMysql : public Cmd {
                 }
 
                 snprintf(m_sql, sizeof(m_sql),
-                         "select value from mytest.test_async_mysql where id = %s;", m_key.c_str());
+                         "select value from mytest.test_async_mysql where id = %s;",
+                         m_key.c_str());
+
                 Cmd::STATUS status = db_query("test", m_sql);
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "query data failed!");
                     return status;
                 }
+
                 set_next_step();
                 return status;
             }
 
-            case ES_DATABASE_QUERY_CALLBACK: {
+            case STEP_DATABASE_QUERY_CALLBACK: {
                 LOG_DEBUG("step: database query callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database query callback failed! error: %d");

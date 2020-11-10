@@ -32,38 +32,46 @@ class Network : public INet {
 
     Network(Log* logger, TYPE type);
     virtual ~Network();
-    bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);                  // for worker.
-    bool create(const addr_info* ainfo, INet* net, const CJsonObject& config, WorkerDataMgr* m);  // for manager.
+
+    /* for worker. */
+    bool create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd);
+    /* for manager. */
+    bool create(const addr_info* ainfo, INet* net, const CJsonObject& config, WorkerDataMgr* m);
     void destory();
 
+    /* init. */
     bool load_config(const CJsonObject& config);
     bool load_timer(INet* net);
     bool load_modules();
     bool load_db();
     bool load_redis_mgr();
 
+    /* current time. */
     virtual double now() override;
-    virtual Events* events() override;
 
-    // events.
+    /* events. */
     void run();
     void end_ev_loop();
-
+    virtual Events* events() override;
     std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
+
+    /* timer. */
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
 
-    // session
+    /* session */
     virtual bool add_session(Session* s) override;
     virtual Session* get_session(const std::string& sessid, bool re_active = false) override;
     virtual bool del_session(const std::string& sessid) override;
 
-    // socket.
+    /* manager and worker contack by socketpair. */
     void close_chanel(int* fds);
-    void close_fds();  // for child to close the parent's fds when fork.
+    /* close the parent's fds in child. */
+    void close_fds();
+    /* close socket connection. */
     bool close_conn(int fd);
 
-    // owner type
+    /* woker or manager type */
     bool is_worker() { return m_type == TYPE::WORKER; }
     bool is_manager() { return m_type == TYPE::MANAGER; }
 
@@ -88,27 +96,26 @@ class Network : public INet {
     virtual void on_session_timer(void* privdata) override;
     virtual void on_repeat_timer(void* privdata) override;
 
-    // redis callback.
-    static void on_redis_lib_callback(redisAsyncContext* c, void* reply, void* privdata);
-    virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
-
-    // database callback.
-    static void on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task);
-    static void on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res);
-
-    virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) override;
-    virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) override;
-
-    // socket.
+    /* socket. */
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
 
-    // redis.
+    /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
 
-    // database
+    /* redis callback. */
+    static void on_redis_lib_callback(redisAsyncContext* c, void* reply, void* privdata);
+    virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
+
+    /* database. */
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
     virtual bool db_query(const char* node, const char* sql, Cmd* cmd) override;
+
+    /* database callback. */
+    static void on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task);
+    static void on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res);
+    virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) override;
+    virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) override;
 
    private:
     void close_fd(int fd);

@@ -19,13 +19,10 @@ class Events;
 
 /* privdata for cmd callback. */
 typedef struct wait_cmd_info_s {
-    wait_cmd_info_s(INet* n, uint64_t mid, uint64_t cid, int step = 0)
-        : net(n), module_id(mid), cmd_id(cid), exec_step(step) {
-    }
-    INet* net = nullptr;
-    uint64_t module_id = 0;
-    uint64_t cmd_id = 0;
-    int exec_step = 0;
+    INet* net;
+    uint64_t module_id;
+    uint64_t cmd_id;
+    int exec_step;
 } wait_cmd_info_t;
 
 class INet {

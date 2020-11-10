@@ -593,10 +593,12 @@ void Network::accept_server_conn(int fd) {
     }
 }
 
-// manager accept new fd and transfer which to worker through chanel.
+/* manager accept new fd and transfer which to worker through chanel.*/
 void Network::accept_and_transfer_fd(int fd) {
-    int cport, cfd, family;
+    channel_t ch;
+    chanel_resend_data_t* ch_data;
     char cip[NET_IP_STR_LEN] = {0};
+    int cport, cfd, family, chanel_fd, err;
 
     cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
     if (cfd == ANET_ERR) {
@@ -608,27 +610,29 @@ void Network::accept_and_transfer_fd(int fd) {
 
     LOG_INFO("accepted client: %s:%d", cip, cport);
 
-    int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
-    if (chanel_fd > 0) {
-        LOG_DEBUG("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
-        channel_t ch = {cfd, family, static_cast<int>(m_gate_codec)};
-        int err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
-        if (err != 0) {
-            if (err == EAGAIN) {
-                chanel_resend_data_t* ch_data =
-                    (chanel_resend_data_t*)malloc(sizeof(chanel_resend_data_t));
-                memset(ch_data, 0, sizeof(chanel_resend_data_t));
-                ch_data->ch = ch;
-                m_wait_send_fds.push_back(ch_data);
-                LOG_DEBUG("wait to write channel, errno: %d", err);
-                return;
-            }
-            LOG_ERROR("write channel failed! errno: %d", err);
-        }
-    } else {
+    chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+    if (chanel_fd <= 0) {
         LOG_ERROR("find next worker chanel failed!");
+        goto end;
     }
 
+    LOG_DEBUG("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
+
+    ch = {cfd, family, static_cast<int>(m_gate_codec)};
+    err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
+    if (err != 0) {
+        if (err == EAGAIN) {
+            ch_data = (chanel_resend_data_t*)malloc(sizeof(chanel_resend_data_t));
+            memset(ch_data, 0, sizeof(chanel_resend_data_t));
+            ch_data->ch = ch;
+            m_wait_send_fds.push_back(ch_data);
+            LOG_DEBUG("wait to write channel, errno: %d", err);
+            return;
+        }
+        LOG_ERROR("write channel failed! errno: %d", err);
+    }
+
+end:
     close_fd(cfd);
 }
 
@@ -666,7 +670,9 @@ void Network::read_transfer_fd(int fd) {
             LOG_ERROR("alloc connection data failed! fd: %d", ch.fd);
             goto error;
         }
+
         conn_data->m_conn = c;
+
         // add timer.
         LOG_DEBUG("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
         w = m_events->add_io_timer(m_keep_alive, c->timer(), conn_data);
@@ -674,6 +680,7 @@ void Network::read_transfer_fd(int fd) {
             LOG_ERROR("add timer failed! fd: %d", ch.fd);
             goto error;
         }
+
         c->set_timer(w);
 
         LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
@@ -810,7 +817,7 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
     module_id = cmd->module_id();
 
     // delete info when callback.
-    info = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    info = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
     if (info == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
                   cmd_id, module_id);
@@ -839,7 +846,7 @@ bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
 
     cmd_id = cmd->id();
     module_id = cmd->module_id();
-    index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    index = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
                   cmd_id, module_id);
@@ -868,7 +875,7 @@ bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
 
     cmd_id = cmd->id();
     module_id = cmd->module_id();
-    index = new wait_cmd_info_t(this, module_id, cmd_id, cmd->get_exec_step());
+    index = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
         LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
                   cmd_id, module_id);

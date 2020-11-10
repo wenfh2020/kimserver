@@ -32,8 +32,8 @@ typedef struct zk_task_s {
     };
     std::string path;
     std::string value;
-    CMD cmd = CMD::UNKNOWN;
-    double create_time = 0.0;
+    CMD cmd;
+    double create_time;
     zk_result res;
 } zk_task_t;
 

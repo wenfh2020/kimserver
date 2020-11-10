@@ -140,15 +140,20 @@ bool ZkClient::node_register() {
         "%s/%s/%s", node_root.c_str(), node_type.c_str(), node_name.c_str());
 
     CJsonObject json_node, json_zk, json_value;
+
+    /* node info. */
     json_node.Add("path", node_path);
     json_node.Add("type", node_type);
     json_node.Add("ip", ip);
     json_node.Add("port", port);
     json_node.Add("worker_cnt", worker_cnt);
     json_node.Add("active_time", time_now());
+
+    /* zk info. */
     json_zk.Add("root", node_root);
     json_zk.Add("old_path", m_nodes->get_my_zk_node_path());
     json_zk.Add("subscribe_node_type", m_config["zookeeper"]["subscribe_node_type"]);
+
     json_value.Add("node", json_node);
     json_value.Add("zookeeper", json_zk);
     // LOG_DEBUG("config: %s", json_value.ToFormattedString().c_str());
@@ -163,7 +168,7 @@ void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
 }
 
 /* bio thread handle. */
-void ZkClient::process_cmd(zk_task_t* task) {
+void ZkClient::bio_process_cmd(zk_task_t* task) {
     LOG_DEBUG("process task, path: %s, cmd: %d, cmd str: %s",
               task->path.c_str(), task->cmd, cmd_to_string(task->cmd));
     utility::zoo_rc ret = utility::zoo_rc::z_system_error;
@@ -381,7 +386,7 @@ void ZkClient::on_zk_watch_events(int type, int state, const char* path, void* p
     }
 }
 
-void ZkClient::process_ack(zk_task_t* task) {
+void ZkClient::timer_process_ack(zk_task_t* task) {
     switch (task->cmd) {
         case zk_task_t::CMD::REGISTER:
             on_zk_register(task);
