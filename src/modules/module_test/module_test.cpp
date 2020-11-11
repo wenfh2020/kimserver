@@ -7,7 +7,7 @@
 
 namespace kim {
 
-Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::hello_world(std::shared_ptr<Request> req) {
     const HttpMsg* msg = req->http_msg();
     LOG_DEBUG("cmd hello, http path: %s, data: %s",
               msg->path().c_str(), msg->body().c_str());
@@ -23,7 +23,7 @@ Cmd::STATUS MoudleTest::func_hello_world(std::shared_ptr<Request> req) {
     return response_http(req->conn(), obj.ToString());
 }
 
-Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::test_proto(std::shared_ptr<Request> req) {
     MsgHead* head = req->msg_head();
     LOG_DEBUG("cmd: %d, seq: %d, len: %d",
               head->cmd(), head->seq(), head->len());
@@ -46,19 +46,19 @@ Cmd::STATUS MoudleTest::func_test_proto(std::shared_ptr<Request> req) {
                : Cmd::STATUS::ERROR;
 }
 
-Cmd::STATUS MoudleTest::func_test_cmd(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::test_cmd(std::shared_ptr<Request> req) {
     HANDLE_CMD(CmdHello);
 }
 
-Cmd::STATUS MoudleTest::func_test_redis(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::test_redis(std::shared_ptr<Request> req) {
     HANDLE_CMD(CmdTestRedis);
 }
 
-Cmd::STATUS MoudleTest::func_test_mysql(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::test_mysql(std::shared_ptr<Request> req) {
     HANDLE_CMD(CmdTestMysql);
 }
 
-Cmd::STATUS MoudleTest::func_test_timeout(std::shared_ptr<Request> req) {
+Cmd::STATUS MoudleTest::test_timeout(std::shared_ptr<Request> req) {
     HANDLE_CMD(CmdTestTimeout);
 }
 

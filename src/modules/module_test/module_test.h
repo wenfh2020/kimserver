@@ -13,26 +13,26 @@ class MoudleTest : public Module {
    public:
     void register_handle_func() {
         // http
-        HANDLE_HTTP_FUNC("/kim/test_cmd/", MoudleTest::func_test_cmd);
-        HANDLE_HTTP_FUNC("/kim/test_redis/", MoudleTest::func_test_redis);
-        HANDLE_HTTP_FUNC("/kim/test_mysql/", MoudleTest::func_test_mysql);
-        HANDLE_HTTP_FUNC("/kim/helloworld/", MoudleTest::func_hello_world);
-        HANDLE_HTTP_FUNC("/kim/test_timeout/", MoudleTest::func_test_timeout);
+        HANDLE_HTTP_FUNC("/kim/test_cmd/", MoudleTest::test_cmd);
+        HANDLE_HTTP_FUNC("/kim/test_redis/", MoudleTest::test_redis);
+        HANDLE_HTTP_FUNC("/kim/test_mysql/", MoudleTest::test_mysql);
+        HANDLE_HTTP_FUNC("/kim/helloworld/", MoudleTest::hello_world);
+        HANDLE_HTTP_FUNC("/kim/test_timeout/", MoudleTest::test_timeout);
 
         // protobuf
-        HANDLE_PROTO_FUNC(KP_TEST_PROTO, MoudleTest::func_test_proto);
+        HANDLE_PROTO_FUNC(KP_TEST_PROTO, MoudleTest::test_proto);
     }
 
    private:
     // protobuf.
-    Cmd::STATUS func_test_proto(std::shared_ptr<Request> req);
+    Cmd::STATUS test_proto(std::shared_ptr<Request> req);
 
     // http.
-    Cmd::STATUS func_test_cmd(std::shared_ptr<Request> req);
-    Cmd::STATUS func_test_redis(std::shared_ptr<Request> req);
-    Cmd::STATUS func_test_mysql(std::shared_ptr<Request> req);
-    Cmd::STATUS func_hello_world(std::shared_ptr<Request> req);
-    Cmd::STATUS func_test_timeout(std::shared_ptr<Request> req);
+    Cmd::STATUS test_cmd(std::shared_ptr<Request> req);
+    Cmd::STATUS test_redis(std::shared_ptr<Request> req);
+    Cmd::STATUS test_mysql(std::shared_ptr<Request> req);
+    Cmd::STATUS hello_world(std::shared_ptr<Request> req);
+    Cmd::STATUS test_timeout(std::shared_ptr<Request> req);
 };
 
 }  // namespace kim

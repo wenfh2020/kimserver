@@ -50,7 +50,7 @@ Run on Linux / MacOS
 
 ```json
 {
-    "worker_processes": 4,
+    "worker_cnt": 4,
     "node_type": "gate",
     "server_name": "kimserver",
     "bind": "127.0.0.1",
@@ -83,22 +83,22 @@ Run on Linux / MacOS
 }
 ```
 
-| name             | desc                                                                                              |
-| :--------------- | :------------------------------------------------------------------------------------------------ |
-| worker_processes | child process's number.                                                                           |
-| node_type        | cluster node type.                                                                                |
-| server_name      | server manager process's name, and child process name format: name_w_number, like: kimserver_w_1. |
-| bind             | host for cluster inner contact.                                                                   |
-| port             | bind port.                                                                                        |
-| gate_bind        | host for user's client contact.                                                                   |
-| gate_port        | gate_bind's port.                                                                                 |
-| gate_codec       | "protobuf", "http".                                                                               |
-| keep_alive       | connection keep alive time (seconds).                                                             |
-| log_path         | log file. path.                                                                                   |
-| log_level        | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |
-| modules          | protocol route container, work as so.                                                             |
-| redis            | redis addr config.                                                                                |
-| database         | database (mysql) info.                                                                            |
+| name        | desc                                                                                              |
+| :---------- | :------------------------------------------------------------------------------------------------ |
+| worker_cnt  | child process's number.                                                                           |
+| node_type   | cluster node type.                                                                                |
+| server_name | server manager process's name, and child process name format: name_w_number, like: kimserver_w_1. |
+| bind        | host for cluster inner contact.                                                                   |
+| port        | bind port.                                                                                        |
+| gate_bind   | host for user's client contact.                                                                   |
+| gate_port   | gate_bind's port.                                                                                 |
+| gate_codec  | "protobuf", "http".                                                                               |
+| keep_alive  | connection keep alive time (seconds).                                                             |
+| log_path    | log file. path.                                                                                   |
+| log_level   | log level: debug, info, notice, warning, err, crit, alert, emerg.                                 |
+| modules     | protocol route container, work as so.                                                             |
+| redis       | redis addr config.                                                                                |
+| database    | database (mysql) info.                                                                            |
 
 ---
 
