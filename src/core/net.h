@@ -75,6 +75,7 @@ class INet {
     /* socket. */
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
+    virtual bool send_to(const std::string& node_id, const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
     virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) { return false; }

@@ -68,7 +68,7 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
 }
 
 Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
-    LOG_DEBUG("callback, module id: %llu, cmd id: %llu, err: %d",
+    LOG_TRACE("callback, module id: %llu, cmd id: %llu, err: %d",
               index->module_id, index->cmd_id, err);
     if (index == nullptr) {
         LOG_WARN("invalid timer for cmd!");

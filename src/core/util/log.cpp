@@ -9,7 +9,7 @@ namespace kim {
 
 #define LOG_MAX_LEN 1024
 
-Log::Log() : m_cur_level(LL_DEBUG) {
+Log::Log() : m_cur_level(LL_TRACE) {
 }
 
 bool Log::set_log_path(const char* path) {
@@ -29,7 +29,7 @@ bool Log::set_log_path(const char* path) {
 }
 
 bool Log::set_level(int level) {
-    if (level >= LL_EMERG || level <= LL_DEBUG) {
+    if (level >= LL_EMERG || level < LL_COUNT) {
         m_cur_level = level;
         return true;
     }
@@ -40,7 +40,9 @@ bool Log::set_level(const char* level) {
     if (NULL == level) return false;
 
     int ll = -1;
-    if (strcasecmp(level, "DEBUG") == 0) {
+    if (strcasecmp(level, "TRACE") == 0) {
+        ll = LL_TRACE;
+    } else if (strcasecmp(level, "DEBUG") == 0) {
         ll = LL_DEBUG;
     } else if (strcasecmp(level, "INFO") == 0) {
         ll = LL_INFO;
@@ -65,7 +67,7 @@ bool Log::set_level(const char* level) {
 }
 
 bool Log::log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...) {
-    if (level < LL_EMERG || level > LL_DEBUG || level > m_cur_level) {
+    if (level < LL_EMERG || level >= LL_COUNT || level > m_cur_level) {
         return false;
     }
     va_list ap;

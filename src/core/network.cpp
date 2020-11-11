@@ -175,8 +175,7 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
     return true;
 }
 
-bool Network::create_events(INet* s, int fd1, int fd2,
-                            Codec::TYPE codec, bool is_worker) {
+bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -187,6 +186,13 @@ bool Network::create_events(INet* s, int fd1, int fd2,
         LOG_ERROR("create events failed!");
         goto error;
     }
+
+    m_events->set_io_callback_fn(&on_io_callback);
+    m_events->set_sig_callback_fn(&on_signal_callback);
+    m_events->set_io_timer_callback_fn(&on_io_timer_callback);
+    m_events->set_cmd_timer_callback_fn(&on_cmd_timer_callback);
+    m_events->set_session_timer_callback_fn(&on_session_timer_callback);
+    m_events->set_repeat_timer_callback_fn(&on_repeat_timer_callback);
 
     if (!add_read_event(fd1, codec, is_worker) ||
         !add_read_event(fd2, codec, is_worker)) {
@@ -247,7 +253,7 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     }
     c->set_ev_io(w);
 
-    LOG_DEBUG("add read event done! fd: %d", fd);
+    LOG_TRACE("add read event done! fd: %d", fd);
     return c;
 }
 
@@ -345,7 +351,7 @@ void Network::close_chanel(int* fds) {
 }
 
 void Network::close_conns() {
-    LOG_DEBUG("close_conns(), cnt: %d", m_conns.size());
+    LOG_TRACE("close_conns(), cnt: %d", m_conns.size());
     for (const auto& it : m_conns) {
         close_conn(it.second);
     }
@@ -359,6 +365,58 @@ void Network::close_fds() {
             it.second->set_fd(-1);
         }
     }
+}
+
+void Network::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
+    if (w->data == nullptr) {
+        return;
+    }
+
+    int fd = w->fd;
+    INet* net = static_cast<INet*>(w->data);
+
+    if (events & EV_READ) {
+        net->on_io_read(fd);
+    }
+
+    if (events & EV_WRITE) {
+        net->on_io_write(fd);
+    }
+
+    /* when error happen (read / write),
+     * handle EV_READ / EV_WRITE events will be ok. */
+    if (events & EV_ERROR) {
+        net->on_io_error(fd);
+    }
+}
+
+void Network::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
+    if (s == nullptr || s->data == nullptr) {
+        return;
+    }
+    INet* net = static_cast<INet*>(s->data);
+    (s->signum == SIGCHLD) ? net->on_child_terminated(s) : net->on_terminated(s);
+}
+
+void Network::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
+    INet* net = static_cast<INet*>(c->privdata());
+    net->on_io_timer(w->data);
+}
+
+void Network::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    INet* net = static_cast<INet*>(w->data);
+    net->on_repeat_timer(w->data);
+}
+
+void Network::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    Cmd* cmd = static_cast<Cmd*>(w->data);
+    cmd->net()->on_cmd_timer(cmd);
+}
+
+void Network::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    Session* s = static_cast<Session*>(w->data);
+    s->net()->on_session_timer(s);
 }
 
 void Network::on_io_write(int fd) {
@@ -467,7 +525,7 @@ void Network::on_cmd_timer(void* privdata) {
     cmd = static_cast<Cmd*>(privdata);
     secs = cmd->keep_alive() - (now() - cmd->active_time());
     if (secs > 0) {
-        LOG_DEBUG("cmd timer restart, cmd id: %llu, restart timer secs: %f",
+        LOG_TRACE("cmd timer restart, cmd id: %llu, restart timer secs: %f",
                   cmd->id(), secs);
         m_events->restart_timer(secs, cmd->timer(), privdata);
         return;
@@ -480,7 +538,7 @@ void Network::on_cmd_timer(void* privdata) {
         /* note: cmd will be deleted, when status != Cmd::STATUS::RUNNING.
          * and the same to cmd's timer.*/
         if (module->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
-            LOG_DEBUG("cmd timer reset, cmd id: %llu, restart timer secs: %f",
+            LOG_TRACE("cmd timer reset, cmd id: %llu, restart timer secs: %f",
                       cmd->id(), secs);
             m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->timer(), privdata);
         }
@@ -497,7 +555,7 @@ void Network::on_io_timer(void* privdata) {
         c = conn_data->m_conn;
         secs = c->keep_alive() - (now() - c->active_time());
         if (secs > 0) {
-            LOG_DEBUG("io timer restart, fd: %d, restart timer secs: %f",
+            LOG_TRACE("io timer restart, fd: %d, restart timer secs: %f",
                       c->fd(), secs);
             m_events->restart_timer(secs, c->timer(), privdata);
             return;
@@ -533,10 +591,10 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
     if (c->is_http_codec()) {
         HttpMsg msg;
         status = c->conn_read(msg);
-        LOG_DEBUG("connection is http codec type, status: %d", (int)status);
+        LOG_TRACE("connection is http codec type, status: %d", (int)status);
         while (status == Codec::STATUS::OK) {
             cmd_ret = m_module_mgr->process_msg(c, msg);
-            LOG_DEBUG("cmd status: %d", cmd_ret);
+            LOG_TRACE("cmd status: %d", cmd_ret);
             msg.Clear();
             status = c->fetch_data(msg);
         }
@@ -544,10 +602,10 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
         MsgHead head;
         MsgBody body;
         status = c->conn_read(head, body);
-        LOG_DEBUG("connection is protobuf codec type, status: %d", (int)status);
+        LOG_TRACE("connection is protobuf codec type, status: %d", (int)status);
         while (status == Codec::STATUS::OK) {
             cmd_ret = m_module_mgr->process_msg(c, head, body);
-            LOG_DEBUG("cmd status: %d", cmd_ret);
+            LOG_TRACE("cmd status: %d", cmd_ret);
             head.Clear();
             body.Clear();
             status = c->fetch_data(head, body);
@@ -555,7 +613,7 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
     }
 
     if (status == Codec::STATUS::ERR) {
-        LOG_DEBUG("read failed. fd: %d", c->fd());
+        LOG_TRACE("read failed. fd: %d", c->fd());
         close_conn(c);
         return false;
     }
@@ -616,7 +674,7 @@ void Network::accept_and_transfer_fd(int fd) {
         goto end;
     }
 
-    LOG_DEBUG("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
+    LOG_TRACE("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
 
     ch = {cfd, family, static_cast<int>(m_gate_codec)};
     err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
@@ -626,7 +684,7 @@ void Network::accept_and_transfer_fd(int fd) {
             memset(ch_data, 0, sizeof(chanel_resend_data_t));
             ch_data->ch = ch;
             m_wait_send_fds.push_back(ch_data);
-            LOG_DEBUG("wait to write channel, errno: %d", err);
+            LOG_TRACE("wait to write channel, errno: %d", err);
             return;
         }
         LOG_ERROR("write channel failed! errno: %d", err);
@@ -674,7 +732,7 @@ void Network::read_transfer_fd(int fd) {
         conn_data->m_conn = c;
 
         // add timer.
-        LOG_DEBUG("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
+        LOG_TRACE("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
         w = m_events->add_io_timer(m_keep_alive, c->timer(), conn_data);
         if (w == nullptr) {
             LOG_ERROR("add timer failed! fd: %d", ch.fd);
@@ -683,7 +741,7 @@ void Network::read_transfer_fd(int fd) {
 
         c->set_timer(w);
 
-        LOG_DEBUG("read channel, channel data: fd: %d, family: %d, codec: %d",
+        LOG_TRACE("read channel, channel data: fd: %d, family: %d, codec: %d",
                   ch.fd, ch.family, ch.codec);
     }
 
@@ -724,6 +782,10 @@ bool Network::load_timer(INet* net) {
     }
     m_timer = m_events->add_repeat_timer(REPEAT_TIMEOUT_VAL, m_timer, net);
     return (m_timer != nullptr);
+}
+
+bool Network::send_to(const std::string& node_id, const MsgHead& head, const MsgBody& body) {
+    return true;
 }
 
 bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
@@ -808,7 +870,7 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
         return false;
     }
 
-    LOG_DEBUG("redis send to node: %s", node);
+    LOG_TRACE("redis send to node: %s", node);
 
     wait_cmd_info_t* info;
     uint64_t module_id, cmd_id;
@@ -945,7 +1007,7 @@ void Network::on_redis_lib_callback(redisAsyncContext* ac, void* reply, void* pr
 }
 
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
-    LOG_DEBUG("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
+    LOG_TRACE("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
 
     Module* module;
     wait_cmd_info_t* info;
@@ -964,7 +1026,7 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
             LOG_ERROR("redis callback data: %s, err: %d, errstr: %s",
                       r->str, c->err, c->errstr);
         } else {
-            LOG_DEBUG("redis callback data: %s, err: %d", r->str, c->err);
+            LOG_TRACE("redis callback data: %s, err: %d", r->str, c->err);
         }
     }
 
@@ -1005,12 +1067,12 @@ bool Network::del_cmd(Cmd* cmd) {
 
     m_cmds.erase(it);
     if (cmd->timer() != nullptr) {
-        LOG_DEBUG("del timer: %p!", cmd->timer());
+        LOG_TRACE("del timer: %p!", cmd->timer());
         del_cmd_timer(cmd->timer());
         cmd->set_timer(nullptr);
     }
 
-    LOG_DEBUG("delete cmd: %p!", cmd);
+    LOG_TRACE("delete cmd: %p!", cmd);
     SAFE_DELETE(cmd);
     return true;
 }

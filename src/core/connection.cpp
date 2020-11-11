@@ -20,7 +20,7 @@ Connection::~Connection() {
 }
 
 bool Connection::init(Codec::TYPE codec) {
-    LOG_DEBUG("connection init fd: %d, codec type: %d", m_fd, (int)codec);
+    LOG_TRACE("connection init fd: %d, codec type: %d", m_fd, (int)codec);
 
     try {
         // m_wait_send_buf = new SocketBuffer;
@@ -70,10 +70,10 @@ bool Connection::conn_read() {
     }
 
     int read_len = m_recv_buf->read_fd(m_fd, m_errno);
-    LOG_DEBUG("read from fd: %d, data len: %d, readed data len: %d",
+    LOG_TRACE("read from fd: %d, data len: %d, readed data len: %d",
               m_fd, read_len, m_recv_buf->readable_len());
     if (read_len == 0) {
-        LOG_DEBUG("connection closed! fd: %d!", m_fd);
+        LOG_TRACE("connection closed! fd: %d!", m_fd);
         return false;
     }
 
@@ -123,7 +123,7 @@ Codec::STATUS Connection::conn_write() {
     }
 
     int write_len = m_send_buf->write_fd(m_fd, m_errno);
-    LOG_DEBUG("write to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
+    LOG_TRACE("write to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
               m_fd, m_id, write_len, m_send_buf->readable_len());
     if (write_len >= 0) {
         // recovery socket buffer.

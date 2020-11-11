@@ -19,6 +19,7 @@ class Log {
         LL_NOTICE,    /* normal but significant condition */
         LL_INFO,      /* informational */
         LL_DEBUG,     /* debug-level messages */
+        LL_TRACE,     /* trace-level messages */
         LL_COUNT
     };
 

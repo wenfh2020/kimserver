@@ -29,12 +29,12 @@ Codec::TYPE Codec::get_codec_type(const std::string& codec_type) {
 }
 
 Codec::STATUS Codec::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf) {
-    LOG_DEBUG("encode");
+    LOG_TRACE("encode");
     return Codec::STATUS::ERR;
 }
 
 Codec::STATUS Codec::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
-    LOG_DEBUG("decode");
+    LOG_TRACE("decode");
     return Codec::STATUS::ERR;
 }
 

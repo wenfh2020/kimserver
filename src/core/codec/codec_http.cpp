@@ -87,7 +87,7 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body
 }
 
 Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
-    LOG_DEBUG("readable len: %d, read index: %d, write index: %d",
+    LOG_TRACE("readable len: %d, read index: %d, write index: %d",
               sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 
     if (++m_encode_cnt > m_decode_cnt) {
@@ -253,10 +253,10 @@ Codec::STATUS CodecHttp::encode(const HttpMsg& msg, SocketBuffer* sbuf) {
     sbuf->set_write_index(write_index - size);
 
     // LOG_DEBUG("%s", sbuf->raw_write_buffer());
-    LOG_DEBUG("readable len: %d, read index: %d, write index: %d, writed len: %d",
+    LOG_TRACE("readable len: %d, read index: %d, write index: %d, writed len: %d",
               sbuf->readable_len(), sbuf->read_index(),
               sbuf->write_index(), writed_len);
-    LOG_DEBUG("\n%s", to_string(msg).c_str());
+    LOG_TRACE("\n%s", to_string(msg).c_str());
     return Codec::STATUS::OK;
 
 error:
@@ -319,7 +319,7 @@ Codec::STATUS CodecHttp::decode(SocketBuffer* sbuf, HttpMsg& msg) {
         }
     }
 
-    LOG_DEBUG("\n%s", to_string(msg).c_str());
+    LOG_TRACE("\n%s", to_string(msg).c_str());
     return Codec::STATUS::OK;
 }
 

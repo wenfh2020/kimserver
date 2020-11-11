@@ -13,7 +13,7 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
     size_t len = 0;
     size_t write_len = 0;
 
-    LOG_DEBUG("head len: %d, body len: %d", head.ByteSizeLong(), body.ByteSizeLong());
+    LOG_TRACE("head len: %d, body len: %d", head.ByteSizeLong(), body.ByteSizeLong());
 
     write_len = sbuf->_write(head.SerializeAsString().c_str(), PROTO_MSG_HEAD_LEN);
     if (write_len != PROTO_MSG_HEAD_LEN) {
@@ -40,7 +40,7 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
 }
 
 Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
-    LOG_DEBUG("decode data len: %d, cur read index: %d, write index: %d",
+    LOG_TRACE("decode data len: %d, cur read index: %d, write index: %d",
               sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 
     if (sbuf->readable_len() < PROTO_MSG_HEAD_LEN) {
@@ -63,7 +63,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
 
     // parse msg body.
     if ((int)sbuf->readable_len() < PROTO_MSG_HEAD_LEN + head.len()) {
-        LOG_DEBUG("wait for enough data to decode msg body.");
+        LOG_TRACE("wait for enough data to decode msg body.");
         return CodecProto::STATUS::PAUSE;  // wait for more data to decode.
     }
 

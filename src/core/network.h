@@ -85,6 +85,14 @@ class Network : public INet {
     virtual Cmd* get_cmd(uint64_t id) override;
     virtual bool del_cmd(Cmd* cmd) override;
 
+    /* libev callback. */
+    static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
+    static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
+    static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+    static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+
     // io callback.
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
@@ -99,6 +107,7 @@ class Network : public INet {
     /* socket. */
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to(const std::string& node_id, const MsgHead& head, const MsgBody& body) override;
 
     /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;

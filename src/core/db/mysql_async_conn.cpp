@@ -266,7 +266,7 @@ void MysqlAsyncConn::store_result_wait(struct ev_loop* loop, ev_io* watcher, int
 }
 
 void MysqlAsyncConn::operate_wait() {
-    LOG_DEBUG("wait_for_mysql state: WAIT_OPERATE");
+    LOG_TRACE("wait_for_mysql state: WAIT_OPERATE");
     SAFE_DELETE(m_cur_task);
     m_cur_task = fetch_next_task();
     if (m_cur_task != nullptr) {
@@ -330,7 +330,7 @@ void MysqlAsyncConn::ping_start() {
         return;
     }
 
-    LOG_DEBUG("ping start: %d, %d...", m_is_connected, m_tasks.size());
+    LOG_TRACE("ping start: %d, %d...", m_is_connected, m_tasks.size());
 
     int ret, status;
     status = mysql_ping_start(&ret, &m_mysql);

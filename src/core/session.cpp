@@ -83,7 +83,7 @@ void SessionMgr::on_session_timer(void* privdata) {
     Session* s = static_cast<Session*>(privdata);
     double secs = s->keep_alive() - (net()->now() - s->active_time());
     if (secs > 0) {
-        LOG_DEBUG("session timer restart, sessid: %llu, restart timer secs: %f",
+        LOG_TRACE("session timer restart, sessid: %llu, restart timer secs: %f",
                   s->sessid(), secs);
         events()->restart_timer(secs, s->timer(), privdata);
         return;
@@ -92,7 +92,7 @@ void SessionMgr::on_session_timer(void* privdata) {
     int old = s->cur_timeout_cnt();
     Session::STATUS status = s->on_timeout();
     if (status != Session::STATUS::RUNNING) {
-        LOG_DEBUG("timeout del session, sessid: %s", s->sessid());
+        LOG_TRACE("timeout del session, sessid: %s", s->sessid());
         del_session(s->sessid());
         return;
     }
@@ -107,7 +107,7 @@ void SessionMgr::on_session_timer(void* privdata) {
         return;
     }
 
-    LOG_DEBUG("session timer reset, session id: %llu, restart timer secs: %f",
+    LOG_TRACE("session timer reset, session id: %llu, restart timer secs: %f",
               s->id(), secs);
     events()->restart_timer(s->keep_alive(), s->timer(), privdata);
 }

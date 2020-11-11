@@ -72,6 +72,7 @@ enum class E_RDS_STATUS {
 #define LOG_NOTICE(args...) LOG_FORMAT((kim::Log::LL_NOTICE), ##args)
 #define LOG_INFO(args...) LOG_FORMAT((kim::Log::LL_INFO), ##args)
 #define LOG_DEBUG(args...) LOG_FORMAT((kim::Log::LL_DEBUG), ##args)
+#define LOG_TRACE(args...) LOG_FORMAT((kim::Log::LL_TRACE), ##args)
 
 }  // namespace kim
 

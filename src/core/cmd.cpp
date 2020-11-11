@@ -104,7 +104,7 @@ Cmd::STATUS Cmd::on_callback(int err, void* data) {
 }
 
 Cmd::STATUS Cmd::on_timeout() {
-    LOG_DEBUG("time out!");
+    LOG_TRACE("time out!");
     if (++m_cur_timeout_cnt < max_timeout_cnt()) {
         return Cmd::STATUS::RUNNING;
     }

@@ -168,7 +168,7 @@ void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
 
 /* bio thread handle. */
 void ZkClient::bio_process_cmd(zk_task_t* task) {
-    LOG_DEBUG("process task, path: %s, cmd: %d, cmd str: %s",
+    LOG_TRACE("process task, path: %s, cmd: %d, cmd str: %s",
               task->path.c_str(), task->cmd, cmd_to_string(task->cmd));
     utility::zoo_rc ret = utility::zoo_rc::z_system_error;
 
@@ -260,7 +260,7 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
 
     root = json_value["zookeeper"]("root");
     CJsonObject& node_types = json_value["zookeeper"]["subscribe_node_type"];
-    LOG_DEBUG("node info: %s", json_value.ToFormattedString().c_str());
+    LOG_TRACE("node info: %s", json_value.ToFormattedString().c_str());
     if (!node_types.IsArray()) {
         LOG_ERROR("node types is not array!");
         return ret;
@@ -294,7 +294,7 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
 
     /* set node data. */
     json_value["node"].Replace("path", path);
-    LOG_DEBUG("node info: %s", json_value["node"].ToString().c_str());
+    LOG_TRACE("node info: %s", json_value["node"].ToString().c_str());
     ret = m_zk->set_node(path.c_str(), json_value["node"].ToString(), -1);
     if (ret != utility::zoo_rc::z_ok) {
         LOG_ERROR("set zk node data failed! path, error: %d, errstr: %s",
@@ -438,7 +438,7 @@ void ZkClient::on_zk_register(const zk_task_t* task) {
 
     /* set new. */
     m_nodes->set_my_zk_node_path(res("my_zk_path"));
-    LOG_DEBUG("ack data: %s", res.ToFormattedString().c_str());
+    LOG_TRACE("ack data: %s", res.ToFormattedString().c_str());
 
     zk_node znode;
     CJsonObject& json_nodes = res["nodes"];
