@@ -129,6 +129,7 @@ bool ZkClient::node_register() {
     std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
     int port = str_to_int(m_config("port"));
     int worker_cnt = str_to_int(m_config("worker_cnt"));
+    CJsonObject json_node, json_zk, json_value;
 
     if (node_type.empty() || node_root.empty() ||
         server_name.empty() || ip.empty() || port <= 0 || worker_cnt <= 0) {
@@ -138,8 +139,6 @@ bool ZkClient::node_register() {
 
     node_path = format_str(
         "%s/%s/%s", node_root.c_str(), node_type.c_str(), node_name.c_str());
-
-    CJsonObject json_node, json_zk, json_value;
 
     /* node info. */
     json_node.Add("path", node_path);

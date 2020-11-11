@@ -91,8 +91,8 @@ void* Bio::bio_process_tasks(void* arg) {
             /* wait for pthread_cond_signal. */
             pthread_cond_wait(&bio->m_cond, &bio->m_mutex);
         }
-        task = *bio->m_req_tasks.begin();
-        bio->m_req_tasks.erase(bio->m_req_tasks.begin());
+        task = bio->m_req_tasks.front();
+        bio->m_req_tasks.pop_front();
         pthread_mutex_unlock(&bio->m_mutex);
 
         if (task != nullptr) {
@@ -121,12 +121,9 @@ void Bio::handle_acks() {
 
     /* fetch 100 acks to handle. */
     pthread_mutex_lock(&m_mutex);
-    if (m_ack_tasks.size() > 0) {
-        auto it = m_ack_tasks.begin();
-        while (it != m_ack_tasks.end() && i++ < 100) {
-            tasks.push_back(*it);
-            m_ack_tasks.erase(it++);
-        }
+    while (m_ack_tasks.size() > 0 && i++ < 100) {
+        tasks.push_back(m_ack_tasks.front());
+        m_ack_tasks.pop_front();
     }
     pthread_mutex_unlock(&m_mutex);
 
