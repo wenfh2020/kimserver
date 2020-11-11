@@ -91,7 +91,7 @@ bool Log::log_raw(const char* file_name, int file_line, const char* func_name, i
     int off;
     char buf[64] = {0};
     struct timeval tv;
-    char levels[][10] = {"EMRG", "ALRT", "CRIT", "ERRO", "WARN", "NOTI", "INFO", "DBUG"};
+    char levels[][10] = {"EMRG", "ALRT", "CRIT", "ERRO", "WARN", "NOTI", "INFO", "DBUG", "TRAC"};
 
     time_t t = time(NULL);
     struct tm* tm = localtime(&t);
