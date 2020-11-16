@@ -1,5 +1,5 @@
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __KIM_LOG_H__
+#define __KIM_LOG_H__
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -30,7 +30,11 @@ class Log {
     bool set_level(int level);
     bool set_level(const char* level);
     bool set_log_path(const char* path);
-    bool log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...);
+    bool log_data(const char* file_name,
+                  int file_line, const char* func_name, int level, const char* fmt, ...);
+
+    void set_worker_index(int index) { m_worker_index = index; }
+    void set_process_type(bool is_manager) { m_is_manager = is_manager; }
 
    private:
     bool log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg);
@@ -38,8 +42,12 @@ class Log {
    private:
     int m_cur_level;
     std::string m_path;
+
+    /* process info. */
+    int m_worker_index = -1;
+    bool m_is_manager = false;
 };
 
 }  // namespace kim
 
-#endif  //__LOG_H__
+#endif  //__KIM_LOG_H__

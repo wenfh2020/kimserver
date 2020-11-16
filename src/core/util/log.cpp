@@ -66,7 +66,8 @@ bool Log::set_level(const char* level) {
     return true;
 }
 
-bool Log::log_data(const char* file_name, int file_line, const char* func_name, int level, const char* fmt, ...) {
+bool Log::log_data(const char* file_name, int file_line,
+                   const char* func_name, int level, const char* fmt, ...) {
     if (level < LL_EMERG || level >= LL_COUNT || level > m_cur_level) {
         return false;
     }
@@ -78,7 +79,8 @@ bool Log::log_data(const char* file_name, int file_line, const char* func_name, 
     return log_raw(file_name, file_line, func_name, level, msg);
 }
 
-bool Log::log_raw(const char* file_name, int file_line, const char* func_name, int level, const char* msg) {
+bool Log::log_raw(const char* file_name, int file_line,
+                  const char* func_name, int level, const char* msg) {
     FILE* fp;
     bool is_log_file;
 
@@ -86,7 +88,7 @@ bool Log::log_raw(const char* file_name, int file_line, const char* func_name, i
     if (fp == nullptr) {
         return false;
     }
-    is_log_file = m_path.empty();
+    is_log_file = !m_path.empty();
 
     int off;
     char buf[64] = {0};
@@ -98,8 +100,9 @@ bool Log::log_raw(const char* file_name, int file_line, const char* func_name, i
     gettimeofday(&tv, NULL);
     off = strftime(buf, sizeof(buf), "[%Y-%m-%d %H:%M:%S.", tm);
     snprintf(buf + off, sizeof(buf) - off, "%03d]", (int)tv.tv_usec / 1000);
-    fprintf(fp, "[%s][%d]%s[%s:%s:%d] %s\n",
-            levels[level], (int)getpid(), buf, file_name, func_name, file_line, msg);
+    fprintf(fp, "[%s][%s%d][%d]%s[%s:%s:%d] %s\n",
+            levels[level], m_is_manager ? "M" : "W", m_worker_index, (int)getpid(),
+            buf, file_name, func_name, file_line, msg);
 
     fflush(fp);
     if (is_log_file) {
