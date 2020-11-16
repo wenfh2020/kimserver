@@ -5,6 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "log.h"
+
 namespace kim {
 
 #define LOG_MAX_LEN 1024
