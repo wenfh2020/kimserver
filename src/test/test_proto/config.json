@@ -4,7 +4,7 @@
     "server_name": "kimserver",
     "bind": "127.0.0.1",
     "port": 3344,
-    "gate_bind": "127.0.0.1",
+    "gate_host": "127.0.0.1",
     "gate_port": 3355,
     "gate_codec": "protobuf",
     "keep_alive": 30,

@@ -56,7 +56,7 @@ Run on Linux / MacOS
     "server_name": "kimserver",
     "node_host": "127.0.0.1",
     "node_port": 3344,
-    "gate_bind": "127.0.0.1",
+    "gate_host": "127.0.0.1",
     "gate_port": 3355,
     "gate_codec": "http",
     "keep_alive": 30,
@@ -91,8 +91,8 @@ Run on Linux / MacOS
 | server_name | server manager process's name, and child process name format: name_w_number, like: kimserver_w_1. |
 | node_host   | host for cluster inner contact.                                                                   |
 | node_port   | node  port.                                                                                       |
-| gate_bind   | host for user's client contact.                                                                   |
-| gate_port   | gate_bind's port.                                                                                 |
+| gate_host   | host for user's client contact.                                                                   |
+| gate_port   | gate server port.                                                                                 |
 | gate_codec  | "protobuf", "http".                                                                               |
 | keep_alive  | connection keep alive time (seconds).                                                             |
 | log_path    | log file. path.                                                                                   |

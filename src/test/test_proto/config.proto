@@ -16,7 +16,7 @@ message config {
     string server_name = 3;
     string bind = 4;
     uint32 port = 5;
-    string gate_bind = 6;
+    string gate_host = 6;
     uint32 gate_port = 7;
     string gate_codec = 8;
     uint32 keep_alive = 9;
