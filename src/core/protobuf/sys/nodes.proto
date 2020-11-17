@@ -2,9 +2,9 @@ syntax = "proto3";
 package kim;
 
 message addr_info{
-    string bind = 1;      /* bind host for inner server. */
-    uint32 port = 2;      /* port for inner server. */
-    string gate_bind = 3; /* bind host for user client. */
+    string node_host = 1; /* host for inner server. */
+    uint32 node_port = 2; /* port for inner server. */
+    string gate_host = 3; /* host for user client. */
     uint32 gate_port = 4; /* port for user client. */
 }
 
@@ -15,6 +15,14 @@ message node_info {
     string conf_path = 4;    /* config path. */
     string work_path = 5;    /* process work path. */
     int32 worker_cnt = 6;    /* number of worker's processes. */
+}
+
+/* send to other node, when nodes contact. */
+message target_node {
+    string node_type = 1;
+    string ip = 2;
+    uint32 port = 3;
+    uint32 worker_index = 4;
 }
 
 /* 

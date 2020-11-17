@@ -156,13 +156,29 @@ Module* ModuleMgr::get_module(const std::string& name) {
     return module;
 }
 
-Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Request>& req) {
+Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Connection>& c, const HttpMsg& msg) {
+    std::shared_ptr<Request> req = std::make_shared<Request>(c, msg);
+    if (req == nullptr) {
+        return Cmd::STATUS::ERROR;
+    }
+    return process_request(req);
+}
+
+Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
+    std::shared_ptr<Request> req = std::make_shared<Request>(c, head, body);
+    if (req == nullptr) {
+        return Cmd::STATUS::ERROR;
+    }
+    return process_request(req);
+}
+
+Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Request>& req) {
     Module* module;
     Cmd::STATUS cmd_stat;
     for (const auto& it : m_modules) {
         module = it.second;
-        LOG_DEBUG("module name: %s", module->name());
-        cmd_stat = module->process_message(req);
+        LOG_TRACE("module name: %s", module->name());
+        cmd_stat = module->process_request(req);
         if (cmd_stat != Cmd::STATUS::UNKOWN) {
             return cmd_stat;
         }
@@ -170,20 +186,15 @@ Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Request>& req) {
     return Cmd::STATUS::UNKOWN;
 }
 
-Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Connection>& c, const HttpMsg& msg) {
-    std::shared_ptr<Request> req = std::make_shared<Request>(c, msg);
-    if (req == nullptr) {
-        return Cmd::STATUS::ERROR;
+Cmd::STATUS ModuleMgr::process_ack(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
+    Cmd* cmd = net()->get_cmd(head.seq());
+    if (cmd == nullptr) {
+        LOG_WARN("can not find cmd! seq: %llu", head.seq());
+        return Cmd::STATUS::UNKOWN;
     }
-    return process_msg(req);
-}
 
-Cmd::STATUS ModuleMgr::process_msg(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
-    std::shared_ptr<Request> req = std::make_shared<Request>(c, head, body);
-    if (req == nullptr) {
-        return Cmd::STATUS::ERROR;
-    }
-    return process_msg(req);
+    Request req(c, head, body);
+    return cmd->on_callback(ERR_OK, &req);
 }
 
 }  // namespace kim

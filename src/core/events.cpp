@@ -229,7 +229,7 @@ bool Events::del_io_event(ev_io* w) {
         return false;
     }
 
-    LOG_TRACE("delete event, fd: %d", w->fd);
+    LOG_TRACE("delete io event, fd: %d", w->fd);
 
     ev_io_stop(m_ev_loop, w);
     w->data = NULL;
@@ -242,7 +242,7 @@ bool Events::del_timer_event(ev_timer* w) {
         return false;
     }
 
-    LOG_TRACE("delete timer event");
+    LOG_TRACE("delete timer event: %p", w);
 
     ev_timer_stop(m_ev_loop, w);
     w->data = nullptr;

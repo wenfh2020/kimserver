@@ -7,12 +7,13 @@ Kimserver is an async tcp multiple processes (master & workers) high-performance
 ---
 <!-- TOC -->
 
-1. [1. Environment](#1-environment)
-2. [2. Work](#2-work)
-    1. [2.1. Config](#21-config)
-3. [3. Usage](#3-usage)
-    1. [3.1. Test](#31-test)
-    2. [3.2. Module](#32-module)
+- [Kimserver](#kimserver)
+  - [1. Environment](#1-environment)
+  - [2. Work](#2-work)
+    - [2.1. Config](#21-config)
+  - [3. Usage](#3-usage)
+    - [3.1. Test](#31-test)
+    - [3.2. Module](#32-module)
 
 <!-- /TOC -->
 <a id="markdown-1-environment" name="1-environment"></a>
@@ -53,8 +54,8 @@ Run on Linux / MacOS
     "worker_cnt": 4,
     "node_type": "gate",
     "server_name": "kimserver",
-    "bind": "127.0.0.1",
-    "port": 3344,
+    "node_host": "127.0.0.1",
+    "node_port": 3344,
     "gate_bind": "127.0.0.1",
     "gate_port": 3355,
     "gate_codec": "http",
@@ -88,8 +89,8 @@ Run on Linux / MacOS
 | worker_cnt  | child process's number.                                                                           |
 | node_type   | cluster node type.                                                                                |
 | server_name | server manager process's name, and child process name format: name_w_number, like: kimserver_w_1. |
-| bind        | host for cluster inner contact.                                                                   |
-| port        | bind port.                                                                                        |
+| node_host   | host for cluster inner contact.                                                                   |
+| node_port   | node  port.                                                                                       |
 | gate_bind   | host for user's client contact.                                                                   |
 | gate_port   | gate_bind's port.                                                                                 |
 | gate_codec  | "protobuf", "http".                                                                               |

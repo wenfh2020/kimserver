@@ -85,6 +85,8 @@ bool Manager::load_logger() {
         return false;
     }
 
+    m_logger->set_worker_index(0);
+    m_logger->set_process_type(true);
     return true;
 }
 
@@ -95,17 +97,17 @@ bool Manager::load_config(const char* path) {
         return false;
     }
 
-    m_node_info.set_conf_path(path);
     m_old_conf = m_conf;
     m_conf = conf;
+    m_node_info.set_conf_path(path);
 
     if (m_old_conf.ToString() != m_conf.ToString()) {
         if (m_old_conf.ToString().empty()) {
             m_node_info.set_worker_cnt(str_to_int(m_conf("worker_cnt")));
             m_node_info.set_node_type(m_conf("node_type"));
-            m_node_info.mutable_addr_info()->set_bind(m_conf("bind"));
-            m_node_info.mutable_addr_info()->set_port(str_to_int(m_conf("port")));
-            m_node_info.mutable_addr_info()->set_gate_bind(m_conf("gate_bind"));
+            m_node_info.mutable_addr_info()->set_node_host(m_conf("node_host"));
+            m_node_info.mutable_addr_info()->set_node_port(str_to_int(m_conf("node_port")));
+            m_node_info.mutable_addr_info()->set_gate_host(m_conf("gate_host"));
             m_node_info.mutable_addr_info()->set_gate_port(str_to_int(m_conf("gate_port")));
         }
     }
@@ -120,7 +122,7 @@ bool Manager::load_network() {
         return false;
     }
 
-    if (!m_net->create(m_node_info.mutable_addr_info(), this, m_conf, &m_worker_data_mgr)) {
+    if (!m_net->create_m(m_node_info.mutable_addr_info(), this, m_conf, &m_worker_data_mgr)) {
         SAFE_DELETE(m_net);
         LOG_ERROR("init network fail!");
         return false;
@@ -183,7 +185,7 @@ bool Manager::restart_worker(pid_t pid) {
         return false;
     }
 
-    m_worker_data_mgr.remove_worker_info(pid);
+    m_worker_data_mgr.del_worker_info(pid);
     m_restart_workers.push_back(worker_index);
     return true;
 }
@@ -227,7 +229,8 @@ bool Manager::create_worker(int worker_index) {
         return false;
     }
 
-    if ((pid = fork()) == 0) {  // child
+    if ((pid = fork()) == 0) {
+        /* child. */
         m_net->end_ev_loop();
         m_net->close_fds();
 
@@ -246,10 +249,10 @@ bool Manager::create_worker(int worker_index) {
             exit(EXIT_CHILD_INIT_FAIL);
         }
         worker.run();
-
         LOG_INFO("child exit! index: %d", worker_index);
         exit(EXIT_CHILD);
-    } else if (pid > 0) {  // parent
+    } else if (pid > 0) {
+        /* parent. */
         close(ctrl_fds[1]);
         close(data_fds[1]);
 
@@ -276,7 +279,7 @@ bool Manager::create_worker(int worker_index) {
 }
 
 void Manager::create_workers() {
-    for (int i = 0; i < m_node_info.worker_cnt(); i++) {
+    for (int i = 1; i <= m_node_info.worker_cnt(); i++) {
         if (!create_worker(i)) {
             LOG_ERROR("create worker failed! index: %d", i);
         }

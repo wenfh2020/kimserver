@@ -122,12 +122,12 @@ bool ZkClient::reconnect() {
 
 bool ZkClient::node_register() {
     std::string node_path;
-    std::string ip(m_config("bind"));
+    std::string ip(m_config("node_host"));
     std::string node_type(m_config("node_type"));
     std::string node_root(m_config["zookeeper"]("root"));
     std::string server_name(m_config("server_name"));
     std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
-    int port = str_to_int(m_config("port"));
+    int port = str_to_int(m_config("node_port"));
     int worker_cnt = str_to_int(m_config("worker_cnt"));
     CJsonObject json_node, json_zk, json_value;
 
@@ -469,7 +469,7 @@ void ZkClient::on_zk_node_created(const kim::zk_task_t* task) {
 }
 
 void ZkClient::on_zk_session_connected(const kim::zk_task_t* task) {
-    LOG_INFO("session conneted! path: %s", task->path.c_str());
+    LOG_INFO("session conneted!");
     m_is_connected = true;
     m_is_expired = false;
 }

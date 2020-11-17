@@ -65,8 +65,6 @@ run() {
     echo '<------------------'
 }
 
-gen_proto
-
 if [ $1x == 'help'x ]; then
     echo './run.sh'
     echo './run.sh all'
@@ -81,8 +79,10 @@ elif [ $1x == 'kill'x ]; then
     exit 1
 elif [ $1x == 'compile'x ]; then
     if [ $2x == 'so'x ]; then
+        gen_proto
         compile_so $3
     elif [ $2x == 'core'x ]; then
+        gen_proto
         compile_core $3
     else
         compile_core $2
@@ -90,6 +90,7 @@ elif [ $1x == 'compile'x ]; then
     fi
     exit 1
 elif [ $1x == 'all'x ]; then
+    gen_proto
     compile_core $1
     compile_so $1
 else

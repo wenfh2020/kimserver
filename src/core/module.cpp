@@ -25,19 +25,22 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     Cmd::STATUS status = cmd->execute(req);
     if (status != Cmd::STATUS::RUNNING) {
         SAFE_DELETE(cmd);
-    } else {
-        if (!net()->add_cmd(cmd)) {
-            LOG_ERROR("add cmd duplicate, id: %llu!", cmd->id());
-            return Cmd::STATUS::ERROR;
-        }
-        ev_timer* w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), cmd);
-        if (w == nullptr) {
-            net()->del_cmd(cmd);
-            LOG_ERROR("module add cmd(%s) timer failed!", cmd->name());
-            return Cmd::STATUS::ERROR;
-        }
-        cmd->set_timer(w);
+        return status;
     }
+
+    if (!net()->add_cmd(cmd)) {
+        LOG_ERROR("add cmd duplicate, id: %llu!", cmd->id());
+        return Cmd::STATUS::ERROR;
+    }
+
+    ev_timer* w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), cmd);
+    if (w == nullptr) {
+        net()->del_cmd(cmd);
+        LOG_ERROR("module add cmd(%s) timer failed!", cmd->name());
+        return Cmd::STATUS::ERROR;
+    }
+
+    cmd->set_timer(w);
     return status;
 }
 
@@ -49,27 +52,32 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     status = cmd->on_timeout();
     if (status != Cmd::STATUS::RUNNING) {
         net()->del_cmd(cmd);
-    } else {
-        if (cmd->req()->conn()->is_closed()) {
-            LOG_DEBUG("connection is closed, stop timeout!");
-            net()->del_cmd(cmd);
-            return Cmd::STATUS::ERROR;
-        }
-        if (old == cmd->cur_timeout_cnt()) {
-            cmd->refresh_cur_timeout_cnt();
-        }
-        if (cmd->cur_timeout_cnt() >= cmd->max_timeout_cnt()) {
-            LOG_WARN("pls check timeout logic! %s", cmd->name());
-            net()->del_cmd(cmd);
-            return Cmd::STATUS::ERROR;
-        }
+        return status;
     }
+
+    if (cmd->req()->conn()->is_invalid()) {
+        LOG_DEBUG("connection is closed, stop timeout!");
+        net()->del_cmd(cmd);
+        return Cmd::STATUS::ERROR;
+    }
+
+    if (old == cmd->cur_timeout_cnt()) {
+        cmd->refresh_cur_timeout_cnt();
+    }
+
+    if (cmd->cur_timeout_cnt() >= cmd->max_timeout_cnt()) {
+        LOG_WARN("pls check timeout logic! %s", cmd->name());
+        net()->del_cmd(cmd);
+        return Cmd::STATUS::ERROR;
+    }
+
     return status;
 }
 
 Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
     LOG_TRACE("callback, module id: %llu, cmd id: %llu, err: %d",
               index->module_id, index->cmd_id, err);
+
     if (index == nullptr) {
         LOG_WARN("invalid timer for cmd!");
         return Cmd::STATUS::ERROR;

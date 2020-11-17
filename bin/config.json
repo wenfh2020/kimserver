@@ -1,15 +1,15 @@
 {
-    "worker_cnt": 1,
-    "node_type": "gate",
     "server_name": "kimserver",
-    "bind": "127.0.0.1",
-    "port": 3344,
-    "gate_bind": "127.0.0.1",
+    "worker_cnt": 2,
+    "node_type": "gate",
+    "node_host": "127.0.0.1",
+    "node_port": 3344,
+    "gate_host": "127.0.0.1",
     "gate_port": 3355,
     "gate_codec": "http",
     "keep_alive": 30,
     "log_path": "kimserver.log",
-    "log_level": "debug",
+    "log_level": "trace",
     "modules": [
         "module_test.so"
     ],

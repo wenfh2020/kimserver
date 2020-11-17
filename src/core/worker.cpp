@@ -31,32 +31,33 @@ bool Worker::init(const worker_info_t* info, const CJsonObject& conf) {
         return false;
     }
 
+    LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
+             info->index, info->ctrl_fd, info->data_fd);
+
     if (!load_network()) {
         LOG_ERROR("create network failed!");
         return false;
     }
 
-    LOG_INFO("init worker, index: %d, ctrl_fd: %d, data_fd: %d",
-             info->index, info->ctrl_fd, info->data_fd);
     return true;
 }
 
 bool Worker::load_logger() {
+    LOG_TRACE("load logger.");
+
+    char path[MAX_PATH] = {0};
+    snprintf(path, sizeof(path), "%s/%s", m_worker_info.work_path.c_str(),
+             m_conf("log_path").c_str());
+
+    m_logger = new Log;
     if (m_logger == nullptr) {
-        char path[MAX_PATH] = {0};
-        snprintf(path, sizeof(path), "%s/%s", m_worker_info.work_path.c_str(),
-                 m_conf("log_path").c_str());
+        LOG_ERROR("new log failed!");
+        return false;
+    }
 
-        m_logger = new Log;
-        if (m_logger == nullptr) {
-            LOG_ERROR("new log failed!");
-            return false;
-        }
-
-        if (!m_logger->set_log_path(path)) {
-            LOG_ERROR("set log path failed! path: %s", path);
-            return false;
-        }
+    if (!m_logger->set_log_path(path)) {
+        LOG_ERROR("set log path failed! path: %s", path);
+        return false;
     }
 
     if (!m_logger->set_level(m_conf("log_level").c_str())) {
@@ -64,17 +65,22 @@ bool Worker::load_logger() {
         return false;
     }
 
+    m_logger->set_process_type(false);
+    m_logger->set_worker_index(m_worker_info.index);
     return true;
 }
 
 bool Worker::load_network() {
+    LOG_TRACE("load network!");
+
     m_net = new Network(m_logger, Network::TYPE::WORKER);
     if (m_net == nullptr) {
         LOG_ERROR("new network failed!");
         return false;
     }
 
-    if (!m_net->create(this, m_conf, m_worker_info.ctrl_fd, m_worker_info.data_fd)) {
+    if (!m_net->create_w(this, m_conf, m_worker_info.ctrl_fd,
+                         m_worker_info.data_fd, m_worker_info.index)) {
         LOG_ERROR("init network fail!");
         return false;
     }

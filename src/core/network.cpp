@@ -1,9 +1,12 @@
 #include "network.h"
 
+#include <arpa/inet.h>
 #include <errno.h>
+#include <netinet/in.h>
 #include <unistd.h>
 
 #include "error.h"
+#include "protobuf/sys/nodes.pb.h"
 
 namespace kim {
 
@@ -22,22 +25,17 @@ void Network::destory() {
     }
 
     end_ev_loop();
+    close_conns();
+
+    for (const auto& it : m_wait_send_fds) free(it);
+    m_wait_send_fds.clear();
+
+    for (const auto& it : m_cmds) delete it.second;
+    m_cmds.clear();
 
     SAFE_DELETE(m_db_pool);
     SAFE_DELETE(m_redis_pool);
     SAFE_DELETE(m_session_mgr);
-
-    close_conns();
-    for (const auto& it : m_wait_send_fds) {
-        free(it);
-    }
-    m_wait_send_fds.clear();
-
-    for (const auto& it : m_cmds) {
-        delete it.second;
-    }
-    m_cmds.clear();
-
     SAFE_DELETE(m_events);
 }
 
@@ -48,10 +46,7 @@ void Network::run() {
 }
 
 double Network::now() {
-    if (m_events == nullptr) {
-        return 0;
-    }
-    return m_events->now();
+    return (m_events != nullptr) ? m_events->now() : 0;
 }
 
 Events* Network::events() {
@@ -73,12 +68,19 @@ bool Network::load_config(const CJsonObject& config) {
         set_keep_alive(secs);
     }
 
+    m_node_type = m_conf("node_type");
+    m_node_inner_host = m_conf("node_host");
+    m_node_inner_port = str_to_int(m_conf("node_port"));
+    if (m_node_type.empty() || m_node_inner_host.empty() || m_node_inner_port == 0) {
+        LOG_ERROR("invalid inner node info!");
+        return false;
+    }
     return true;
 }
 
 /* parent. */
-bool Network::create(const addr_info* ainfo,
-                     INet* net, const CJsonObject& config, WorkerDataMgr* m) {
+bool Network::create_m(const addr_info* ainfo,
+                       INet* net, const CJsonObject& config, WorkerDataMgr* m) {
     int fd = -1;
     if (ainfo == nullptr || net == nullptr || m == nullptr) {
         return false;
@@ -89,28 +91,29 @@ bool Network::create(const addr_info* ainfo,
         return false;
     }
 
-    if (!ainfo->bind().empty()) {
-        fd = listen_to_port(ainfo->bind().c_str(), ainfo->port());
+    if (!ainfo->node_host().empty()) {
+        fd = listen_to_port(ainfo->node_host().c_str(), ainfo->node_port());
         if (fd == -1) {
-            LOG_ERROR("listen to port fail! %s:%d", ainfo->bind().c_str(), ainfo->port());
+            LOG_ERROR("listen to port fail! %s:%d",
+                      ainfo->node_host().c_str(), ainfo->node_port());
             return false;
         }
-        m_bind_fd = fd;
+        m_node_host_fd = fd;
     }
 
-    if (!ainfo->gate_bind().empty()) {
-        fd = listen_to_port(ainfo->gate_bind().c_str(), ainfo->gate_port());
+    if (!ainfo->gate_host().empty()) {
+        fd = listen_to_port(ainfo->gate_host().c_str(), ainfo->gate_port());
         if (fd == -1) {
             LOG_ERROR("listen to gate fail! %s:%d",
-                      ainfo->gate_bind().c_str(), ainfo->gate_port());
+                      ainfo->gate_host().c_str(), ainfo->gate_port());
             return false;
         }
-        m_gate_bind_fd = fd;
+        m_gate_host_fd = fd;
     }
 
-    LOG_INFO("bind fd: %d, gate bind fd: %d", m_bind_fd, m_gate_bind_fd);
+    LOG_INFO("node fd: %d, gate fd: %d", m_node_host_fd, m_gate_host_fd);
 
-    if (!create_events(net, m_bind_fd, m_gate_bind_fd, m_gate_codec, false)) {
+    if (!create_events(net, m_node_host_fd, m_gate_host_fd, m_gate_codec, false)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -121,9 +124,8 @@ bool Network::create(const addr_info* ainfo,
         return false;
     }
 
-    m_session_mgr = new SessionMgr(m_logger, this);
-    if (m_session_mgr == nullptr) {
-        LOG_ERROR("alloc session mgr failed!");
+    if (!load_public()) {
+        LOG_ERROR("load public failed!");
         return false;
     }
 
@@ -131,7 +133,8 @@ bool Network::create(const addr_info* ainfo,
 }
 
 /* children. */
-bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd) {
+bool Network::create_w(INet* net, const CJsonObject& config,
+                       int ctrl_fd, int data_fd, int index) {
     if (!create_events(net, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
@@ -140,6 +143,8 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
     m_manager_ctrl_fd = ctrl_fd;
     m_manager_data_fd = data_fd;
     LOG_INFO("create network done!");
+
+    m_worker_index = index;
 
     if (!load_config(config)) {
         LOG_ERROR("load config failed!");
@@ -162,16 +167,38 @@ bool Network::create(INet* net, const CJsonObject& config, int ctrl_fd, int data
     }
     LOG_INFO("load modules ok!");
 
-    // if (!load_timer(net)) {
-    //     LOG_ERROR("load timer failed!");
-    //     return false;
-    // }
+    if (!load_timer(net)) {
+        LOG_ERROR("load timer failed!");
+        return false;
+    }
+
+    if (!load_public()) {
+        LOG_ERROR("load public failed!");
+        return false;
+    }
+
+    return true;
+}
+
+bool Network::load_public() {
+    m_sys_cmd = new SysCmd(m_logger, this, m_woker_data_mgr);
+    if (m_sys_cmd == nullptr) {
+        LOG_ERROR("alloc sys cmd failed!");
+        return false;
+    }
 
     m_session_mgr = new SessionMgr(m_logger, this);
     if (m_session_mgr == nullptr) {
         LOG_ERROR("alloc session mgr failed!");
         return false;
     }
+
+    m_nodes = new Nodes(m_logger);
+    if (m_nodes == nullptr) {
+        LOG_ERROR("alloc nodes failed!");
+        return false;
+    }
+
     return true;
 }
 
@@ -202,12 +229,8 @@ bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool i
         goto error;
     }
 
-    if (is_worker) {
-        m_events->create_signal_event(SIGINT, s);
-    } else {
-        m_events->setup_signal_events(s);
-    }
-
+    is_worker ? m_events->create_signal_event(SIGINT, s)
+              : m_events->setup_signal_events(s);
     return true;
 
 error:
@@ -279,7 +302,6 @@ std::shared_ptr<Connection> Network::create_conn(int fd) {
     return c;
 }
 
-// delete event to stop callback, and then close fd.
 bool Network::close_conn(std::shared_ptr<Connection> c) {
     if (c == nullptr) {
         return false;
@@ -288,48 +310,54 @@ bool Network::close_conn(std::shared_ptr<Connection> c) {
 }
 
 bool Network::close_conn(int fd) {
+    LOG_TRACE("close conn, fd: %d", fd);
+
     if (fd == -1) {
         LOG_ERROR("invalid fd: %d", fd);
         return false;
     }
 
     auto it = m_conns.find(fd);
-    if (it != m_conns.end()) {
-        std::shared_ptr<Connection> c = it->second;
-        if (c != nullptr) {
-            c->set_state(Connection::STATE::CLOSED);
-            m_events->del_io_event(c->get_ev_io());
-            c->set_ev_io(nullptr);
+    if (it == m_conns.end()) {
+        close_fd(fd);
+        return false;
+    }
 
-            ev_timer* w = c->timer();
-            if (w != nullptr) {
-                delete static_cast<ConnectionData*>(w->data);
-                w->data = nullptr;
-                m_events->del_timer_event(w);
-                c->set_timer(nullptr);
-            }
-        }
-        m_conns.erase(it);
+    std::shared_ptr<Connection> c = it->second;
+    c->set_state(Connection::STATE::CLOSED);
+    m_events->del_io_event(c->get_ev_io());
+    c->set_ev_io(nullptr);
+
+    ev_timer* w = c->timer();
+    if (w != nullptr) {
+        delete static_cast<ConnectionData*>(w->data);
+        w->data = nullptr;
+        m_events->del_timer_event(w);
+        c->set_timer(nullptr);
+    }
+
+    if (!c->get_node_id().empty()) {
+        m_node_conns.erase(c->get_node_id());
     }
 
     close_fd(fd);
-    LOG_DEBUG("close fd: %d", fd);
+    m_conns.erase(it);
     return true;
 }
 
-int Network::listen_to_port(const char* bind, int port) {
+int Network::listen_to_port(const char* ip, int port) {
     int fd = -1;
     char errstr[256];
 
-    if (strchr(bind, ':')) {
+    if (strchr(ip, ':')) {
         /* Bind IPv6 address. */
-        fd = anet_tcp6_server(errstr, port, bind, TCP_BACK_LOG);
+        fd = anet_tcp6_server(errstr, port, ip, TCP_BACK_LOG);
         if (fd == -1) {
             LOG_ERROR("bind tcp ipv6 fail! %s", errstr);
         }
     } else {
         /* Bind IPv4 address. */
-        fd = anet_tcp_server(errstr, port, bind, TCP_BACK_LOG);
+        fd = anet_tcp_server(errstr, port, ip, TCP_BACK_LOG);
         if (fd == -1) {
             LOG_ERROR("bind tcp ipv4 fail! %s", errstr);
         }
@@ -339,13 +367,12 @@ int Network::listen_to_port(const char* bind, int port) {
         anet_no_block(NULL, fd);
     }
 
-    LOG_INFO("listen to port, %s:%d", bind, port);
+    LOG_INFO("listen to port, %s:%d", ip, port);
     return fd;
 }
 
 void Network::close_chanel(int* fds) {
     LOG_DEBUG("close chanel, fd0: %d, fd1: %d", fds[0], fds[1]);
-
     close_fd(fds[0]);
     close_fd(fds[1]);
 }
@@ -371,22 +398,13 @@ void Network::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     if (w->data == nullptr) {
         return;
     }
-
     int fd = w->fd;
     INet* net = static_cast<INet*>(w->data);
-
     if (events & EV_READ) {
         net->on_io_read(fd);
     }
-
     if (events & EV_WRITE) {
         net->on_io_write(fd);
-    }
-
-    /* when error happen (read / write),
-     * handle EV_READ / EV_WRITE events will be ok. */
-    if (events & EV_ERROR) {
-        net->on_io_error(fd);
     }
 }
 
@@ -419,6 +437,25 @@ void Network::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int r
     s->net()->on_session_timer(s);
 }
 
+void Network::on_io_read(int fd) {
+    if (is_manager()) {
+        if (fd == m_node_host_fd) {
+            accept_server_conn(fd);
+        } else if (fd == m_gate_host_fd) {
+            accept_and_transfer_fd(fd);
+        } else {
+            read_query_from_client(fd);
+        }
+    } else {
+        if (fd == m_manager_data_fd) {
+            LOG_TRACE("on io read manager data fd: %d", fd);
+            read_transfer_fd(fd);
+        } else {
+            read_query_from_client(fd);
+        }
+    }
+}
+
 void Network::on_io_write(int fd) {
     auto it = m_conns.find(fd);
     if (it == m_conns.end() || it->second == nullptr) {
@@ -427,64 +464,63 @@ void Network::on_io_write(int fd) {
     }
 
     std::shared_ptr<Connection> c = it->second;
-    if (!c->is_connected() && !c->is_connecting()) {
-        LOG_ERROR("invalid connection, fd: %d, id: %llu", fd, c->id());
-        close_conn(fd);
+    if (c->is_invalid()) {
         return;
     }
 
-    ev_io* w;
-    Codec::STATUS status;
-
-    w = c->get_ev_io();
-    status = c->conn_write();
-    if (status == Codec::STATUS::OK) {
-        m_events->del_write_event(w);
-        return;
-    }
-
-    if (status == Codec::STATUS::PAUSE) {
-        w = m_events->add_write_event(fd, w, this);
-        if (w == nullptr) {
+    if (c->is_connected()) {
+        if (!handle_write_events(c, c->conn_write())) {
             close_conn(c);
-            LOG_ERROR("add write event failed! fd: %d", fd);
-            return;
-        }
-        c->set_ev_io(w);
-        return;
-    }
-
-    // ok remove write event.
-    m_events->del_write_event(w);
-}
-
-void Network::on_io_error(int fd) {
-}
-
-void Network::on_io_read(int fd) {
-    if (is_manager()) {
-        if (fd == m_bind_fd) {
-            accept_server_conn(fd);
-        } else if (fd == m_gate_bind_fd) {
-            accept_and_transfer_fd(fd);
-        } else {
-            read_query_from_client(fd);
+            LOG_WARN("handle write event failed! fd: %d", c->fd());
         }
     } else {
-        if (fd == m_manager_data_fd) {
-            read_transfer_fd(fd);
-        } else {
-            read_query_from_client(fd);
+        if (!c->is_http_codec()) {
+            /* nodes connect. */
+            if (c->state() == Connection::STATE::TRY_CONNECT) {
+                /* A1 contact with B1. */
+                int worker_index = 2;
+                if (!m_sys_cmd->send_req_connect_to_worker(c, worker_index)) {
+                    LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
+                    close_conn(c);
+                }
+            }
         }
+    }
+}
+
+void Network::on_repeat_timer(void* privdata) {
+    if (is_manager()) {
+        check_wait_send_fds();
+    } else {
+        /*
+        static int test = 1;
+        static bool b = true;
+        if (b && test++ % 3 == 0 && m_worker_index == 1) {
+            MsgHead head;
+            MsgBody body;
+            int worker_index = 2;
+            head.set_cmd(1001);
+            head.set_seq(new_seq());
+            body.set_data("hello");
+            head.set_len(body.ByteSizeLong());
+            LOG_DEBUG("auto send 333333333333333333");
+            auto_send("127.0.0.1", 3344, worker_index, head, body);
+            b = false;
+        }
+        */
     }
 }
 
 void Network::check_wait_send_fds() {
     auto it = m_wait_send_fds.begin();
     for (; it != m_wait_send_fds.end();) {
-        chanel_resend_data_t* data = *it;
-        int chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
-        int err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
+        int err;
+        int chanel_fd;
+        chanel_resend_data_t* data;
+
+        data = *it;
+        chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+        err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
             if (err != 0) {
                 LOG_ERROR("resend chanel failed! fd: %d, errno: %d", data->ch.fd, err);
@@ -510,13 +546,6 @@ void Network::check_wait_send_fds() {
     // LOG_DEBUG("wait send list cnt: %d", m_wait_send_fds.size());
 }
 
-void Network::on_repeat_timer(void* privdata) {
-    check_wait_send_fds();
-    // if (m_module_mgr != nullptr) {
-    //     m_module_mgr->reload_so("module_test.so");
-    // }
-}
-
 void Network::on_cmd_timer(void* privdata) {
     Cmd* cmd;
     double secs;
@@ -528,7 +557,6 @@ void Network::on_cmd_timer(void* privdata) {
         LOG_TRACE("cmd timer restart, cmd id: %llu, restart timer secs: %f",
                   cmd->id(), secs);
         m_events->restart_timer(secs, cmd->timer(), privdata);
-        return;
     } else {
         module = m_module_mgr->get_module(cmd->module_id());
         if (module == nullptr) {
@@ -576,7 +604,7 @@ bool Network::read_query_from_client(int fd) {
     }
 
     std::shared_ptr<Connection> c = it->second;
-    if (c->is_closed()) {
+    if (c->is_invalid()) {
         close_conn(fd);
         return false;
     }
@@ -584,32 +612,74 @@ bool Network::read_query_from_client(int fd) {
     return process_message(c);
 }
 
+ev_io* Network::add_write_event(std::shared_ptr<Connection>& c) {
+    ev_io* w = m_events->add_write_event(c->fd(), c->get_ev_io(), this);
+    if (w != nullptr) {
+        c->set_ev_io(w);
+    }
+    return w;
+}
+
 bool Network::process_message(std::shared_ptr<Connection>& c) {
+    if (c->is_http_codec()) {
+        return process_http_message(c);
+    } else {
+        return process_tcp_message(c);
+    }
+
+    // if (c->keep_alive() == 0.0) {
+    //     LOG_DEBUG("short connection! fd: %d", cfd);
+    //     close_conn(c);
+    //     return false;
+    // }
+
+    return true;
+}
+
+bool Network::process_tcp_message(std::shared_ptr<Connection>& c) {
+    MsgHead head;
+    MsgBody body;
     Cmd::STATUS cmd_ret;
     Codec::STATUS status;
+    int cfd = c->fd();
 
-    if (c->is_http_codec()) {
-        HttpMsg msg;
-        status = c->conn_read(msg);
-        LOG_TRACE("connection is http codec type, status: %d", (int)status);
-        while (status == Codec::STATUS::OK) {
-            cmd_ret = m_module_mgr->process_msg(c, msg);
-            LOG_TRACE("cmd status: %d", cmd_ret);
-            msg.Clear();
-            status = c->fetch_data(msg);
+    status = c->conn_read(head, body);
+    LOG_TRACE("conn read result, fd: %d, status: %d", cfd, (int)status);
+    while (status == Codec::STATUS::OK) {
+        cmd_ret = m_sys_cmd->process(c, head, body);
+        if (cmd_ret == Cmd::STATUS::UNKOWN) {
+            if (is_request(head.cmd())) {
+                cmd_ret = m_module_mgr->process_request(c, head, body);
+            } else {
+                cmd_ret = m_module_mgr->process_ack(c, head, body);
+            }
         }
-    } else {
-        MsgHead head;
-        MsgBody body;
-        status = c->conn_read(head, body);
-        LOG_TRACE("connection is protobuf codec type, status: %d", (int)status);
-        while (status == Codec::STATUS::OK) {
-            cmd_ret = m_module_mgr->process_msg(c, head, body);
-            LOG_TRACE("cmd status: %d", cmd_ret);
-            head.Clear();
-            body.Clear();
-            status = c->fetch_data(head, body);
+
+        if (cmd_ret == Cmd::STATUS::UNKOWN) {
+            LOG_ERROR("can not find cmd handler. fd: %d", cfd)
+            close_conn(c);
+            return false;
+        } else if (cmd_ret == Cmd::STATUS::RUNNING) {
+            if (add_write_event(c) == nullptr) {
+                LOG_ERROR("add write event failed! fd: %d", cfd);
+                close_conn(c);
+                return false;
+            }
+            break;
+        } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
+            close_conn(c);
+            return true;
+        } else if (cmd_ret == Cmd::STATUS::ERROR) {
+            LOG_TRACE("process msg error!");
+            close_conn(c);
+            return false;
+        } else {
+            /* ok. */
         }
+
+        head.Clear();
+        body.Clear();
+        status = c->fetch_data(head, body);
     }
 
     if (status == Codec::STATUS::ERR) {
@@ -618,11 +688,28 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
         return false;
     }
 
-    // if (c->keep_alive() == 0.0) {
-    //     LOG_DEBUG("short connection! fd: %d", c->fd());
-    //     close_conn(c);
-    //     return false;
-    // }
+    return true;
+}
+
+bool Network::process_http_message(std::shared_ptr<Connection>& c) {
+    HttpMsg msg;
+    Cmd::STATUS cmd_ret;
+    Codec::STATUS status;
+
+    status = c->conn_read(msg);
+    LOG_TRACE("connection is http codec type, status: %d", (int)status);
+    while (status == Codec::STATUS::OK) {
+        cmd_ret = m_module_mgr->process_request(c, msg);
+        msg.Clear();
+        status = c->fetch_data(msg);
+        LOG_TRACE("cmd status: %d", cmd_ret);
+    }
+
+    if (status == Codec::STATUS::ERR) {
+        LOG_TRACE("read failed. fd: %d", c->fd());
+        close_conn(c);
+        return false;
+    }
 
     return true;
 }
@@ -708,13 +795,17 @@ void Network::read_transfer_fd(int fd) {
         err = read_channel(fd, &ch, sizeof(channel_t), m_logger);
         if (err != 0) {
             if (err == EAGAIN) {
+                LOG_TRACE("read channel again next time! channel fd: %d", fd);
                 return;
             } else {
                 destory();
-                LOG_ERROR("read channel failed!, exit!");
+                LOG_ERROR("read channel failed, exit! channel fd: %d", fd);
                 exit(EXIT_FD_TRANSFER);
             }
         }
+
+        LOG_TRACE("read from channel, get data: fd: %d, family: %d, codec: %d",
+                  ch.fd, ch.family, ch.codec);
 
         codec = static_cast<Codec::TYPE>(ch.codec);
         c = add_read_event(ch.fd, codec);
@@ -740,10 +831,9 @@ void Network::read_transfer_fd(int fd) {
         }
 
         c->set_timer(w);
-
-        LOG_TRACE("read channel, channel data: fd: %d, family: %d, codec: %d",
-                  ch.fd, ch.family, ch.codec);
     }
+
+    return;
 
 error:
     close_conn(ch.fd);
@@ -784,75 +874,161 @@ bool Network::load_timer(INet* net) {
     return (m_timer != nullptr);
 }
 
-bool Network::send_to(const std::string& node_id, const MsgHead& head, const MsgBody& body) {
-    return true;
-}
+/* auto_send(...)
+ * A1 contact with B1. (auto_send func)
+ * 
+ * A1: node A's worker.
+ * B0: node B's manager.
+ * B1: node B's worker.
+ * 
+ * process_sys_message(...)
+ * 1. A1 connect to B0. (inner host : inner port)
+ * 2. B1 send CMD_REQ_CONNECT_TO_WORKER to B0.
+ * 3. B0 send CMD_RSP_CONNECT_TO_WORKER to A1.
+ * 4. B0 transfer A1's fd to B1.
+ * 5. A1 send CMD_REQ_TELL_WORKER to B1.
+ * 6. B1 send CMD_RSP_TELL_WORKER A1.
+ * 7. A1 send waiting buffer to B1.
+ * 8. B1 send ack to A1.
+ */
+bool Network::auto_send(const std::string& host, int port, int worker_index,
+                        const MsgHead& head, const MsgBody& body) {
+    LOG_TRACE("send to node, ip: %s, port: %d, worker: %d, msg cmd: %d, msg seq: %lu",
+              host.c_str(), port, worker_index, head.cmd(), head.seq());
 
-bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     int fd;
     ev_io* w;
-    Codec::STATUS status;
+    // size_t saddr_len;
+    // struct sockaddr saddr;
+    struct sockaddr_in saddr;
+    std::string node_id;
+    std::shared_ptr<Connection> c;
 
-    fd = c->fd();
-    if (c->is_closed()) {
-        LOG_WARN("connection is closed! fd: %d", fd);
+    /* create socket. */
+    saddr.sin_family = AF_INET;
+    saddr.sin_port = htons(port);
+    saddr.sin_addr.s_addr = inet_addr(host.c_str());
+    bzero(&(saddr.sin_zero), 8);
+    fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+
+    /* connect. */
+    // fd = anet_tcp_connect(m_errstr, host.c_str(), port, false, &saddr, &saddr_len);
+    if (fd == -1) {
+        LOG_ERROR("client connect server failed! errstr: %s", m_errstr);
         return false;
     }
 
-    w = c->get_ev_io();
-    status = c->conn_write(msg);
-    if (status == Codec::STATUS::OK) {
-        m_events->del_write_event(w);
-        return true;
+    /* connection. */
+    c = create_conn(fd);
+    if (c == nullptr) {
+        LOG_ERROR("create conn failed! fd: %d", fd);
+        return false;
     }
 
-    if (status == Codec::STATUS::PAUSE) {
-        w = m_events->add_write_event(fd, w, this);
-        if (w == nullptr) {
-            close_conn(c);
-            LOG_ERROR("add write event failed! fd: %d", fd);
-            return false;
-        }
-        c->set_ev_io(w);
-        return true;
+    if (anet_no_block(m_errstr, fd) != ANET_OK) {
+        LOG_ERROR("set noblock failed! fd: %d, errstr: %s", fd, m_errstr);
+        goto error;
     }
 
-    // ok remove write event.
-    m_events->del_write_event(w);
+    if (anet_keep_alive(m_errstr, fd, 100) != ANET_OK) {
+        LOG_ERROR("set socket keep alive failed! fd: %d, errstr: %s", fd, m_errstr);
+        goto error;
+    }
+
+    if (anet_set_tcp_no_delay(m_errstr, fd, 1) != ANET_OK) {
+        LOG_ERROR("set socket no delay failed! fd: %d, errstr: %s", fd, m_errstr);
+        goto error;
+    }
+
+    c->init(Codec::TYPE::PROTOBUF);
+    c->set_privdata(this);
+    c->set_active_time(now());
+    c->set_state(Connection::STATE::TRY_CONNECT);
+    // c->set_addr_info(&saddr, saddr_len);
+
+    /* read event. */
+    w = m_events->add_read_event(fd, c->get_ev_io(), this);
+    if (w == nullptr) {
+        LOG_ERROR("add read event failed! fd: %d", fd);
+        goto error;
+    }
+
+    /* write event. */
+    w = m_events->add_write_event(fd, w, this);
+    if (w == nullptr) {
+        LOG_ERROR("add write event failed! fd: %d", fd);
+        goto error;
+    }
+
+    c->set_ev_io(w);
+
+    /* add waiting data wait to write. */
+    if (c->conn_write_waiting(head, body) == Codec::STATUS::ERR) {
+        LOG_ERROR("write waiting data failed! fd: %d", fd);
+        goto error;
+    }
+
+    /* set timeout for connection. */
+    if (!add_io_timer(c, 1.5)) {
+        LOG_ERROR("add io timer failed! fd: %d", fd);
+        goto error;
+    }
+
+    /* A1 connect to B1, and save B1's connection. */
+    node_id = format_nodes_id(host, port, worker_index);
+    m_node_conns[node_id] = c;
+    c->set_node_id(node_id);
+    connect(fd, (struct sockaddr*)&saddr, sizeof(struct sockaddr));
+    return true;
+
+error:
+    close_conn(fd);
+    return false;
+}
+
+bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
+    if (!handle_write_events(c, c->conn_write(msg))) {
+        close_conn(c);
+        LOG_WARN("handle write event failed! fd: %d", c->fd());
+        return false;
+    }
     return true;
 }
 
 bool Network::send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) {
-    int fd;
-    ev_io* w;
-    Codec::STATUS status;
+    if (!handle_write_events(c, c->conn_write(head, body))) {
+        close_conn(c);
+        LOG_WARN("handle write event failed! fd: %d", c->fd());
+        return false;
+    }
+    return true;
+}
 
-    fd = c->fd();
-    if (c->is_closed()) {
-        LOG_WARN("connection is closed! fd: %d", fd);
+bool Network::handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS status) {
+    if (c->is_invalid()) {
+        LOG_WARN("connection is closed! fd: %d", c->fd());
         return false;
     }
 
-    w = c->get_ev_io();
-    status = c->conn_write(head, body);
-    if (status == Codec::STATUS::OK) {
-        m_events->del_write_event(w);
-        return true;
-    }
+    int fd = c->fd();
+    ev_io* w = c->get_ev_io();
 
     if (status == Codec::STATUS::PAUSE) {
         w = m_events->add_write_event(fd, w, this);
         if (w == nullptr) {
-            close_conn(c);
             LOG_ERROR("add write event failed! fd: %d", fd);
             return false;
+        } else {
+            c->set_ev_io(w);
         }
-        c->set_ev_io(w);
-        return true;
+    } else {
+        m_events->del_write_event(w);
+        if (status == Codec::STATUS::ERR) {
+            LOG_DEBUG("conn write faild! fd: %d", fd);
+            return false;
+        }
     }
 
-    // ok remove write event.
-    m_events->del_write_event(w);
     return true;
 }
 
@@ -1110,6 +1286,11 @@ bool Network::load_redis_mgr() {
     return true;
 }
 
+void Network::Network::add_client_conn(
+    const std::string& node_id, std::shared_ptr<Connection> c) {
+    m_node_conns[node_id] = c;
+}
+
 bool Network::add_session(Session* s) {
     return m_session_mgr->add_session(s);
 }
@@ -1124,6 +1305,34 @@ bool Network::del_session(const std::string& sessid) {
 
 void Network::on_session_timer(void* privdata) {
     m_session_mgr->on_session_timer(privdata);
+}
+
+bool Network::add_io_timer(std::shared_ptr<Connection> c, double secs) {
+    ev_timer* w;
+    ConnectionData* conn_data;
+
+    /* create connect data for callback. */
+    conn_data = new ConnectionData;
+    if (conn_data == nullptr) {
+        LOG_ERROR("alloc connection data failed! fd: %d", c->fd());
+        goto error;
+    }
+    conn_data->m_conn = c;
+
+    /* create timer. */
+    LOG_TRACE("add io timer, fd: %d, time val: %f", c->fd(), secs);
+    w = m_events->add_io_timer(secs, c->timer(), conn_data);
+    if (w == nullptr) {
+        LOG_ERROR("add timer failed! fd: %d", c->fd());
+        goto error;
+    }
+    c->set_timer(w);
+    return true;
+
+error:
+    close_conn(c);
+    SAFE_FREE(conn_data);
+    return false;
 }
 
 }  // namespace kim

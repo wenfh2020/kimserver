@@ -20,12 +20,14 @@ class MoudleTest : public Module {
         HANDLE_HTTP_FUNC("/kim/test_timeout/", MoudleTest::test_timeout);
 
         // protobuf
-        HANDLE_PROTO_FUNC(KP_TEST_PROTO, MoudleTest::test_proto);
+        HANDLE_PROTO_FUNC(KP_REQ_TEST_PROTO, MoudleTest::test_proto);
+        HANDLE_PROTO_FUNC(KP_REQ_TEST_AUTO_SEND, MoudleTest::test_auto_send);
     }
 
    private:
     // protobuf.
     Cmd::STATUS test_proto(std::shared_ptr<Request> req);
+    Cmd::STATUS test_auto_send(std::shared_ptr<Request> req);
 
     // http.
     Cmd::STATUS test_cmd(std::shared_ptr<Request> req);

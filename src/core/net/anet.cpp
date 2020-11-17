@@ -105,6 +105,7 @@ static int _anet_tcp_server(char *err, int port, const char *bindaddr, int af,
         anet_set_error(err, "%s", gai_strerror(rv));
         return ANET_ERR;
     }
+
     for (p = servinfo; p != NULL; p = p->ai_next) {
         if ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;

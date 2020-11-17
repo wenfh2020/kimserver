@@ -19,6 +19,6 @@ enum E_ERROR {
     ERR_DATABASE_FAILED = 12001,
 };
 
-}
+}  // namespace kim
 
 #endif  //__KIM_ERROR_H__

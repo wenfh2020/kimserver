@@ -189,6 +189,12 @@ bool Nodes::del_node(const std::string& node_id) {
     return true;
 }
 
+int Nodes::get_node_worker_index(const std::string& node_id) {
+    LOG_TRACE("get node worker index, node id: %s", node_id.c_str());
+    auto it = m_nodes.find(node_id);
+    return (it != m_nodes.end()) ? it->second->worker : -1;
+}
+
 node_t* Nodes::get_node_in_hash(const std::string& node_type, int obj) {
     return get_node_in_hash(node_type, std::to_string(obj));
 }

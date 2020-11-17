@@ -45,13 +45,13 @@ class Nodes {
     void clear();
 
     /* ketama algorithm for node's distribution. */
-    node_t* get_node(const std::string& node_id);
+    int get_node_worker_index(const std::string& node_id);
     node_t* get_node_in_hash(const std::string& node_type, int obj);
     node_t* get_node_in_hash(const std::string& node_type, const std::string& obj);
 
    protected:
     bool check_zk_node_host(const zk_node& cur);
-    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker);
+    bool add_node(const std::string& node_type, const std::string& ip, int port, int worker_index);
     bool del_node(const std::string& node_id);
     uint32_t hash(const std::string& obj);
     std::vector<uint32_t> gen_vnodes(const std::string& node_id);

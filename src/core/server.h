@@ -21,6 +21,16 @@ namespace kim {
 #define EXIT_CHILD_INIT_FAIL -3
 #define EXIT_FD_TRANSFER -4
 
+/* system cmd.
+ * A node connect to B node. */
+enum E_CMD {
+    CMD_UNKNOWN = 0,
+    CMD_REQ_CONNECT_TO_WORKER = 11,
+    CMD_RSP_CONNECT_TO_WORKER = 12,
+    CMD_REQ_TELL_WORKER = 13,
+    CMD_RSP_TELL_WORKER = 14,
+};
+
 // redis operation return status.
 enum class E_RDS_STATUS {
     OK = 0,

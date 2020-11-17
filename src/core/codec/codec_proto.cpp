@@ -44,7 +44,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
               sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 
     if (sbuf->readable_len() < PROTO_MSG_HEAD_LEN) {
-        LOG_DEBUG("wait for enough data to decode.");
+        LOG_TRACE("wait for enough data to decode.");
         return CodecProto::STATUS::PAUSE;  // wait for more data to decode.
     }
 
@@ -55,7 +55,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
         return CodecProto::STATUS::ERR;
     }
 
-    // msg maybe has empty body, like heartbeat.
+    // msg body maybe empty, like heartbeat.
     if (head.len() <= 0) {
         sbuf->skip_bytes(PROTO_MSG_HEAD_LEN);
         return CodecProto::STATUS::OK;

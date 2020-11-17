@@ -11,8 +11,11 @@ namespace kim {
     logger->log_data(__FILE__, __LINE__, __FUNCTION__, level, ##args);
 #define LOG_ERROR(args...) LOG_FORMAT((Log::LL_ERR), ##args)
 #define LOG_DEBUG(args...) LOG_FORMAT((Log::LL_DEBUG), ##args)
+#define LOG_TRACE(args...) LOG_FORMAT((Log::LL_TRACE), ##args)
 
 int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
+    LOG_TRACE("write to channel, fd: %d, family: %d, codec: %d",
+              ch->fd, ch->family, ch->codec);
     ssize_t n;
     struct iovec iov[1];
     struct msghdr msg;
@@ -77,6 +80,7 @@ int write_channel(int fd, channel_t* ch, size_t size, Log* logger) {
 }
 
 int read_channel(int fd, channel_t* ch, size_t size, Log* logger) {
+    LOG_TRACE("read from channel, channel fd: %d", fd);
     ssize_t n;
     int err = 0;
     struct iovec iov[1];

@@ -106,9 +106,9 @@ void test_server(int argc, char** argv) {
 
 class addr_info_t {
    public:
-    std::string bind;       // bind host for inner server.
-    int port = 0;           // port for inner server.
-    std::string gate_bind;  // bind host for user client.
+    std::string node_host;  // host for inner server.
+    int node_port = 0;      // port for inner server.
+    std::string gate_host;  // host host for user client.
     int gate_port = 0;      // port for user client.
 };
 
@@ -128,9 +128,9 @@ void compare_struct() {
 
     for (int i = 0; i < 1000000; i++) {
         node_info_t node;
-        node.addr_info.bind = "wruryeuwryeuwrw";
-        node.addr_info.port = 342;
-        node.addr_info.gate_bind = "fsduyruwerw";
+        node.addr_info.node_host = "wruryeuwryeuwrw";
+        node.addr_info.node_port = 342;
+        node.addr_info.gate_host = "fsduyruwerw";
         node.addr_info.gate_port = 4853;
 
         node.node_type = "34rw343";
@@ -143,9 +143,9 @@ void compare_struct() {
     begin = mstime();
     for (int i = 0; i < 1000000; i++) {
         kim::node_info node;
-        node.mutable_addr_info()->set_bind("wruryeuwryeuwrw");
-        node.mutable_addr_info()->set_port(342);
-        node.mutable_addr_info()->set_gate_bind("fsduyruwerw");
+        node.mutable_addr_info()->set_node_host("wruryeuwryeuwrw");
+        node.mutable_addr_info()->set_node_port(342);
+        node.mutable_addr_info()->set_gate_host("fsduyruwerw");
         node.mutable_addr_info()->set_gate_port(4853);
 
         node.set_node_type("34rw343");
@@ -159,9 +159,9 @@ void compare_struct() {
 void convert() {
     kim::node_info node;
     node.set_name("111111");
-    node.mutable_addr_info()->set_bind("wruryeuwryeuwrw");
-    node.mutable_addr_info()->set_port(342);
-    node.mutable_addr_info()->set_gate_bind("fsduyruwerw");
+    node.mutable_addr_info()->set_node_host("wruryeuwryeuwrw");
+    node.mutable_addr_info()->set_node_port(342);
+    node.mutable_addr_info()->set_gate_host("fsduyruwerw");
     node.mutable_addr_info()->set_gate_port(4853);
 
     node.set_node_type("34rw343");
@@ -186,7 +186,7 @@ void convert() {
         std::cout << "json to protobuf: "
                   << node.name()
                   << ", "
-                  << node.mutable_addr_info()->bind()
+                  << node.mutable_addr_info()->node_host()
                   << std::endl;
     }
 }

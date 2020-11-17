@@ -5,19 +5,20 @@
 #include "cmd.h"
 #include "error.h"
 #include "request.h"
+#include "util/so.h"
 
 namespace kim {
 
 /* Module is a container, which is used for cmd's route.*/
 
-class Module : public Base {
+class Module : public Base, public So {
    public:
     Module() {}
     Module(Log* logger, INet* net, uint64_t id, const std::string& name);
     virtual ~Module();
     virtual void register_handle_func() {}
 
-    virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) {
+    virtual Cmd::STATUS process_request(std::shared_ptr<Request> req) {
         return Cmd::STATUS::UNKOWN;
     }
 
@@ -28,17 +29,6 @@ class Module : public Base {
     // callback.
     Cmd::STATUS on_timeout(Cmd* cmd);
     Cmd::STATUS on_callback(wait_cmd_info_t* index, int err, void* data);
-
-    // so manager.
-    void set_so_handle(void* handle) { m_so_handle = handle; }
-    void* so_handle() { return m_so_handle; }
-    void set_so_path(const std::string& path) { m_so_path = path; }
-    const std::string& so_path() const { return m_so_path; }
-    const char* so_path() { return m_so_path.c_str(); }
-
-   protected:
-    std::string m_so_path;        // module so path.
-    void* m_so_handle = nullptr;  // for dlopen ptr.
 };
 
 #define REGISTER_HANDLER(class_name)                                              \
@@ -48,7 +38,7 @@ class Module : public Base {
         : Module(logger, net, id, name) {                                         \
     }                                                                             \
     typedef Cmd::STATUS (class_name::*cmd_func)(std::shared_ptr<Request> req);    \
-    virtual Cmd::STATUS process_message(std::shared_ptr<Request> req) {           \
+    virtual Cmd::STATUS process_request(std::shared_ptr<Request> req) {           \
         if (req->is_http_req()) {                                                 \
             const HttpMsg* msg = req->http_msg();                                 \
             if (msg == nullptr) {                                                 \

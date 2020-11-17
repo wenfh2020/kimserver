@@ -14,9 +14,10 @@ class Cmd : public Timer, public Base {
    public:
     enum class STATUS {
         UNKOWN = 0,
-        OK = 1,
-        RUNNING = 2,
-        ERROR = 3,
+        OK,
+        RUNNING,
+        COMPLETED,
+        ERROR,
     };
     Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name = "");
     virtual ~Cmd();

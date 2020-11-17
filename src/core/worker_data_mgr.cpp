@@ -42,7 +42,16 @@ bool WorkerDataMgr::get_worker_index(int pid, int& index) {
     return true;
 }
 
-bool WorkerDataMgr::remove_worker_info(int pid) {
+int WorkerDataMgr::get_worker_data_fd(int worker_index) {
+    for (auto& v : m_worker_info) {
+        if (v.second->index == worker_index) {
+            return v.second->data_fd;
+        }
+    }
+    return -1;
+}
+
+bool WorkerDataMgr::del_worker_info(int pid) {
     auto it = m_worker_info.find(pid);
     if (it == m_worker_info.end()) {
         return false;

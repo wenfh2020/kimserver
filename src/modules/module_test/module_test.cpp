@@ -1,6 +1,7 @@
 #include "module_test.h"
 
 #include "cmd_hello.h"
+#include "cmd_test_auto_send.h"
 #include "cmd_test_mysql.h"
 #include "cmd_test_redis.h"
 #include "cmd_test_timeout.h"
@@ -44,6 +45,10 @@ Cmd::STATUS MoudleTest::test_proto(std::shared_ptr<Request> req) {
     return net()->send_to(req->conn(), rsp_head, rsp_body)
                ? Cmd::STATUS::OK
                : Cmd::STATUS::ERROR;
+}
+
+Cmd::STATUS MoudleTest::test_auto_send(std::shared_ptr<Request> req) {
+    HANDLE_CMD(CmdHello);
 }
 
 Cmd::STATUS MoudleTest::test_cmd(std::shared_ptr<Request> req) {
