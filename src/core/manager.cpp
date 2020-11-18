@@ -233,6 +233,7 @@ bool Manager::create_worker(int worker_index) {
         /* child. */
         m_net->end_ev_loop();
         m_net->close_fds();
+        destory();
 
         close(ctrl_fds[0]);
         close(data_fds[0]);
@@ -242,6 +243,7 @@ bool Manager::create_worker(int worker_index) {
         info.ctrl_fd = ctrl_fds[1];
         info.data_fd = data_fds[1];
         info.index = worker_index;
+
         LOG_INFO("worker chanels, fd1: %d, fd2: %d", info.ctrl_fd, info.data_fd);
 
         Worker worker(worker_name(worker_index));
