@@ -49,6 +49,23 @@ Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
     return response_http(obj.ToString(), status_code);
 }
 
+Cmd::STATUS Cmd::response_tcp(int err, const std::string& errstr, const std::string& data) {
+    MsgHead head;
+    MsgBody body;
+
+    body.set_data(data);
+    body.mutable_rsp_result()->set_code(err);
+    body.mutable_rsp_result()->set_msg(errstr);
+
+    head.set_cmd(m_req->msg_head()->cmd() + 1);
+    head.set_seq(m_req->msg_head()->seq());
+    head.set_len(body.ByteSizeLong());
+
+    return net()->send_to(m_req->conn(), head, body)
+               ? Cmd::STATUS::OK
+               : Cmd::STATUS::ERROR;
+}
+
 Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& argv) {
     if (node == nullptr) {
         LOG_ERROR("invalid addr info, node: %s.", node);

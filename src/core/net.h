@@ -39,8 +39,8 @@ class INet {
     virtual bool is_worker() { return false; }
     virtual bool is_manager() { return false; }
     virtual std::string node_type() { return ""; }
-    virtual std::string node_inner_host() { return ""; }
-    virtual int node_inner_port() { return 0; }
+    virtual std::string node_host() { return ""; }
+    virtual int node_port() { return 0; }
     virtual int worker_index() { return -1; }
 
     virtual void add_client_conn(const std::string& node_id, std::shared_ptr<Connection> c) {}
@@ -85,6 +85,7 @@ class INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) { return false; }
+    virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
     virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) { return false; }

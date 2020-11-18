@@ -17,7 +17,7 @@ typedef struct node_s {
     std::string type;             /* node type. */
     std::string ip;               /* node ip. */
     int port;                     /* node port. */
-    int worker;                   /* worker index. */
+    int worker_index;             /* worker index. */
     std::vector<uint32_t> vnodes; /* virtual nodes which point to me. */
 } node_t;
 

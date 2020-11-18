@@ -23,6 +23,11 @@ class CmdTestMysql : public Cmd {
         : Cmd(logger, net, mid, id, name) {
     }
 
+   private:
+    char m_sql[256];
+    std::string m_key, m_value, m_oper;
+    bool m_is_session = false;
+
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
@@ -148,11 +153,6 @@ class CmdTestMysql : public Cmd {
             }
         }
     }
-
-   private:
-    char m_sql[256];
-    std::string m_key, m_value, m_oper;
-    bool m_is_session = false;
 };
 
 }  // namespace kim

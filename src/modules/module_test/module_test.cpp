@@ -6,6 +6,8 @@
 #include "cmd_test_redis.h"
 #include "cmd_test_timeout.h"
 
+MUDULE_CREATE(MoudleTest)
+
 namespace kim {
 
 Cmd::STATUS MoudleTest::hello_world(std::shared_ptr<Request> req) {
@@ -48,7 +50,7 @@ Cmd::STATUS MoudleTest::test_proto(std::shared_ptr<Request> req) {
 }
 
 Cmd::STATUS MoudleTest::test_auto_send(std::shared_ptr<Request> req) {
-    HANDLE_CMD(CmdHello);
+    HANDLE_CMD(CmdAutoSend);
 }
 
 Cmd::STATUS MoudleTest::test_cmd(std::shared_ptr<Request> req) {

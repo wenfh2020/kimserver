@@ -14,6 +14,13 @@
 
 #define PROTO_MSG_HEAD_LEN 15
 
+enum {
+    KP_REQ_TEST_PROTO = 1001,
+    KP_RSP_TEST_PROTO = 1002,
+    KP_REQ_TEST_AUTO_SEND = 1003,
+    KP_RSP_TEST_AUTO_SEND = 1004,
+};
+
 void check_protobuf() {
     MsgHead head;
     head.set_cmd(123);
@@ -65,7 +72,7 @@ void test_server(int argc, char** argv) {
     while (1) {
         // send.
         MsgHead head;
-        head.set_cmd(1);
+        head.set_cmd(KP_REQ_TEST_AUTO_SEND);
         head.set_seq(123);
         MsgBody body;
         body.set_data("hello world!");
@@ -204,9 +211,9 @@ void test_proto_convert_json() {
 
 int main(int argc, char** argv) {
     // check_protobuf();
-    // test_server(argc, argv);
+    test_server(argc, argv);
     // compare_struct();
-    convert();
+    // convert();
 
     // std::string str("123");
     // std::stoi(str);

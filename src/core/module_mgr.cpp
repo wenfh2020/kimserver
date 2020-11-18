@@ -187,6 +187,8 @@ Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Request>& req) {
 }
 
 Cmd::STATUS ModuleMgr::process_ack(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
+    LOG_TRACE("module process ack, fd: %d", c->fd());
+
     Cmd* cmd = net()->get_cmd(head.seq());
     if (cmd == nullptr) {
         LOG_WARN("can not find cmd! seq: %llu", head.seq());

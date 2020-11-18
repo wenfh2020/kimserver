@@ -84,6 +84,13 @@ enum class E_RDS_STATUS {
 #define LOG_DEBUG(args...) LOG_FORMAT((kim::Log::LL_DEBUG), ##args)
 #define LOG_TRACE(args...) LOG_FORMAT((kim::Log::LL_TRACE), ##args)
 
+#define MUDULE_CREATE(module_name)       \
+    extern "C" {                         \
+    kim::Module* create() {              \
+        return (new kim::module_name()); \
+    }                                    \
+    }
+
 }  // namespace kim
 
 #endif  //__KIM_SERVER__

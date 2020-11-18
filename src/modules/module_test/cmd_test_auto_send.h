@@ -19,41 +19,34 @@ class CmdAutoSend : public Cmd {
     }
 
    public:
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {
+    Cmd::STATUS execute_steps(int err, void* data) {
         switch (get_exec_step()) {
             case STEP_PARSE_REQUEST: {
-                return Cmd::STATUS::OK;
-                break;
+                MsgHead* head = req()->msg_head();
+                LOG_DEBUG("cmd: %d, seq: %d, len: %d",
+                          head->cmd(), head->seq(), head->len());
+                return execute_next_step(err, data);
+            }
+            case STEP_AUTO_SEND: {
+                MsgHead head(*req()->msg_head());
+                head.set_seq(id());
+                head.set_cmd(KP_REQ_TEST_PROTO);
+                LOG_DEBUG("auto send head seq: %d, cmd id: %llu", head.seq(), id());
+                if (!net()->send_to_node("gate", "hello", head, *m_req->msg_body())) {
+                    return Cmd::STATUS::ERROR;
+                }
+                set_next_step();
+                return Cmd::STATUS::RUNNING;
+            }
+            case STEP_AUTO_SEND_CALLBACK: {
+                LOG_DEBUG("aAAAAAAAAAAAAAAAAAAAA");
+                return response_tcp(ERR_OK, "OK", "good job.");
             }
             default: {
                 LOG_ERROR("invalid step");
-                return Cmd::STATUS::ERROR;
-                // return response_http(ERR_FAILED, "invalid step!");
+                return response_tcp(ERR_FAILED, "", "invalid step!");
             }
         }
-        /* 
-        
-        MsgHead* head = req->msg_head();
-    LOG_DEBUG("cmd: %d, seq: %d, len: %d",
-              head->cmd(), head->seq(), head->len());
-
-    MsgBody* body = req->msg_body();
-    LOG_DEBUG("body len: %d, data: <%s>",
-              body->ByteSizeLong(),
-              body->SerializeAsString().c_str());
-
-    MsgHead rsp_head;
-    rsp_head.set_cmd(head->cmd() + 1);
-    rsp_head.set_seq(head->seq());
-
-    MsgBody rsp_body;
-    rsp_body.set_data("good job!");
-    rsp_head.set_len(rsp_body.ByteSizeLong());
-
-    return net()->send_to(req->conn(), rsp_head, rsp_body)
-               ? Cmd::STATUS::OK
-               : Cmd::STATUS::ERROR;
-         */
     }
 };
 

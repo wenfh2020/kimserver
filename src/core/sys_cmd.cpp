@@ -29,6 +29,7 @@ bool SysCmd::send_req_connect_to_worker(
     head.set_cmd(CMD_REQ_CONNECT_TO_WORKER);
     body.set_data(std::to_string(worker_index));
     head.set_len(body.ByteSizeLong());
+
     if (!m_net->send_to(c, head, body)) {
         LOG_ERROR("try connect to node failed! node id: %s",
                   node_id.c_str());
@@ -46,9 +47,9 @@ bool SysCmd::send_req_connect_to_worker(
  * B0: node B's manager.
  * B1: node B's worker.
  * 
- * process_sys_message(...)
+ * process_sys_message(.)
  * 1. A1 connect to B0. (inner host : inner port)
- * 2. B1 send CMD_REQ_CONNECT_TO_WORKER to B0.
+ * 2. A1 send CMD_REQ_CONNECT_TO_WORKER to B0.
  * 3. B0 send CMD_RSP_CONNECT_TO_WORKER to A1.
  * 4. B0 transfer A1's fd to B1.
  * 5. A1 send CMD_REQ_TELL_WORKER to B1.
@@ -95,13 +96,13 @@ Cmd::STATUS SysCmd::process(
 
 Cmd::STATUS SysCmd::req_connect_to_worker(
     std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
-    LOG_TRACE("A1 connect to B0. fd: %d", c->fd());
+    LOG_TRACE("A1 connect to B0. send CMD_RSP_CONNECT_TO_WORKER, fd: %d", c->fd());
 
     int err;
     channel_t ch;
     int chanel_fd;
-    int worker_index = str_to_int(body.data());
     int fd = c->fd();
+    int worker_index = str_to_int(body.data());
 
     head.set_cmd(head.cmd() + 1);
     body.mutable_rsp_result()->set_code(ERR_OK);
@@ -129,7 +130,7 @@ Cmd::STATUS SysCmd::req_connect_to_worker(
 Cmd::STATUS SysCmd::rsp_connect_to_worker(
     std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
     /* A1 receives rsp from B0. */
-    LOG_TRACE("parse CMD_RSP_CONNECT_TO_WORKER. fd: %d", c->fd());
+    LOG_TRACE("A1 receive B0's CMD_RSP_CONNECT_TO_WORKER. fd: %d", c->fd());
 
     if (body.mutable_rsp_result()->code() != ERR_OK) {
         LOG_ERROR("parse CMD_RSP_CONNECT_TO_WORKER failed!, error: %d, errstr: %s",
@@ -141,14 +142,15 @@ Cmd::STATUS SysCmd::rsp_connect_to_worker(
     /* A1 --> B1: CMD_REQ_TELL_WORKER */
     target_node tnode;
     tnode.set_node_type(m_net->node_type());
-    tnode.set_ip(m_net->node_inner_host());
-    tnode.set_port(m_net->node_inner_port());
+    tnode.set_ip(m_net->node_host());
+    tnode.set_port(m_net->node_port());
     tnode.set_worker_index(m_net->worker_index());
 
     head.set_seq(head.seq());
     head.set_cmd(CMD_REQ_TELL_WORKER);
     body.set_data(tnode.SerializeAsString());
     head.set_len(body.ByteSizeLong());
+
     if (!m_net->send_to(c, head, body)) {
         LOG_ERROR("send data failed! ip: %s, port: %d, worker_index: %d",
                   tnode.ip().c_str(), tnode.port(), tnode.worker_index());
@@ -160,14 +162,12 @@ Cmd::STATUS SysCmd::rsp_connect_to_worker(
 
 Cmd::STATUS SysCmd::req_tell_worker(
     std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
-    LOG_TRACE("parse CMD_REQ_TELL_WORKER. fd: %d", c->fd());
+    /* B1 */
+    LOG_TRACE("B1 send CMD_REQ_TELL_WORKER. fd: %d", c->fd());
 
     target_node tnode;
     std::string node_id;
     int fd = c->fd();
-
-    /* B1 */
-    LOG_TRACE("parse CMD_REQ_TELL_WORKER. fd: %d", fd);
 
     if (!tnode.ParseFromString(body.data())) {
         LOG_ERROR("parse tell worker node info failed! fd: %d", fd);
@@ -177,14 +177,15 @@ Cmd::STATUS SysCmd::req_tell_worker(
     /* B1 send ack to A1. */
     tnode.Clear();
     tnode.set_node_type(m_net->node_type());
-    tnode.set_ip(m_net->node_inner_host());
-    tnode.set_port(m_net->node_inner_port());
+    tnode.set_ip(m_net->node_host());
+    tnode.set_port(m_net->node_port());
     tnode.set_worker_index(m_net->worker_index());
 
     head.set_seq(head.seq());
     head.set_cmd(head.cmd() + 1);
     body.set_data(tnode.SerializeAsString());
     head.set_len(body.ByteSizeLong());
+
     if (!m_net->send_to(c, head, body)) {
         LOG_ERROR("send CMD_RSP_TELL_WORKER failed! fd: %d", fd);
         return Cmd::STATUS::ERROR;
@@ -200,14 +201,14 @@ Cmd::STATUS SysCmd::req_tell_worker(
 Cmd::STATUS SysCmd::rsp_tell_worker(
     std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
     /* A1 */
-    LOG_TRACE("parse B1 CMD_RSP_TELL_WORKER. fd: %d", c->fd());
+    LOG_TRACE("A1 receives CMD_RSP_TELL_WORKER. fd: %d", c->fd());
 
     target_node tnode;
     std::string node_id;
     int fd = c->fd();
 
     if (body.mutable_rsp_result()->code() != ERR_OK) {
-        LOG_DEBUG("connect worker failed!........");
+        LOG_DEBUG("connect worker failed!");
         return Cmd::STATUS::ERROR;
     }
 

@@ -192,7 +192,7 @@ bool Nodes::del_node(const std::string& node_id) {
 int Nodes::get_node_worker_index(const std::string& node_id) {
     LOG_TRACE("get node worker index, node id: %s", node_id.c_str());
     auto it = m_nodes.find(node_id);
-    return (it != m_nodes.end()) ? it->second->worker : -1;
+    return (it != m_nodes.end()) ? it->second->worker_index : -1;
 }
 
 node_t* Nodes::get_node_in_hash(const std::string& node_type, int obj) {
@@ -276,9 +276,9 @@ void Nodes::print_debug_nodes_info() {
     LOG_DEBUG("nodes (%lu):", m_nodes.size());
     for (auto& v : m_nodes) {
         node_t* node = v.second;
-        LOG_DEBUG("id: %s, node type: %s, ip: %s, port: %d, worker: %d",
+        LOG_DEBUG("id: %s, node type: %s, ip: %s, port: %d, worker index: %d",
                   v.first.c_str(), node->type.c_str(),
-                  node->ip.c_str(), node->port, node->worker);
+                  node->ip.c_str(), node->port, node->worker_index);
     }
     LOG_DEBUG("------------");
 }

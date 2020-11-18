@@ -117,18 +117,13 @@ Codec::STATUS Connection::conn_write() {
 
     if (is_connected()) {
         /* pls send waiting buffer firstly. */
-        if (m_wait_send_buf != nullptr && m_wait_send_buf->readable_len()) {
+        if (m_wait_send_buf != nullptr && m_wait_send_buf->readable_len() > 0) {
             sbuf = m_wait_send_buf;
         }
     }
 
-    if (sbuf == nullptr) {
-        LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
-        return Codec::STATUS::ERR;
-    }
-
-    if (!sbuf->is_readable()) {
-        LOG_DEBUG("no data to send! fd: %d, seq: %llu", m_fd, m_id);
+    if (sbuf == nullptr || !sbuf->is_readable()) {
+        LOG_TRACE("no data to send! fd: %d, seq: %llu", m_fd, m_id);
         return Codec::STATUS::OK;
     }
 

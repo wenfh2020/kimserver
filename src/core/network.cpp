@@ -69,9 +69,9 @@ bool Network::load_config(const CJsonObject& config) {
     }
 
     m_node_type = m_conf("node_type");
-    m_node_inner_host = m_conf("node_host");
-    m_node_inner_port = str_to_int(m_conf("node_port"));
-    if (m_node_type.empty() || m_node_inner_host.empty() || m_node_inner_port == 0) {
+    m_node_host = m_conf("node_host");
+    m_node_port = str_to_int(m_conf("node_port"));
+    if (m_node_type.empty() || m_node_host.empty() || m_node_port == 0) {
         LOG_ERROR("invalid inner node info!");
         return false;
     }
@@ -261,6 +261,7 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
 
     c = create_conn(fd);
     if (c == nullptr) {
+        close_fd(fd);
         LOG_ERROR("add chanel event failed! fd: %d", fd);
         return nullptr;
     }
@@ -319,7 +320,6 @@ bool Network::close_conn(int fd) {
 
     auto it = m_conns.find(fd);
     if (it == m_conns.end()) {
-        close_fd(fd);
         return false;
     }
 
@@ -491,23 +491,6 @@ void Network::on_io_write(int fd) {
 void Network::on_repeat_timer(void* privdata) {
     if (is_manager()) {
         check_wait_send_fds();
-    } else {
-        /*
-        static int test = 1;
-        static bool b = true;
-        if (b && test++ % 3 == 0 && m_worker_index == 1) {
-            MsgHead head;
-            MsgBody body;
-            int worker_index = 2;
-            head.set_cmd(1001);
-            head.set_seq(new_seq());
-            body.set_data("hello");
-            head.set_len(body.ByteSizeLong());
-            LOG_DEBUG("auto send 333333333333333333");
-            auto_send("127.0.0.1", 3344, worker_index, head, body);
-            b = false;
-        }
-        */
     }
 }
 
@@ -874,6 +857,32 @@ bool Network::load_timer(INet* net) {
     return (m_timer != nullptr);
 }
 
+bool Network::send_to_node(const std::string& node_type, const std::string& obj,
+                           const MsgHead& head, const MsgBody& body) {
+    if (is_manager()) {
+        LOG_ERROR("send_to_node only for worker!");
+        return false;
+    }
+
+    // node_t* node;
+    std::string node_id;
+
+    // node = m_nodes->get_node_in_hash(node_type, obj);
+    // if (node == nullptr) {
+    //     LOG_ERROR("cant not find node type: %s", node_type.c_str());
+    //     return false;
+    // }
+
+    // node_id = format_nodes_id(node->ip, node->port, node->worker_index);
+    node_id = format_nodes_id("127.0.0.1", 3344, 2);
+    auto it = m_node_conns.find(node_id);
+    return (it != m_node_conns.end())
+               ? send_to(it->second, head, body)
+               : auto_send("127.0.0.1", 3344, 2, head, body);
+    //    : auto_send(node->ip, node->port, node->worker_index, head, body);
+    return true;
+}
+
 /* auto_send(...)
  * A1 contact with B1. (auto_send func)
  * 
@@ -881,9 +890,9 @@ bool Network::load_timer(INet* net) {
  * B0: node B's manager.
  * B1: node B's worker.
  * 
- * process_sys_message(...)
+ * process_sys_message(.)
  * 1. A1 connect to B0. (inner host : inner port)
- * 2. B1 send CMD_REQ_CONNECT_TO_WORKER to B0.
+ * 2. A1 send CMD_REQ_CONNECT_TO_WORKER to B0.
  * 3. B0 send CMD_RSP_CONNECT_TO_WORKER to A1.
  * 4. B0 transfer A1's fd to B1.
  * 5. A1 send CMD_REQ_TELL_WORKER to B1.
@@ -893,7 +902,7 @@ bool Network::load_timer(INet* net) {
  */
 bool Network::auto_send(const std::string& host, int port, int worker_index,
                         const MsgHead& head, const MsgBody& body) {
-    LOG_TRACE("send to node, ip: %s, port: %d, worker: %d, msg cmd: %d, msg seq: %lu",
+    LOG_TRACE("send to node, ip: %s, port: %d, worker: %d, msg cmd: %d, msg seq: %d",
               host.c_str(), port, worker_index, head.cmd(), head.seq());
 
     int fd;
@@ -921,6 +930,7 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     /* connection. */
     c = create_conn(fd);
     if (c == nullptr) {
+        close_fd(fd);
         LOG_ERROR("create conn failed! fd: %d", fd);
         return false;
     }
@@ -943,7 +953,6 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     c->init(Codec::TYPE::PROTOBUF);
     c->set_privdata(this);
     c->set_active_time(now());
-    c->set_state(Connection::STATE::TRY_CONNECT);
     // c->set_addr_info(&saddr, saddr_len);
 
     /* read event. */
@@ -961,6 +970,7 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     }
 
     c->set_ev_io(w);
+    c->set_state(Connection::STATE::TRY_CONNECT);
 
     /* add waiting data wait to write. */
     if (c->conn_write_waiting(head, body) == Codec::STATUS::ERR) {
@@ -1214,11 +1224,13 @@ bool Network::add_cmd(Cmd* cmd) {
     if (cmd == nullptr) {
         return false;
     }
+
     auto it = m_cmds.insert({cmd->id(), cmd});
     if (it.second == false) {
         LOG_ERROR("cmd: %s duplicate!", cmd->name());
         return false;
     }
+
     return true;
 }
 
@@ -1236,6 +1248,8 @@ bool Network::del_cmd(Cmd* cmd) {
         return false;
     }
 
+    LOG_TRACE("delete cmd id: %llu", cmd->id());
+
     auto it = m_cmds.find(cmd->id());
     if (it == m_cmds.end()) {
         return false;
@@ -1248,7 +1262,6 @@ bool Network::del_cmd(Cmd* cmd) {
         cmd->set_timer(nullptr);
     }
 
-    LOG_TRACE("delete cmd: %p!", cmd);
     SAFE_DELETE(cmd);
     return true;
 }

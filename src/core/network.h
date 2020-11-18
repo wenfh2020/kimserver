@@ -62,8 +62,8 @@ class Network : public INet {
     std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
 
     virtual std::string node_type() override { return m_node_type; }
-    virtual std::string node_inner_host() override { return m_node_inner_host; }
-    virtual int node_inner_port() override { return m_node_inner_port; }
+    virtual std::string node_host() override { return m_node_host; }
+    virtual int node_port() override { return m_node_port; }
     virtual int worker_index() override { return m_worker_index; }
 
     virtual void add_client_conn(const std::string& node_id, std::shared_ptr<Connection> c) override;
@@ -75,10 +75,10 @@ class Network : public INet {
 
     /* manager and worker contack by socketpair. */
     void close_chanel(int* fds);
-    /* close the parent's fds in child. */
-    void close_fds();
-    /* close socket connection. */
+    /* close connection by fd. */
     bool close_conn(int fd);
+    /* use in fork. */
+    void close_fds();
 
     /* woker or manager type */
     bool is_worker() override { return m_type == TYPE::WORKER; }
@@ -124,13 +124,12 @@ class Network : public INet {
     virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
     virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) override;
 
     /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
-
-    /* redis callback. */
-    static void on_redis_lib_callback(redisAsyncContext* c, void* reply, void* privdata);
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) override;
+    static void on_redis_lib_callback(redisAsyncContext* c, void* reply, void* privdata);
 
     /* database. */
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
@@ -149,7 +148,7 @@ class Network : public INet {
 
     ev_io* add_write_event(std::shared_ptr<Connection>& c);
 
-    // socket.
+    /* socket. */
     int listen_to_port(const char* ip, int port);
     void accept_server_conn(int fd);
     void accept_and_transfer_fd(int fd);
@@ -160,7 +159,7 @@ class Network : public INet {
     bool process_http_message(std::shared_ptr<Connection>& c);
     bool handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS status);
 
-    // connection.
+    /* connection. */
     std::shared_ptr<Connection> create_conn(int fd);
     bool close_conn(std::shared_ptr<Connection> c);
     void close_conns();
@@ -199,8 +198,8 @@ class Network : public INet {
     SysCmd* m_sys_cmd = nullptr;
 
     std::string m_node_type;
-    std::string m_node_inner_host;
-    int m_node_inner_port;
+    std::string m_node_host;
+    int m_node_port = 0;
     int m_worker_index = 0;
 };
 
