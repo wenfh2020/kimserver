@@ -15,13 +15,11 @@ class ModuleMgr : Base {
     bool init(CJsonObject& config);
     Module* get_module(uint64_t id);
 
-    Cmd::STATUS process_request(std::shared_ptr<Connection>& c, const HttpMsg& msg);
-    Cmd::STATUS process_request(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body);
-    Cmd::STATUS process_ack(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body);
+    Cmd::STATUS process_req(Request& req);
+    Cmd::STATUS process_ack(Request& req);
     bool reload_so(const std::string& name);
 
    private:
-    Cmd::STATUS process_request(std::shared_ptr<Request>& req);
     Module* get_module(const std::string& name);
     bool load_so(const std::string& name, const std::string& path, uint64_t id = 0);
     bool unload_so(const std::string& name);

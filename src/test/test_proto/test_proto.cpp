@@ -41,19 +41,27 @@ void check_protobuf() {
     rsp->set_msg("abcdefg");
     std::cout << body.SerializePartialAsString() << std::endl;
     std::cout << body.ByteSizeLong() << std::endl;
+
+    std::cout << "----------" << std::endl;
+
+    std::cout << body.has_rsp_result() << std::endl;
+    std::cout << body.rsp_result().code() << std::endl;
 }
 
 void test_server(int argc, char** argv) {
-    int ret = 0;
+    int fd, ret;
+    MsgHead head;
+    MsgBody body;
+    char buf[256];
     const char* port = "3355";
     const char* ip = "127.0.0.1";
-
     struct addrinfo hints, *servinfo;
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    int fd = socket(PF_INET, SOCK_STREAM, 0);
+    fd = socket(PF_INET, SOCK_STREAM, 0);
     ret = getaddrinfo(ip, port, &hints, &servinfo);
     if (ret != 0) {
         printf("getaddrinfo err: %d, errstr: %s \n", ret, gai_strerror(ret));
@@ -67,41 +75,31 @@ void test_server(int argc, char** argv) {
     }
     freeaddrinfo(servinfo);
 
-    char recv_buf[256];
-
     while (1) {
-        // send.
-        MsgHead head;
-        head.set_cmd(KP_REQ_TEST_AUTO_SEND);
-        head.set_seq(123);
-        MsgBody body;
+        /* send. */
         body.set_data("hello world!");
+        head.set_seq(123);
+        head.set_cmd(KP_REQ_TEST_AUTO_SEND);
         head.set_len(body.ByteSizeLong());
 
-        int buf_len = head.ByteSizeLong() + body.ByteSizeLong();
-        char* buf = new char[buf_len];
         memcpy(buf, head.SerializeAsString().c_str(), head.ByteSizeLong());
         memcpy(buf + head.ByteSizeLong(), body.SerializeAsString().c_str(), body.ByteSizeLong());
 
-        ret = send(fd, buf, buf_len, 0);
+        ret = send(fd, buf, head.ByteSizeLong() + body.ByteSizeLong(), 0);
         if (ret < 0) {
-            delete[] buf;
             printf("send err: %d, errstr: %s \n", ret, gai_strerror(ret));
             break;
         }
 
-        // recvk
-        ret = recv(fd, recv_buf, 256, 0);
+        /* recv. */
+        ret = recv(fd, buf, sizeof(buf), 0);
         if (ret <= 0) {
-            delete[] buf;
             printf("recv err: %d, errstr: %s \n", ret, gai_strerror(ret));
             break;
         }
-        std::cout << recv_buf << std::endl;
-        delete[] buf;
 
-        head.ParseFromArray(recv_buf, PROTO_MSG_HEAD_LEN);
-        body.ParseFromArray(recv_buf + PROTO_MSG_HEAD_LEN, head.len());
+        head.ParseFromArray(buf, PROTO_MSG_HEAD_LEN);
+        body.ParseFromArray(buf + PROTO_MSG_HEAD_LEN, head.len());
         printf("cmd: %d, seq: %d, len: %d, body len: %zu, %s\n",
                head.cmd(), head.seq(), head.len(),
                body.data().length(), body.data().c_str());
@@ -165,6 +163,8 @@ void compare_struct() {
 
 void convert() {
     kim::node_info node;
+    std::string json_string;
+
     node.set_name("111111");
     node.mutable_addr_info()->set_node_host("wruryeuwryeuwrw");
     node.mutable_addr_info()->set_node_port(342);
@@ -176,20 +176,16 @@ void convert() {
     node.set_work_path("ewiruwe");
     node.set_worker_cnt(3);
 
-    std::string json_string;
-    google::protobuf::util::JsonPrintOptions options;
-    options.add_whitespace = true;
-    options.always_print_primitive_fields = true;
-    options.preserve_proto_field_names = true;
-    MessageToJsonString(node, &json_string, options);
-
-    // std::cout << node.SerializeAsString() << std::endl
-    std::cout << json_string << std::endl;
+    if (!proto_to_json(node, json_string)) {
+        std::cout << "proto to json fail!" << std::endl;
+    } else {
+        std::cout << "protobuf to json: " << std::endl
+                  << json_string << std::endl;
+    }
 
     node.Clear();
-    std::cout << "clear: " << node.name() << std::endl;
 
-    if (JsonStringToMessage(json_string, &node).ok()) {
+    if (json_to_proto(json_string, node)) {
         std::cout << "json to protobuf: "
                   << node.name()
                   << ", "
@@ -214,10 +210,6 @@ int main(int argc, char** argv) {
     test_server(argc, argv);
     // compare_struct();
     // convert();
-
-    // std::string str("123");
-    // std::stoi(str);
-
     // test_proto_convert_json();
     return 0;
 }

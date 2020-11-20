@@ -18,13 +18,13 @@ class Module : public Base, public So {
     virtual ~Module();
     virtual void register_handle_func() {}
 
-    virtual Cmd::STATUS process_request(std::shared_ptr<Request> req) {
+    virtual Cmd::STATUS process_req(Request& req) {
         return Cmd::STATUS::UNKOWN;
     }
 
     bool init(Log* logger, INet* net, uint64_t id, const std::string& name = "");
     Cmd::STATUS execute_cmd(Cmd* cmd, std::shared_ptr<Request> req);
-    Cmd::STATUS response_http(std::shared_ptr<Connection> c, const std::string& data, int status_code = 200);
+    Cmd::STATUS response_http(Connection* c, const std::string& data, int status_code = 200);
 
     // callback.
     Cmd::STATUS on_timeout(Cmd* cmd);
@@ -38,28 +38,19 @@ class Module : public Base, public So {
         : Module(logger, net, id, name) {                                         \
     }                                                                             \
     typedef Cmd::STATUS (class_name::*cmd_func)(std::shared_ptr<Request> req);    \
-    virtual Cmd::STATUS process_request(std::shared_ptr<Request> req) {           \
-        if (req->is_http_req()) {                                                 \
-            const HttpMsg* msg = req->http_msg();                                 \
-            if (msg == nullptr) {                                                 \
-                return Cmd::STATUS::ERROR;                                        \
-            }                                                                     \
-            auto it = m_http_cmd_funcs.find(msg->path());                         \
+    virtual Cmd::STATUS process_req(Request& req) {                               \
+        if (req.is_http()) {                                                      \
+            auto it = m_http_cmd_funcs.find(req.http_msg()->path());              \
             if (it == m_http_cmd_funcs.end()) {                                   \
                 return Cmd::STATUS::UNKOWN;                                       \
             }                                                                     \
-            return (this->*(it->second))(req);                                    \
+            return (this->*(it->second))(std::make_shared<Request>(req));         \
         } else {                                                                  \
-            const MsgHead* head = req->msg_head();                                \
-            const MsgBody* body = req->msg_body();                                \
-            if (head == nullptr || body == nullptr) {                             \
-                return Cmd::STATUS::ERROR;                                        \
-            }                                                                     \
-            auto it = m_cmd_funcs.find(head->cmd());                              \
+            auto it = m_cmd_funcs.find(req.msg_head()->cmd());                    \
             if (it == m_cmd_funcs.end()) {                                        \
                 return Cmd::STATUS::UNKOWN;                                       \
             }                                                                     \
-            return (this->*(it->second))(req);                                    \
+            return (this->*(it->second))(std::make_shared<Request>(req));         \
         }                                                                         \
     }                                                                             \
                                                                                   \

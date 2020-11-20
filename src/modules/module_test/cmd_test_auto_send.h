@@ -39,12 +39,16 @@ class CmdAutoSend : public Cmd {
                 return Cmd::STATUS::RUNNING;
             }
             case STEP_AUTO_SEND_CALLBACK: {
-                LOG_DEBUG("aAAAAAAAAAAAAAAAAAAAA");
-                return response_tcp(ERR_OK, "OK", "good job.");
+                if (!response_tcp(ERR_OK, "OK", "good job.")) {
+                    LOG_ERROR("send ack failed! fd: %d", m_req->conn()->fd());
+                    return Cmd::STATUS::ERROR;
+                }
+                return Cmd::STATUS::COMPLETED;
             }
             default: {
                 LOG_ERROR("invalid step");
-                return response_tcp(ERR_FAILED, "", "invalid step!");
+                response_tcp(ERR_FAILED, "", "invalid step!");
+                return Cmd::STATUS::ERROR;
             }
         }
     }

@@ -49,7 +49,8 @@ class CmdTestMysql : public Cmd {
 
                 if (m_key.empty() || m_value.empty()) {
                     LOG_ERROR("invalid request data! pls check!");
-                    return response_http(ERR_FAILED, "invalid request data");
+                    response_http(ERR_FAILED, "invalid request data");
+                    return Cmd::STATUS::ERROR;
                 }
 
                 return (m_oper == "read")
@@ -77,12 +78,18 @@ class CmdTestMysql : public Cmd {
                 LOG_DEBUG("step: database insert callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database inert callback failed! eror: %d");
-                    return response_http(ERR_FAILED, "database insert data failed!");
+                    response_http(ERR_FAILED, "database insert data failed!");
+                    return Cmd::STATUS::ERROR;
                 }
 
-                return (m_oper == "write")
-                           ? response_http(ERR_OK, "database write data done!")
-                           : execute_next_step(err, data);
+                if (m_oper == "write") {
+                    if (!response_http(ERR_OK, "database write data done!")) {
+                        return Cmd::STATUS::ERROR;
+                    }
+                    return Cmd::STATUS::COMPLETED;
+                } else {
+                    return execute_next_step(err, data);
+                }
             }
 
             case STEP_DATABASE_QUERY: {
@@ -93,7 +100,8 @@ class CmdTestMysql : public Cmd {
                     if (s != nullptr) {
                         LOG_DEBUG("query data from session ok, id: %s, value: %s",
                                   m_key.c_str(), s->value().c_str())
-                        return response_http(ERR_OK, "database query data from session ok!");
+                        response_http(ERR_OK, "database query data from session ok!");
+                        return Cmd::STATUS::COMPLETED;
                     }
                 }
 
@@ -105,7 +113,7 @@ class CmdTestMysql : public Cmd {
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "query data failed!");
                     return status;
-                }
+                } 
 
                 set_next_step();
                 return status;
@@ -115,7 +123,8 @@ class CmdTestMysql : public Cmd {
                 LOG_DEBUG("step: database query callback!");
                 if (err != ERR_OK) {
                     LOG_ERROR("database query callback failed! error: %d");
-                    return response_http(ERR_FAILED, "database insert data failed!");
+                    response_http(ERR_FAILED, "database insert data failed!");
+                    return Cmd::STATUS::ERROR;
                 }
 
                 int size;
@@ -126,7 +135,8 @@ class CmdTestMysql : public Cmd {
                 res = static_cast<MysqlResult*>(data);
                 if (res == nullptr || (size = res->result_data(query_data)) == 0) {
                     LOG_ERROR("query no data!");
-                    return response_http(ERR_FAILED, "query no data from db!");
+                    response_http(ERR_FAILED, "query no data from db!");
+                    return Cmd::STATUS::ERROR;
                 }
 
                 if (m_is_session) {
@@ -144,12 +154,14 @@ class CmdTestMysql : public Cmd {
                         LOG_DEBUG("col: %s, data: %s", it.first.c_str(), it.second.c_str());
                     }
                 }
-                return response_http(ERR_OK, "database query data done!");
+                response_http(ERR_OK, "database query data done!");
+                return Cmd::STATUS::COMPLETED;
             }
 
             default: {
                 LOG_ERROR("invalid step");
-                return response_http(ERR_FAILED, "invalid step!");
+                response_http(ERR_FAILED, "invalid step!");
+                return Cmd::STATUS::ERROR;
             }
         }
     }

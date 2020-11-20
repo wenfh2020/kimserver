@@ -60,7 +60,7 @@ bool ModuleMgr::load_so(const std::string& name, const std::string& path, uint64
         return false;
     }
 
-    // load so.
+    /* load so. */
     handle = dlopen(path.c_str(), RTLD_NOW);
     if (handle == nullptr) {
         LOG_ERROR("open so failed! so: %s, errstr: %s", path.c_str(), DL_ERROR());
@@ -156,29 +156,13 @@ Module* ModuleMgr::get_module(const std::string& name) {
     return module;
 }
 
-Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Connection>& c, const HttpMsg& msg) {
-    std::shared_ptr<Request> req = std::make_shared<Request>(c, msg);
-    if (req == nullptr) {
-        return Cmd::STATUS::ERROR;
-    }
-    return process_request(req);
-}
-
-Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
-    std::shared_ptr<Request> req = std::make_shared<Request>(c, head, body);
-    if (req == nullptr) {
-        return Cmd::STATUS::ERROR;
-    }
-    return process_request(req);
-}
-
-Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Request>& req) {
+Cmd::STATUS ModuleMgr::process_req(Request& req) {
     Module* module;
     Cmd::STATUS cmd_stat;
     for (const auto& it : m_modules) {
         module = it.second;
         LOG_TRACE("module name: %s", module->name());
-        cmd_stat = module->process_request(req);
+        cmd_stat = module->process_req(req);
         if (cmd_stat != Cmd::STATUS::UNKOWN) {
             return cmd_stat;
         }
@@ -186,17 +170,24 @@ Cmd::STATUS ModuleMgr::process_request(std::shared_ptr<Request>& req) {
     return Cmd::STATUS::UNKOWN;
 }
 
-Cmd::STATUS ModuleMgr::process_ack(std::shared_ptr<Connection>& c, MsgHead& head, MsgBody& body) {
-    LOG_TRACE("module process ack, fd: %d", c->fd());
+Cmd::STATUS ModuleMgr::process_ack(Request& req) {
+    LOG_TRACE("module process ack, fd: %d", req.conn()->fd());
 
-    Cmd* cmd = net()->get_cmd(head.seq());
+    Cmd* cmd;
+    Cmd::STATUS ret;
+
+    cmd = net()->get_cmd(req.msg_head()->seq());
     if (cmd == nullptr) {
-        LOG_WARN("can not find cmd! seq: %llu", head.seq());
+        LOG_WARN("can not find cmd! fd: %d, cmd: %d, seq: %llu",
+                 req.conn()->fd(), req.msg_head()->cmd(), req.msg_head()->seq());
         return Cmd::STATUS::UNKOWN;
     }
 
-    Request req(c, head, body);
-    return cmd->on_callback(ERR_OK, &req);
+    ret = cmd->on_callback(ERR_OK, &req);
+    if (ret != Cmd::STATUS::RUNNING) {
+        net()->del_cmd(cmd);
+    }
+    return ret;
 }
 
 }  // namespace kim

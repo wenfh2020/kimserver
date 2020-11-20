@@ -36,7 +36,6 @@ class Nodes {
     /* nodes. */
     bool add_zk_node(const zk_node& znode);
     bool del_zk_node(const std::string& path);
-    bool is_valid_zk_node(const zk_node& znode);
     void get_zk_diff_nodes(const std::string& type, std::vector<std::string>& in,
                            std::vector<std::string>& adds, std::vector<std::string>& dels);
     void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
@@ -50,6 +49,7 @@ class Nodes {
     node_t* get_node_in_hash(const std::string& node_type, const std::string& obj);
 
    protected:
+    bool is_valid_zk_node(const zk_node& znode);
     bool check_zk_node_host(const zk_node& cur);
     bool add_node(const std::string& node_type, const std::string& ip, int port, int worker_index);
     bool del_node(const std::string& node_id);

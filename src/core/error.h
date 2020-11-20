@@ -7,8 +7,11 @@ enum E_ERROR {
     // common.
     ERR_OK = 0,
     ERR_FAILED = 1,
-    ERR_EXEC_SETP = 2,
-    ERR_EXEC_CMD_TIMEUOT = 3,
+    ERR_INVALID_MSG_DATA = 2,
+    ERR_INVALID_WORKER_INDEX = 3,
+
+    ERR_EXEC_SETP = 101,
+    ERR_EXEC_CMD_TIMEUOT = 102,
 
     // redis.
     ERR_REDIS_CONNECT_FAILED = 11001,

@@ -22,10 +22,14 @@ bool Module::init(Log* logger, INet* net, uint64_t id, const std::string& name) 
 }
 
 Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
-    Cmd::STATUS status = cmd->execute(req);
-    if (status != Cmd::STATUS::RUNNING) {
+    ev_timer* w;
+    Cmd::STATUS ret;
+    callback_info_t* cbi;
+
+    ret = cmd->execute(req);
+    if (ret != Cmd::STATUS::RUNNING) {
         SAFE_DELETE(cmd);
-        return status;
+        return ret;
     }
 
     if (!net()->add_cmd(cmd)) {
@@ -33,7 +37,8 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
         return Cmd::STATUS::ERROR;
     }
 
-    ev_timer* w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), cmd);
+    cbi = new callback_info_t{net(), cmd->id()};
+    w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), (void*)cbi);
     if (w == nullptr) {
         net()->del_cmd(cmd);
         LOG_ERROR("module add cmd(%s) timer failed!", cmd->name());
@@ -41,7 +46,7 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     }
 
     cmd->set_timer(w);
-    return status;
+    return ret;
 }
 
 Cmd::STATUS Module::on_timeout(Cmd* cmd) {
@@ -83,22 +88,25 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
         return Cmd::STATUS::ERROR;
     }
 
-    Cmd* cmd = net()->get_cmd(index->cmd_id);
+    Cmd* cmd;
+    Cmd::STATUS ret;
+
+    cmd = net()->get_cmd(index->cmd_id);
     if (cmd == nullptr) {
         LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
         return Cmd::STATUS::ERROR;
     }
 
     cmd->set_active_time(net()->now());
-    Cmd::STATUS status = cmd->on_callback(err, data);
-    if (status != Cmd::STATUS::RUNNING) {
+    ret = cmd->on_callback(err, data);
+    if (ret != Cmd::STATUS::RUNNING) {
         net()->del_cmd(cmd);
     }
 
-    return status;
+    return ret;
 }
 
-Cmd::STATUS Module::response_http(std::shared_ptr<Connection> c, const std::string& data, int status_code) {
+Cmd::STATUS Module::response_http(Connection* c, const std::string& data, int status_code) {
     HttpMsg msg;
     msg.set_type(HTTP_RESPONSE);
     msg.set_status_code(status_code);

@@ -22,7 +22,7 @@ class ConnectionData {
     virtual ~ConnectionData() { std::cout << "~ConnectionData()" << std::endl; }
 
    public:
-    std::shared_ptr<Connection> m_conn;
+    Connection* m_conn;
 };
 
 ev_timer timer;
@@ -42,7 +42,7 @@ timeout_cb(EV_P_ ev_timer* w, int revents) {
 }
 
 int main(int argc, char** argv) {
-    std::shared_ptr<Connection> c = std::make_shared<Connection>();
+    Connection* c = std::make_shared<Connection>();
     c->m_data = "hello world!";
     ConnectionData* conn_data = new ConnectionData;
     conn_data->m_conn = c;

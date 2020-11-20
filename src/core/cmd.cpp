@@ -13,11 +13,11 @@ Cmd::Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& nam
 
 Cmd::~Cmd() {}
 
-Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
+bool Cmd::response_http(const std::string& data, int status_code) {
     const HttpMsg* req_msg = m_req->http_msg();
     if (req_msg == nullptr) {
         LOG_ERROR("http msg is null! pls alloc!");
-        return Cmd::STATUS::ERROR;
+        return false;
     }
 
     HttpMsg msg;
@@ -28,20 +28,20 @@ Cmd::STATUS Cmd::response_http(const std::string& data, int status_code) {
     msg.set_body(data);
 
     if (!m_net->send_to(m_req->conn(), msg)) {
-        return Cmd::STATUS::ERROR;
+        return false;
     }
-    return Cmd::STATUS::OK;
+    return true;
 }
 
-Cmd::STATUS Cmd::response_http(int err, const std::string& errstr, int status_code) {
+bool Cmd::response_http(int err, const std::string& errstr, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
-                               const CJsonObject& data, int status_code) {
+bool Cmd::response_http(int err, const std::string& errstr,
+                        const CJsonObject& data, int status_code) {
     CJsonObject obj;
     obj.Add("code", err);
     obj.Add("msg", errstr);
@@ -49,7 +49,7 @@ Cmd::STATUS Cmd::response_http(int err, const std::string& errstr,
     return response_http(obj.ToString(), status_code);
 }
 
-Cmd::STATUS Cmd::response_tcp(int err, const std::string& errstr, const std::string& data) {
+bool Cmd::response_tcp(int err, const std::string& errstr, const std::string& data) {
     MsgHead head;
     MsgBody body;
 
@@ -61,9 +61,7 @@ Cmd::STATUS Cmd::response_tcp(int err, const std::string& errstr, const std::str
     head.set_seq(m_req->msg_head()->seq());
     head.set_len(body.ByteSizeLong());
 
-    return net()->send_to(m_req->conn(), head, body)
-               ? Cmd::STATUS::OK
-               : Cmd::STATUS::ERROR;
+    return net()->send_to(m_req->conn(), head, body);
 }
 
 Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& argv) {

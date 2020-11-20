@@ -25,15 +25,15 @@ VPATH = . $(CORE_PATH)
 DIRS := $(foreach dir, $(VPATH), $(shell find $(dir) -maxdepth 5 -type d))
 
 INC := $(INC) \
-       -I . \
+	   -I . \
 	   -I /usr/local/include/mariadb \
 	   -I $(CORE_PATH)
 
 LDFLAGS := $(LDFLAGS) -D_LINUX_OS_ \
-		   -L /usr/local/opt/openssl/lib \
-           -L /usr/local/lib/mariadb \
-           -lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
-		   -lmariadb -lssl -lcrypto
+		-L /usr/local/opt/openssl/lib \
+		-L /usr/local/lib/mariadb \
+		-lev -lprotobuf -lcryptopp -lhiredis -ljemalloc -ldl \
+		-lmariadb -lssl -lcrypto
 
 # so objs.
 DST_PATH = .

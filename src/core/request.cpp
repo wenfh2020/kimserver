@@ -2,51 +2,40 @@
 
 namespace kim {
 
-Request::Request(std::shared_ptr<Connection> c, const HttpMsg& msg)
-    : m_conn(c), m_is_http(true) {
-    set_http_msg_info(msg);
+Request::Request(const Request& req)
+    : m_conn(req.m_conn), m_is_http(req.m_is_http) {
+    if (m_is_http) {
+        CHECK_SET(m_http_msg, HttpMsg, *req.http_msg());
+    } else {
+        CHECK_SET(m_msg_head, MsgHead, *req.msg_head());
+        CHECK_SET(m_msg_body, MsgBody, *req.msg_body());
+    }
 }
 
-Request::Request(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body)
+Request::Request(Connection* c, bool is_http)
+    : m_conn(c), m_is_http(is_http) {
+    if (is_http) {
+        CHECK_NEW(m_http_msg, HttpMsg);
+    } else {
+        CHECK_NEW(m_msg_head, MsgHead);
+        CHECK_NEW(m_msg_body, MsgBody);
+    }
+}
+
+Request::Request(Connection* c, const HttpMsg& msg) : m_conn(c), m_is_http(true) {
+    CHECK_SET(m_http_msg, HttpMsg, msg);
+}
+
+Request::Request(Connection* c, const MsgHead& head, const MsgBody& body)
     : m_conn(c), m_is_http(false) {
-    set_msg_info(head, body);
+    CHECK_SET(m_msg_head, MsgHead, head);
+    CHECK_SET(m_msg_body, MsgBody, body);
 }
 
 Request::~Request() {
     SAFE_DELETE(m_msg_head);
     SAFE_DELETE(m_msg_body);
     SAFE_DELETE(m_http_msg);
-}
-
-void Request::set_http_msg_info(const HttpMsg& msg) {
-    if (m_http_msg == nullptr) {
-        m_http_msg = new HttpMsg;
-    }
-    *m_http_msg = msg;
-}
-
-void Request::set_msg_info(const MsgHead& head, const MsgBody& body) {
-    if (m_msg_head == nullptr) {
-        m_msg_head = new MsgHead;
-    }
-    *m_msg_head = head;
-
-    if (m_msg_body == nullptr) {
-        m_msg_body = new MsgBody;
-    }
-    *m_msg_body = body;
-}
-
-HttpMsg* Request::http_msg() {
-    return m_http_msg;
-}
-
-MsgHead* Request::msg_head() {
-    return m_msg_head;
-}
-
-MsgBody* Request::msg_body() {
-    return m_msg_body;
 }
 
 };  // namespace kim

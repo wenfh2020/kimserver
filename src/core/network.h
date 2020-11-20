@@ -59,14 +59,20 @@ class Network : public INet {
     void run();
     void end_ev_loop();
     virtual Events* events() override;
-    std::shared_ptr<Connection> add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
+    Connection* add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
 
+    /* node info. */
     virtual std::string node_type() override { return m_node_type; }
     virtual std::string node_host() override { return m_node_host; }
     virtual int node_port() override { return m_node_port; }
     virtual int worker_index() override { return m_worker_index; }
 
-    virtual void add_client_conn(const std::string& node_id, std::shared_ptr<Connection> c) override;
+    virtual bool update_conn_state(int fd, Connection::STATE state) override;
+    virtual void add_client_conn(const std::string& node_id, Connection* c) override;
+
+    /* zk node. */
+    virtual bool add_zk_node(const zk_node& znode) override;
+    virtual bool del_zk_node(const std::string& path) override;
 
     /* session */
     virtual bool add_session(Session* s) override;
@@ -121,10 +127,11 @@ class Network : public INet {
     virtual void on_repeat_timer(void* privdata) override;
 
     /* socket. */
-    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) override;
-    virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to(Connection* c, const HttpMsg& msg) override;
+    virtual bool send_to(Connection* c, const MsgHead& head, const MsgBody& body) override;
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to_children(const MsgHead& head, const MsgBody& body) override;
 
     /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
@@ -146,26 +153,27 @@ class Network : public INet {
     void check_wait_send_fds();
     bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker);
 
-    ev_io* add_write_event(std::shared_ptr<Connection>& c);
+    ev_io* add_write_event(Connection* c);
 
     /* socket. */
     int listen_to_port(const char* ip, int port);
-    void accept_server_conn(int fd);
-    void accept_and_transfer_fd(int fd);
+    void accept_server_conn(int listen_fd);
+    void accept_and_transfer_fd(int listen_fd);
     void read_transfer_fd(int fd);
     bool read_query_from_client(int fd);
-    bool process_message(std::shared_ptr<Connection>& c);
-    bool process_tcp_message(std::shared_ptr<Connection>& c);
-    bool process_http_message(std::shared_ptr<Connection>& c);
-    bool handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS status);
+    bool process_msg(Connection* c);
+    bool process_tcp_msg(Connection* c);
+    bool process_http_msg(Connection* c);
+    bool handle_write_events(Connection* c, Codec::STATUS status);
+    bool process_sys_req(Request& req);
 
     /* connection. */
-    std::shared_ptr<Connection> create_conn(int fd);
-    bool close_conn(std::shared_ptr<Connection> c);
+    Connection* create_conn(int fd);
+    bool close_conn(Connection* c);
     void close_conns();
 
     /* timer */
-    bool add_io_timer(std::shared_ptr<Connection> c, double secs);
+    bool add_io_timer(Connection* c, double secs);
 
    private:
     Log* m_logger = nullptr;
@@ -178,12 +186,12 @@ class Network : public INet {
     int m_manager_ctrl_fd = -1; /* chanel fd use for worker. */
     int m_manager_data_fd = -1; /* chanel fd use for worker. */
 
-    TYPE m_type = TYPE::UNKNOWN;                                                /* owner type. */
-    double m_keep_alive = IO_TIMEOUT_VAL;                                       /* io timeout time. */
-    WorkerDataMgr* m_woker_data_mgr = nullptr;                                  /* manager handle worker data. */
-    Codec::TYPE m_gate_codec = Codec::TYPE::UNKNOWN;                            /* gate codec type. */
-    std::unordered_map<int, std::shared_ptr<Connection> > m_conns;              /* key: fd, value: connection. */
-    std::unordered_map<std::string, std::shared_ptr<Connection> > m_node_conns; /* key: node_id */
+    TYPE m_type = TYPE::UNKNOWN;                               /* owner type. */
+    double m_keep_alive = IO_TIMEOUT_VAL;                      /* io timeout time. */
+    WorkerDataMgr* m_woker_data_mgr = nullptr;                 /* manager handle worker data. */
+    Codec::TYPE m_gate_codec = Codec::TYPE::UNKNOWN;           /* gate codec type. */
+    std::unordered_map<int, Connection*> m_conns;              /* key: fd, value: connection. */
+    std::unordered_map<std::string, Connection*> m_node_conns; /* key: node_id */
 
     ModuleMgr* m_module_mgr = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds; /* key: cmd id. */

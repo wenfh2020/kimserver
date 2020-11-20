@@ -238,8 +238,7 @@ error:
     return false;
 }
 
-std::shared_ptr<Connection>
-Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
+Connection* Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     if (anet_no_block(m_errstr, fd) != ANET_OK) {
         LOG_ERROR("set socket no block failed! fd: %d, errstr: %s", fd, m_errstr);
         return nullptr;
@@ -257,7 +256,7 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     }
 
     ev_io* w;
-    std::shared_ptr<Connection> c;
+    Connection* c;
 
     c = create_conn(fd);
     if (c == nullptr) {
@@ -281,17 +280,17 @@ Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
     return c;
 }
 
-std::shared_ptr<Connection> Network::create_conn(int fd) {
+Connection* Network::create_conn(int fd) {
     auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
         return it->second;
     }
 
     uint64_t seq;
-    std::shared_ptr<Connection> c;
+    Connection* c;
 
     seq = new_seq();
-    c = std::make_shared<Connection>(m_logger, fd, seq);
+    c = new Connection(m_logger, fd, seq);
     if (c == nullptr) {
         LOG_ERROR("new connection failed! fd: %d", fd);
         return nullptr;
@@ -303,7 +302,7 @@ std::shared_ptr<Connection> Network::create_conn(int fd) {
     return c;
 }
 
-bool Network::close_conn(std::shared_ptr<Connection> c) {
+bool Network::close_conn(Connection* c) {
     if (c == nullptr) {
         return false;
     }
@@ -323,7 +322,7 @@ bool Network::close_conn(int fd) {
         return false;
     }
 
-    std::shared_ptr<Connection> c = it->second;
+    Connection* c = it->second;
     c->set_state(Connection::STATE::CLOSED);
     m_events->del_io_event(c->get_ev_io());
     c->set_ev_io(nullptr);
@@ -341,6 +340,7 @@ bool Network::close_conn(int fd) {
     }
 
     close_fd(fd);
+    SAFE_DELETE(c);
     m_conns.erase(it);
     return true;
 }
@@ -398,11 +398,17 @@ void Network::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     if (w->data == nullptr) {
         return;
     }
-    int fd = w->fd;
-    INet* net = static_cast<INet*>(w->data);
+
+    int fd;
+    INet* net;
+
+    fd = w->fd;
+    net = static_cast<INet*>(w->data);
+
     if (events & EV_READ) {
         net->on_io_read(fd);
     }
+
     if (events & EV_WRITE) {
         net->on_io_write(fd);
     }
@@ -412,12 +418,13 @@ void Network::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents
     if (s == nullptr || s->data == nullptr) {
         return;
     }
+
     INet* net = static_cast<INet*>(s->data);
     (s->signum == SIGCHLD) ? net->on_child_terminated(s) : net->on_terminated(s);
 }
 
 void Network::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    std::shared_ptr<Connection> c = static_cast<ConnectionData*>(w->data)->m_conn;
+    Connection* c = static_cast<ConnectionData*>(w->data)->m_conn;
     INet* net = static_cast<INet*>(c->privdata());
     net->on_io_timer(w->data);
 }
@@ -428,8 +435,9 @@ void Network::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int re
 }
 
 void Network::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Cmd* cmd = static_cast<Cmd*>(w->data);
-    cmd->net()->on_cmd_timer(cmd);
+    callback_info_t* cbi = static_cast<callback_info_t*>(w->data);
+    cbi->net->on_cmd_timer((void*)cbi->callback_id);
+    SAFE_DELETE(cbi);
 }
 
 void Network::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
@@ -463,7 +471,7 @@ void Network::on_io_write(int fd) {
         return;
     }
 
-    std::shared_ptr<Connection> c = it->second;
+    Connection* c = it->second;
     if (c->is_invalid()) {
         return;
     }
@@ -478,7 +486,7 @@ void Network::on_io_write(int fd) {
             /* nodes connect. */
             if (c->state() == Connection::STATE::TRY_CONNECT) {
                 /* A1 contact with B1. */
-                int worker_index = 2;
+                int worker_index = 1;
                 if (!m_sys_cmd->send_req_connect_to_worker(c, worker_index)) {
                     LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
                     close_conn(c);
@@ -533,8 +541,17 @@ void Network::on_cmd_timer(void* privdata) {
     Cmd* cmd;
     double secs;
     Module* module;
+    uint64_t cmd_id;
 
-    cmd = static_cast<Cmd*>(privdata);
+    cmd_id = (uint64_t)privdata;
+
+    auto it = m_cmds.find(cmd_id);
+    if (it == m_cmds.end()) {
+        LOG_ERROR("find cmd failed!, cmd id: %llu", cmd_id);
+        return;
+    }
+
+    cmd = it->second;
     secs = cmd->keep_alive() - (now() - cmd->active_time());
     if (secs > 0) {
         LOG_TRACE("cmd timer restart, cmd id: %llu, restart timer secs: %f",
@@ -559,8 +576,8 @@ void Network::on_cmd_timer(void* privdata) {
 void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
         double secs;
+        Connection* c;
         ConnectionData* conn_data;
-        std::shared_ptr<Connection> c;
 
         conn_data = static_cast<ConnectionData*>(privdata);
         c = conn_data->m_conn;
@@ -586,16 +603,16 @@ bool Network::read_query_from_client(int fd) {
         return false;
     }
 
-    std::shared_ptr<Connection> c = it->second;
+    Connection* c = it->second;
     if (c->is_invalid()) {
         close_conn(fd);
         return false;
     }
 
-    return process_message(c);
+    return process_msg(c);
 }
 
-ev_io* Network::add_write_event(std::shared_ptr<Connection>& c) {
+ev_io* Network::add_write_event(Connection* c) {
     ev_io* w = m_events->add_write_event(c->fd(), c->get_ev_io(), this);
     if (w != nullptr) {
         c->set_ev_io(w);
@@ -603,15 +620,15 @@ ev_io* Network::add_write_event(std::shared_ptr<Connection>& c) {
     return w;
 }
 
-bool Network::process_message(std::shared_ptr<Connection>& c) {
+bool Network::process_msg(Connection* c) {
     if (c->is_http_codec()) {
-        return process_http_message(c);
+        return process_http_msg(c);
     } else {
-        return process_tcp_message(c);
+        return process_tcp_msg(c);
     }
 
     // if (c->keep_alive() == 0.0) {
-    //     LOG_DEBUG("short connection! fd: %d", cfd);
+    //     LOG_DEBUG("short connection! fd: %d", fd);
     //     close_conn(c);
     //     return false;
     // }
@@ -619,77 +636,82 @@ bool Network::process_message(std::shared_ptr<Connection>& c) {
     return true;
 }
 
-bool Network::process_tcp_message(std::shared_ptr<Connection>& c) {
-    MsgHead head;
-    MsgBody body;
+bool Network::process_tcp_msg(Connection* c) {
+    int fd;
     Cmd::STATUS cmd_ret;
-    Codec::STATUS status;
-    int cfd = c->fd();
+    Codec::STATUS codec_ret;
+    Request req(c, false);
 
-    status = c->conn_read(head, body);
-    LOG_TRACE("conn read result, fd: %d, status: %d", cfd, (int)status);
-    while (status == Codec::STATUS::OK) {
-        cmd_ret = m_sys_cmd->process(c, head, body);
-        if (cmd_ret == Cmd::STATUS::UNKOWN) {
-            if (is_request(head.cmd())) {
-                cmd_ret = m_module_mgr->process_request(c, head, body);
-            } else {
-                cmd_ret = m_module_mgr->process_ack(c, head, body);
-            }
-        }
+    fd = c->fd();
+    codec_ret = c->conn_read(*req.msg_head(), *req.msg_body());
+    LOG_TRACE("conn read result, fd: %d, ret: %d", fd, (int)codec_ret);
 
-        if (cmd_ret == Cmd::STATUS::UNKOWN) {
-            LOG_ERROR("can not find cmd handler. fd: %d", cfd)
-            close_conn(c);
-            return false;
-        } else if (cmd_ret == Cmd::STATUS::RUNNING) {
+    while (codec_ret == Codec::STATUS::OK) {
+        cmd_ret = m_sys_cmd->process(req);
+        if (cmd_ret == Cmd::STATUS::RUNNING) {
+            /* send waiting buffer. */
             if (add_write_event(c) == nullptr) {
-                LOG_ERROR("add write event failed! fd: %d", cfd);
-                close_conn(c);
-                return false;
+                LOG_ERROR("add write event failed! fd: %d", fd);
+                goto error;
             }
-            break;
         } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
             close_conn(c);
             return true;
-        } else if (cmd_ret == Cmd::STATUS::ERROR) {
-            LOG_TRACE("process msg error!");
-            close_conn(c);
-            return false;
-        } else {
-            /* ok. */
+        } else if (cmd_ret == Cmd::STATUS::UNKOWN) {
+            if (is_request(req.msg_head()->cmd())) {
+                cmd_ret = m_module_mgr->process_req(req);
+            } else {
+                cmd_ret = m_module_mgr->process_ack(req);
+            }
         }
 
-        head.Clear();
-        body.Clear();
-        status = c->fetch_data(head, body);
+        if (cmd_ret == Cmd::STATUS::UNKOWN) {
+            LOG_WARN("can not find cmd handler. fd: %d", fd)
+            goto error;
+        } else if (cmd_ret == Cmd::STATUS::ERROR) {
+            LOG_TRACE("process tcp msg fail! fd: %d", fd);
+            goto error;
+        } else {
+            req.msg_head()->Clear();
+            req.msg_body()->Clear();
+            codec_ret = c->fetch_data(*req.msg_head(), *req.msg_body());
+            if (codec_ret == Codec::STATUS::ERR) {
+                LOG_TRACE("conn read failed. fd: %d", fd);
+                goto error;
+            }
+        }
     }
 
-    if (status == Codec::STATUS::ERR) {
-        LOG_TRACE("read failed. fd: %d", c->fd());
-        close_conn(c);
-        return false;
+    if (codec_ret == Codec::STATUS::ERR) {
+        LOG_TRACE("conn read failed. fd: %d", fd);
+        goto error;
     }
 
     return true;
+
+error:
+    close_conn(c);
+    return false;
 }
 
-bool Network::process_http_message(std::shared_ptr<Connection>& c) {
+bool Network::process_http_msg(Connection* c) {
     HttpMsg msg;
     Cmd::STATUS cmd_ret;
-    Codec::STATUS status;
+    Codec::STATUS codec_ret;
+    Request req(c, true);
 
-    status = c->conn_read(msg);
-    LOG_TRACE("connection is http codec type, status: %d", (int)status);
-    while (status == Codec::STATUS::OK) {
-        cmd_ret = m_module_mgr->process_request(c, msg);
+    codec_ret = c->conn_read(*req.http_msg());
+    LOG_TRACE("connection is http, read ret: %d", (int)codec_ret);
+
+    while (codec_ret == Codec::STATUS::OK) {
+        cmd_ret = m_module_mgr->process_req(req);
         msg.Clear();
-        status = c->fetch_data(msg);
+        codec_ret = c->fetch_data(*req.http_msg());
         LOG_TRACE("cmd status: %d", cmd_ret);
     }
 
-    if (status == Codec::STATUS::ERR) {
-        LOG_TRACE("read failed. fd: %d", c->fd());
+    if (codec_ret == Codec::STATUS::ERR) {
+        LOG_TRACE("conn read fail. fd: %d", c->fd());
         close_conn(c);
         return false;
     }
@@ -697,46 +719,67 @@ bool Network::process_http_message(std::shared_ptr<Connection>& c) {
     return true;
 }
 
-void Network::accept_server_conn(int fd) {
-    char cip[NET_IP_STR_LEN];
-    int cport, cfd, family, max = MAX_ACCEPTS_PER_CALL;
+bool Network::process_sys_req(Request& req) {
+    Connection* c;
+    Cmd::STATUS cmd_ret;
+
+    c = req.conn();
+    cmd_ret = m_sys_cmd->process(req);
+    if (cmd_ret == Cmd::STATUS::RUNNING) {
+        /* send waiting buffer. */
+        if (add_write_event(c) == nullptr) {
+            LOG_ERROR("add write event failed! fd: %d", req.conn()->fd());
+            close_conn(c);
+        }
+    } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
+        close_conn(c);
+    } else if (cmd_ret == Cmd::STATUS::ERROR) {
+        close_conn(c);
+    }
+
+    return (cmd_ret != Cmd::STATUS::UNKOWN);
+}
+
+void Network::accept_server_conn(int listen_fd) {
+    char ip[NET_IP_STR_LEN];
+    int fd, port, family, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
-        cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
-        if (cfd == ANET_ERR) {
+        fd = anet_tcp_accept(m_errstr, listen_fd, ip, sizeof(ip), &port, &family);
+        if (fd == ANET_ERR) {
             if (errno != EWOULDBLOCK) {
                 LOG_ERROR("accepting client connection failed: fd: %d, errstr %s",
-                          fd, m_errstr);
+                          listen_fd, m_errstr);
             }
             return;
         }
 
-        LOG_INFO("accepted server %s:%d", cip, cport);
+        LOG_INFO("accepted server %s:%d", ip, port);
 
-        if (!add_read_event(cfd, Codec::TYPE::PROTOBUF)) {
-            close_conn(cfd);
-            LOG_ERROR("add data fd read event failed, fd: %d", cfd);
+        if (!add_read_event(fd, Codec::TYPE::PROTOBUF)) {
+            close_conn(fd);
+            LOG_ERROR("add read event failed, client fd: %d", fd);
             return;
         }
     }
 }
 
 /* manager accept new fd and transfer which to worker through chanel.*/
-void Network::accept_and_transfer_fd(int fd) {
+void Network::accept_and_transfer_fd(int listen_fd) {
     channel_t ch;
     chanel_resend_data_t* ch_data;
-    char cip[NET_IP_STR_LEN] = {0};
-    int cport, cfd, family, chanel_fd, err;
+    char ip[NET_IP_STR_LEN] = {0};
+    int fd, port, family, chanel_fd, err;
 
-    cfd = anet_tcp_accept(m_errstr, fd, cip, sizeof(cip), &cport, &family);
-    if (cfd == ANET_ERR) {
+    fd = anet_tcp_accept(m_errstr, listen_fd, ip, sizeof(ip), &port, &family);
+    if (fd == ANET_ERR) {
         if (errno != EWOULDBLOCK) {
             LOG_WARN("accepting client connection: %s", m_errstr);
         }
         return;
     }
 
-    LOG_INFO("accepted client: %s:%d", cip, cport);
+    LOG_INFO("accepted client: %s:%d", ip, port);
 
     chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd <= 0) {
@@ -744,9 +787,9 @@ void Network::accept_and_transfer_fd(int fd) {
         goto end;
     }
 
-    LOG_TRACE("send client fd: %d to worker through chanel fd %d", cfd, chanel_fd);
+    LOG_TRACE("send client fd: %d to worker through chanel fd %d", fd, chanel_fd);
 
-    ch = {cfd, family, static_cast<int>(m_gate_codec)};
+    ch = {fd, family, static_cast<int>(m_gate_codec)};
     err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
     if (err != 0) {
         if (err == EAGAIN) {
@@ -761,16 +804,16 @@ void Network::accept_and_transfer_fd(int fd) {
     }
 
 end:
-    close_fd(cfd);
+    close_fd(fd);
 }
 
 // worker send fd which transfered from manager.
 void Network::read_transfer_fd(int fd) {
-    channel_t ch;
-    Codec::TYPE codec;
     ev_timer* w;
-    ConnectionData* conn_data = nullptr;
-    std::shared_ptr<Connection> c = nullptr;
+    channel_t ch;
+    Connection* c;
+    Codec::TYPE codec;
+    ConnectionData* conn_data;
     int err, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
@@ -874,12 +917,37 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
     // }
 
     // node_id = format_nodes_id(node->ip, node->port, node->worker_index);
-    node_id = format_nodes_id("127.0.0.1", 3344, 2);
+    node_id = format_nodes_id("127.0.0.1", 3344, 1);
     auto it = m_node_conns.find(node_id);
     return (it != m_node_conns.end())
                ? send_to(it->second, head, body)
-               : auto_send("127.0.0.1", 3344, 2, head, body);
+               : auto_send("127.0.0.1", 3344, 1, head, body);
     //    : auto_send(node->ip, node->port, node->worker_index, head, body);
+    return true;
+}
+
+bool Network::send_to_children(const MsgHead& head, const MsgBody& body) {
+    if (is_worker()) {
+        LOG_ERROR("send_to_node only for manager!");
+        return false;
+    }
+
+    /* Parent and child processes communicate through socketpair. */
+    const std::unordered_map<int, worker_info_t*>& infos =
+        m_woker_data_mgr->get_infos();
+
+    for (auto& v : infos) {
+        auto it = m_conns.find(v.second->ctrl_fd);
+        if (it == m_conns.end() || it->second->is_invalid()) {
+            LOG_ALERT("ctrl fd is invalid! fd: %d", v.second->ctrl_fd);
+            continue;
+        }
+        if (!send_to(it->second, head, body)) {
+            LOG_ALERT("send to child failed! fd: %d", v.second->ctrl_fd);
+            continue;
+        }
+    }
+
     return true;
 }
 
@@ -911,7 +979,7 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     // struct sockaddr saddr;
     struct sockaddr_in saddr;
     std::string node_id;
-    std::shared_ptr<Connection> c;
+    Connection* c;
 
     /* create socket. */
     saddr.sin_family = AF_INET;
@@ -996,7 +1064,7 @@ error:
     return false;
 }
 
-bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
+bool Network::send_to(Connection* c, const HttpMsg& msg) {
     if (!handle_write_events(c, c->conn_write(msg))) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
@@ -1005,7 +1073,7 @@ bool Network::send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) {
     return true;
 }
 
-bool Network::send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) {
+bool Network::send_to(Connection* c, const MsgHead& head, const MsgBody& body) {
     if (!handle_write_events(c, c->conn_write(head, body))) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
@@ -1014,7 +1082,7 @@ bool Network::send_to(std::shared_ptr<Connection> c, const MsgHead& head, const 
     return true;
 }
 
-bool Network::handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS status) {
+bool Network::handle_write_events(Connection* c, Codec::STATUS codec_ret) {
     if (c->is_invalid()) {
         LOG_WARN("connection is closed! fd: %d", c->fd());
         return false;
@@ -1023,7 +1091,7 @@ bool Network::handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS 
     int fd = c->fd();
     ev_io* w = c->get_ev_io();
 
-    if (status == Codec::STATUS::PAUSE) {
+    if (codec_ret == Codec::STATUS::PAUSE) {
         w = m_events->add_write_event(fd, w, this);
         if (w == nullptr) {
             LOG_ERROR("add write event failed! fd: %d", fd);
@@ -1033,7 +1101,7 @@ bool Network::handle_write_events(std::shared_ptr<Connection>& c, Codec::STATUS 
         }
     } else {
         m_events->del_write_event(w);
-        if (status == Codec::STATUS::ERR) {
+        if (codec_ret == Codec::STATUS::ERR) {
             LOG_DEBUG("conn write faild! fd: %d", fd);
             return false;
         }
@@ -1299,9 +1367,26 @@ bool Network::load_redis_mgr() {
     return true;
 }
 
-void Network::Network::add_client_conn(
-    const std::string& node_id, std::shared_ptr<Connection> c) {
+bool Network::update_conn_state(int fd, Connection::STATE state) {
+    auto it = m_conns.find(fd);
+    if (it == m_conns.end()) {
+        return false;
+    }
+
+    it->second->set_state(state);
+    return true;
+}
+
+void Network::Network::add_client_conn(const std::string& node_id, Connection* c) {
     m_node_conns[node_id] = c;
+}
+
+bool Network::add_zk_node(const zk_node& znode) {
+    return m_nodes->add_zk_node(znode);
+}
+
+bool Network::del_zk_node(const std::string& path) {
+    return m_nodes->del_zk_node(path);
 }
 
 bool Network::add_session(Session* s) {
@@ -1320,7 +1405,7 @@ void Network::on_session_timer(void* privdata) {
     m_session_mgr->on_session_timer(privdata);
 }
 
-bool Network::add_io_timer(std::shared_ptr<Connection> c, double secs) {
+bool Network::add_io_timer(Connection* c, double secs) {
     ev_timer* w;
     ConnectionData* conn_data;
 
@@ -1330,6 +1415,7 @@ bool Network::add_io_timer(std::shared_ptr<Connection> c, double secs) {
         LOG_ERROR("alloc connection data failed! fd: %d", c->fd());
         goto error;
     }
+
     conn_data->m_conn = c;
 
     /* create timer. */

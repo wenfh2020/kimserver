@@ -16,6 +16,7 @@ class Cmd;
 class INet;
 class Session;
 class Events;
+class zk_node;
 
 /* privdata for cmd callback. */
 typedef struct wait_cmd_info_s {
@@ -24,6 +25,11 @@ typedef struct wait_cmd_info_s {
     uint64_t cmd_id;
     int exec_step;
 } wait_cmd_info_t;
+
+typedef struct callback_info_s {
+    INet* net;
+    uint64_t callback_id;
+} callback_info_t;
 
 class INet {
    public:
@@ -38,12 +44,20 @@ class INet {
 
     virtual bool is_worker() { return false; }
     virtual bool is_manager() { return false; }
+
+    /* node info. */
     virtual std::string node_type() { return ""; }
     virtual std::string node_host() { return ""; }
     virtual int node_port() { return 0; }
     virtual int worker_index() { return -1; }
 
-    virtual void add_client_conn(const std::string& node_id, std::shared_ptr<Connection> c) {}
+    /* connection. */
+    virtual bool update_conn_state(int fd, Connection::STATE state) { return false; }
+    virtual void add_client_conn(const std::string& node_id, Connection* c) {}
+
+    /* zk node. */
+    virtual bool add_zk_node(const zk_node& znode) { return false; }
+    virtual bool del_zk_node(const std::string& path) { return false; }
 
     /* cmd */
     virtual bool
@@ -82,10 +96,13 @@ class INet {
 
    public:
     /* socket. */
-    virtual bool send_to(std::shared_ptr<Connection> c, const HttpMsg& msg) { return false; }
-    virtual bool send_to(std::shared_ptr<Connection> c, const MsgHead& head, const MsgBody& body) { return false; }
+    virtual bool send_to(Connection* c, const HttpMsg& msg) { return false; }
+    virtual bool send_to(Connection* c, const MsgHead& head, const MsgBody& body) { return false; }
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) { return false; }
+    /* only for worker. */
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) { return false; }
+    /* only for manager. */
+    virtual bool send_to_children(const MsgHead& head, const MsgBody& body) { return false; }
 
     // redis.
     virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) { return false; }

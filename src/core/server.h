@@ -21,16 +21,6 @@ namespace kim {
 #define EXIT_CHILD_INIT_FAIL -3
 #define EXIT_FD_TRANSFER -4
 
-/* system cmd.
- * A node connect to B node. */
-enum E_CMD {
-    CMD_UNKNOWN = 0,
-    CMD_REQ_CONNECT_TO_WORKER = 11,
-    CMD_RSP_CONNECT_TO_WORKER = 12,
-    CMD_REQ_TELL_WORKER = 13,
-    CMD_RSP_TELL_WORKER = 14,
-};
-
 // redis operation return status.
 enum class E_RDS_STATUS {
     OK = 0,
@@ -49,24 +39,6 @@ enum class E_RDS_STATUS {
 #define TCP_BACK_LOG 511
 #define NET_IP_STR_LEN 46 /* INET6_ADDRSTRLEN is 46, but we need to be sure */
 #define MAX_ACCEPTS_PER_CALL 1000
-
-#define SAFE_FREE(x)               \
-    {                              \
-        if (x != nullptr) free(x); \
-        x = nullptr;               \
-    }
-
-#define SAFE_DELETE(x)              \
-    {                               \
-        if (x != nullptr) delete x; \
-        x = nullptr;                \
-    }
-
-#define SAFE_ARRAY_DELETE(x)          \
-    {                                 \
-        if (x != nullptr) delete[] x; \
-        x = nullptr;                  \
-    }
 
 // logger macro.
 #define LOG_FORMAT(level, args...)                                           \
@@ -90,6 +62,32 @@ enum class E_RDS_STATUS {
         return (new kim::module_name()); \
     }                                    \
     }
+
+#define SAFE_FREE(x)               \
+    {                              \
+        if (x != nullptr) free(x); \
+        x = nullptr;               \
+    }
+
+#define SAFE_DELETE(x)              \
+    {                               \
+        if (x != nullptr) delete x; \
+        x = nullptr;                \
+    }
+
+#define SAFE_ARRAY_DELETE(x)          \
+    {                                 \
+        if (x != nullptr) delete[] x; \
+        x = nullptr;                  \
+    }
+
+#define CHECK_SET(v, def, d) \
+    if ((v) == nullptr) {    \
+        v = new def;         \
+    }                        \
+    *(v) = (d);
+
+#define CHECK_NEW(v, def) (v == nullptr) ? (v = new def) : (v)
 
 }  // namespace kim
 

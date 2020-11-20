@@ -18,7 +18,7 @@ class Connection;
 
 class ConnectionData {
    public:
-    std::shared_ptr<Connection> m_conn = nullptr;
+    Connection* m_conn = nullptr;
 };
 
 class Connection : public Timer {

@@ -40,7 +40,8 @@ class CmdTestRedis : public Cmd {
 
                 if (m_key.empty() || m_value.empty()) {
                     LOG_ERROR("invalid request data! pls check!");
-                    return response_http(ERR_FAILED, "invalid request data");
+                    response_http(ERR_FAILED, "invalid request data");
+                    return Cmd::STATUS::ERROR;
                 }
 
                 return (m_oper == "read")
@@ -53,7 +54,8 @@ class CmdTestRedis : public Cmd {
                 std::vector<std::string> argv{"set", m_key, m_value};
                 Cmd::STATUS status = redis_send_to("test", argv);
                 if (status == Cmd::STATUS::ERROR) {
-                    return response_http(ERR_FAILED, "redis failed!");
+                    response_http(ERR_FAILED, "redis failed!");
+                    return Cmd::STATUS::ERROR;
                 }
                 set_next_step();
                 return status;
@@ -64,20 +66,27 @@ class CmdTestRedis : public Cmd {
                 if (err != ERR_OK || reply == nullptr ||
                     reply->type != REDIS_REPLY_STATUS || strncmp(reply->str, "OK", 2) != 0) {
                     LOG_ERROR("redis set data callback failed!");
-                    return response_http(ERR_FAILED, "redis set data callback failed!");
+                    response_http(ERR_FAILED, "redis set data callback failed!");
+                    return Cmd::STATUS::ERROR;
                 }
                 LOG_DEBUG("redis set callback result: %s", reply->str);
 
-                return (m_oper == "write")
-                           ? response_http(ERR_OK, "redis write data done!")
-                           : execute_next_step(err, data);
+                if (m_oper == "write") {
+                    if (!response_http(ERR_OK, "redis write data done!")) {
+                        return Cmd::STATUS::ERROR;
+                    }
+                    return Cmd::STATUS::COMPLETED;
+                } else {
+                    return execute_next_step(err, data);
+                }
             }
 
             case STEP_REDIS_GET: {
                 std::vector<std::string> argv{"get", m_key};
                 Cmd::STATUS status = redis_send_to("test", argv);
                 if (status == Cmd::STATUS::ERROR) {
-                    return response_http(ERR_FAILED, "redis failed!");
+                    response_http(ERR_FAILED, "redis failed!");
+                    return Cmd::STATUS::ERROR;
                 }
                 set_next_step();
                 return status;
@@ -87,19 +96,24 @@ class CmdTestRedis : public Cmd {
                 redisReply* reply = (redisReply*)data;
                 if (err != ERR_OK || reply == nullptr || reply->type != REDIS_REPLY_STRING) {
                     LOG_ERROR("redis get data callback failed!");
-                    return response_http(ERR_FAILED, "redis set data failed!");
+                    response_http(ERR_FAILED, "redis set data failed!");
+                    return Cmd::STATUS::ERROR;
                 }
                 LOG_DEBUG("redis get callback result: %s, type: %d", reply->str, reply->type);
 
                 CJsonObject rsp;
                 rsp.Add("key", m_key);
                 rsp.Add("value", m_value);
-                return response_http(ERR_OK, "ok", rsp);
+                if (!response_http(ERR_OK, "ok", rsp)) {
+                    return Cmd::STATUS::ERROR;
+                }
+                return Cmd::STATUS::COMPLETED;
             }
 
             default: {
                 LOG_ERROR("invalid step");
-                return response_http(ERR_FAILED, "invalid step!");
+                response_http(ERR_FAILED, "invalid step!");
+                return Cmd::STATUS::ERROR;
             }
         }
     }

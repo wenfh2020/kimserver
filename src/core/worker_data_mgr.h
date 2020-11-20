@@ -25,6 +25,7 @@ class WorkerDataMgr {
     bool get_worker_chanel(int pid, int* chs);
     bool get_worker_index(int pid, int& index);
     int get_worker_data_fd(int worker_index);
+    const std::unordered_map<int, worker_info_t*>& get_infos() const { return m_worker_info; }
 
    private:
     /* key: pid. */

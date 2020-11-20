@@ -63,11 +63,8 @@ bool Connection::conn_read() {
         return false;
     }
 
-    if (m_recv_buf == nullptr) {
-        m_recv_buf = new SocketBuffer;
-        if (m_recv_buf == nullptr) {
-            return false;
-        }
+    if ((CHECK_NEW(m_recv_buf, SocketBuffer)) == nullptr) {
+        return false;
     }
 
     int read_len = m_recv_buf->read_fd(m_fd, m_errno);
@@ -186,12 +183,9 @@ Codec::STATUS Connection::conn_write(
         return Codec::STATUS::ERR;
     }
 
-    if (*buf == nullptr) {
-        *buf = new SocketBuffer;
-        if (*buf == nullptr) {
-            LOG_ERROR("alloc send buf failed!");
-            return Codec::STATUS::ERR;
-        }
+    if ((CHECK_NEW(*buf, SocketBuffer)) == nullptr) {
+        LOG_ERROR("alloc send buf failed!");
+        return Codec::STATUS::ERR;
     }
 
     Codec::STATUS status = codec->encode(head, body, *buf);
@@ -234,12 +228,9 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg, SocketBuffer** buf) {
         return Codec::STATUS::ERR;
     }
 
-    if (*buf == nullptr) {
-        *buf = new SocketBuffer;
-        if (*buf == nullptr) {
-            LOG_ERROR("alloc send buf failed!");
-            return Codec::STATUS::ERR;
-        }
+    if ((CHECK_NEW(*buf, SocketBuffer)) == nullptr) {
+        LOG_ERROR("alloc send buf failed!");
+        return Codec::STATUS::ERR;
     }
 
     Codec::STATUS status = codec->encode(msg, *buf);
