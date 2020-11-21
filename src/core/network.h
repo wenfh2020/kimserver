@@ -38,10 +38,10 @@ class Network : public INet {
     Network(const Network&) = delete;
     Network& operator=(const Network&) = delete;
 
+    /* for manager. */
+    bool create_m(const addr_info* ainfo, INet* net, const CJsonObject& config);
     /* for worker. */
     bool create_w(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd, int index);
-    /* for manager. */
-    bool create_m(const addr_info* ainfo, INet* net, const CJsonObject& config, WorkerDataMgr* m);
     void destory();
 
     /* init. */
@@ -50,10 +50,26 @@ class Network : public INet {
     bool load_modules();
     bool load_db();
     bool load_redis_mgr();
+    bool load_worker_data_mgr();
     bool load_public();
+
+    bool set_gate_codec(const std::string& codec);
+    void set_keep_alive(double secs) { m_keep_alive = secs; }
+    double keep_alive() { return m_keep_alive; }
+    bool is_request(int cmd) { return (cmd & 0x00000001); }
+
+    /* manager and worker contack by socketpair. */
+    void close_chanel(int* fds);
+    /* close connection by fd. */
+    bool close_conn(int fd);
+    /* use in fork. */
+    void close_fds();
 
     /* current time. */
     virtual double now() override;
+    virtual uint64_t new_seq() override { return ++m_seq; }
+    virtual SysCmd* sys_cmd() override { return m_sys_cmd; }
+    virtual Nodes* nodes() override { return m_nodes; }
 
     /* events. */
     void run();
@@ -62,6 +78,9 @@ class Network : public INet {
     Connection* add_read_event(int fd, Codec::TYPE codec, bool is_chanel = false);
 
     /* node info. */
+    virtual bool is_worker() override { return m_type == TYPE::WORKER; }
+    virtual bool is_manager() override { return m_type == TYPE::MANAGER; }
+    virtual WorkerDataMgr* worker_data_mgr() override { return m_worker_data_mgr; }
     virtual std::string node_type() override { return m_node_type; }
     virtual std::string node_host() override { return m_node_host; }
     virtual int node_port() override { return m_node_port; }
@@ -79,30 +98,11 @@ class Network : public INet {
     virtual Session* get_session(const std::string& sessid, bool re_active = false) override;
     virtual bool del_session(const std::string& sessid) override;
 
-    /* manager and worker contack by socketpair. */
-    void close_chanel(int* fds);
-    /* close connection by fd. */
-    bool close_conn(int fd);
-    /* use in fork. */
-    void close_fds();
-
-    /* woker or manager type */
-    bool is_worker() override { return m_type == TYPE::WORKER; }
-    bool is_manager() override { return m_type == TYPE::MANAGER; }
-
-    bool set_gate_codec(const std::string& codec);
-    void set_keep_alive(double secs) { m_keep_alive = secs; }
-    double keep_alive() { return m_keep_alive; }
-
    public:
-    virtual uint64_t new_seq() override { return ++m_seq; }
-
     /* cmd. */
     virtual bool add_cmd(Cmd* cmd) override;
     virtual Cmd* get_cmd(uint64_t id) override;
     virtual bool del_cmd(Cmd* cmd) override;
-
-    bool is_request(int cmd) { return (cmd & 0x00000001); }
 
     /* cmd timer. */
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
@@ -131,7 +131,7 @@ class Network : public INet {
     virtual bool send_to(Connection* c, const MsgHead& head, const MsgBody& body) override;
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) override;
-    virtual bool send_to_children(const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to_children(int cmd, uint64_t seq, const std::string& data) override;
 
     /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
@@ -181,6 +181,11 @@ class Network : public INet {
     uint64_t m_seq = 0;          /* cur increasing sequence. */
     char m_errstr[ANET_ERR_LEN]; /* error string. */
 
+    std::string m_node_type;
+    std::string m_node_host;
+    int m_node_port = 0;
+    int m_worker_index = 0;
+
     int m_node_host_fd = -1;    /* host for inner servers. */
     int m_gate_host_fd = -1;    /* gate host fd for client. */
     int m_manager_ctrl_fd = -1; /* chanel fd use for worker. */
@@ -188,7 +193,7 @@ class Network : public INet {
 
     TYPE m_type = TYPE::UNKNOWN;                               /* owner type. */
     double m_keep_alive = IO_TIMEOUT_VAL;                      /* io timeout time. */
-    WorkerDataMgr* m_woker_data_mgr = nullptr;                 /* manager handle worker data. */
+    WorkerDataMgr* m_worker_data_mgr = nullptr;                /* manager handle worker data. */
     Codec::TYPE m_gate_codec = Codec::TYPE::UNKNOWN;           /* gate codec type. */
     std::unordered_map<int, Connection*> m_conns;              /* key: fd, value: connection. */
     std::unordered_map<std::string, Connection*> m_node_conns; /* key: node_id */
@@ -203,12 +208,7 @@ class Network : public INet {
     RedisMgr* m_redis_pool = nullptr;    /* redis connection pool. */
     SessionMgr* m_session_mgr = nullptr; /* session pool. */
     Nodes* m_nodes = nullptr;            /* server nodes. */
-    SysCmd* m_sys_cmd = nullptr;
-
-    std::string m_node_type;
-    std::string m_node_host;
-    int m_node_port = 0;
-    int m_worker_index = 0;
+    SysCmd* m_sys_cmd = nullptr;         /* for node communication.  */
 };
 
 }  // namespace kim

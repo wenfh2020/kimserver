@@ -64,7 +64,7 @@ class Connection : public Timer {
     void set_node_id(const std::string& node_id) { m_node_id = node_id; }
     const std::string& get_node_id() const { return m_node_id; }
 
-    bool is_http_codec();
+    bool is_http();
 
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);

@@ -50,7 +50,7 @@ bool Connection::init(Codec::TYPE codec) {
     return true;
 }
 
-bool Connection::is_http_codec() {
+bool Connection::is_http() {
     if (m_codec == nullptr) {
         return false;
     }
@@ -253,7 +253,7 @@ bool Connection::is_need_alive_check() {
 }
 
 double Connection::keep_alive() {
-    if (is_http_codec()) {
+    if (is_http()) {
         /* http codec has it's own keep alive. */
         CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
         if (codec != nullptr) {

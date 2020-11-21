@@ -32,6 +32,7 @@ class Request {
 
     void set_conn(Connection* c) { m_conn = c; }
     Connection* conn() { return m_conn; }
+    const Connection* conn() const { return m_conn; }
 
     bool is_http() { return m_is_http; }
 

@@ -32,6 +32,7 @@ class CmdAutoSend : public Cmd {
                 head.set_seq(id());
                 head.set_cmd(KP_REQ_TEST_PROTO);
                 LOG_DEBUG("auto send head seq: %d, cmd id: %llu", head.seq(), id());
+                /* send to other nodes. */
                 if (!net()->send_to_node("gate", "hello", head, *m_req->msg_body())) {
                     return Cmd::STATUS::ERROR;
                 }
@@ -39,6 +40,7 @@ class CmdAutoSend : public Cmd {
                 return Cmd::STATUS::RUNNING;
             }
             case STEP_AUTO_SEND_CALLBACK: {
+                /* send back to client. */
                 if (!response_tcp(ERR_OK, "OK", "good job.")) {
                     LOG_ERROR("send ack failed! fd: %d", m_req->conn()->fd());
                     return Cmd::STATUS::ERROR;
@@ -47,7 +49,7 @@ class CmdAutoSend : public Cmd {
             }
             default: {
                 LOG_ERROR("invalid step");
-                response_tcp(ERR_FAILED, "", "invalid step!");
+                response_tcp(ERR_FAILED, "invalid step!");
                 return Cmd::STATUS::ERROR;
             }
         }

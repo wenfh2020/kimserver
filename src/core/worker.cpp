@@ -81,7 +81,7 @@ bool Worker::load_network() {
 
     if (!m_net->create_w(this, m_conf, m_worker_info.ctrl_fd,
                          m_worker_info.data_fd, m_worker_info.index)) {
-        LOG_ERROR("init network fail!");
+        LOG_ERROR("init network failed!");
         return false;
     }
 

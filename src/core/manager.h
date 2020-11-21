@@ -5,7 +5,6 @@
 #include "network.h"
 #include "nodes.h"
 #include "server.h"
-#include "worker_data_mgr.h"
 #include "zk_client.h"
 
 namespace kim {
@@ -41,9 +40,7 @@ class Manager : public INet {
     Network* m_net = nullptr;          // net work.
     CJsonObject m_conf, m_old_conf;    // config.
     node_info m_node_info;             // cluster node.
-    WorkerDataMgr m_worker_data_mgr;   // worker node data manager.
     std::list<int> m_restart_workers;  // workers waiting to restart. restore worker's index.
-
     ZkClient* m_zk_client = nullptr;
 };
 

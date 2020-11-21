@@ -37,6 +37,7 @@ void Network::destory() {
     SAFE_DELETE(m_redis_pool);
     SAFE_DELETE(m_session_mgr);
     SAFE_DELETE(m_events);
+    SAFE_DELETE(m_sys_cmd);
 }
 
 void Network::run() {
@@ -79,10 +80,9 @@ bool Network::load_config(const CJsonObject& config) {
 }
 
 /* parent. */
-bool Network::create_m(const addr_info* ainfo,
-                       INet* net, const CJsonObject& config, WorkerDataMgr* m) {
+bool Network::create_m(const addr_info* ai, INet* net, const CJsonObject& config) {
     int fd = -1;
-    if (ainfo == nullptr || net == nullptr || m == nullptr) {
+    if (ai == nullptr || net == nullptr) {
         return false;
     }
 
@@ -91,21 +91,21 @@ bool Network::create_m(const addr_info* ainfo,
         return false;
     }
 
-    if (!ainfo->node_host().empty()) {
-        fd = listen_to_port(ainfo->node_host().c_str(), ainfo->node_port());
+    if (!ai->node_host().empty()) {
+        fd = listen_to_port(ai->node_host().c_str(), ai->node_port());
         if (fd == -1) {
-            LOG_ERROR("listen to port fail! %s:%d",
-                      ainfo->node_host().c_str(), ainfo->node_port());
+            LOG_ERROR("listen to port failed! %s:%d",
+                      ai->node_host().c_str(), ai->node_port());
             return false;
         }
         m_node_host_fd = fd;
     }
 
-    if (!ainfo->gate_host().empty()) {
-        fd = listen_to_port(ainfo->gate_host().c_str(), ainfo->gate_port());
+    if (!ai->gate_host().empty()) {
+        fd = listen_to_port(ai->gate_host().c_str(), ai->gate_port());
         if (fd == -1) {
-            LOG_ERROR("listen to gate fail! %s:%d",
-                      ainfo->gate_host().c_str(), ainfo->gate_port());
+            LOG_ERROR("listen to gate failed! %s:%d",
+                      ai->gate_host().c_str(), ai->gate_port());
             return false;
         }
         m_gate_host_fd = fd;
@@ -117,10 +117,14 @@ bool Network::create_m(const addr_info* ainfo,
         LOG_ERROR("create events failed!");
         return false;
     }
-    m_woker_data_mgr = m;
 
     if (!load_timer(net)) {
         LOG_ERROR("load timer failed!");
+        return false;
+    }
+
+    if (!load_worker_data_mgr()) {
+        LOG_ERROR("new worker data mgr failed!");
         return false;
     }
 
@@ -181,7 +185,7 @@ bool Network::create_w(INet* net, const CJsonObject& config,
 }
 
 bool Network::load_public() {
-    m_sys_cmd = new SysCmd(m_logger, this, m_woker_data_mgr);
+    m_sys_cmd = new SysCmd(m_logger, this);
     if (m_sys_cmd == nullptr) {
         LOG_ERROR("alloc sys cmd failed!");
         return false;
@@ -353,13 +357,13 @@ int Network::listen_to_port(const char* ip, int port) {
         /* Bind IPv6 address. */
         fd = anet_tcp6_server(errstr, port, ip, TCP_BACK_LOG);
         if (fd == -1) {
-            LOG_ERROR("bind tcp ipv6 fail! %s", errstr);
+            LOG_ERROR("bind tcp ipv6 failed! %s", errstr);
         }
     } else {
         /* Bind IPv4 address. */
         fd = anet_tcp_server(errstr, port, ip, TCP_BACK_LOG);
         if (fd == -1) {
-            LOG_ERROR("bind tcp ipv4 fail! %s", errstr);
+            LOG_ERROR("bind tcp ipv4 failed! %s", errstr);
         }
     }
 
@@ -482,7 +486,7 @@ void Network::on_io_write(int fd) {
             LOG_WARN("handle write event failed! fd: %d", c->fd());
         }
     } else {
-        if (!c->is_http_codec()) {
+        if (!c->is_http()) {
             /* nodes connect. */
             if (c->state() == Connection::STATE::TRY_CONNECT) {
                 /* A1 contact with B1. */
@@ -510,7 +514,7 @@ void Network::check_wait_send_fds() {
         chanel_resend_data_t* data;
 
         data = *it;
-        chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+        chanel_fd = m_worker_data_mgr->get_next_worker_data_fd();
         err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
             if (err != 0) {
@@ -621,7 +625,7 @@ ev_io* Network::add_write_event(Connection* c) {
 }
 
 bool Network::process_msg(Connection* c) {
-    if (c->is_http_codec()) {
+    if (c->is_http()) {
         return process_http_msg(c);
     } else {
         return process_tcp_msg(c);
@@ -669,7 +673,7 @@ bool Network::process_tcp_msg(Connection* c) {
             LOG_WARN("can not find cmd handler. fd: %d", fd)
             goto error;
         } else if (cmd_ret == Cmd::STATUS::ERROR) {
-            LOG_TRACE("process tcp msg fail! fd: %d", fd);
+            LOG_TRACE("process tcp msg failed! fd: %d", fd);
             goto error;
         } else {
             req.msg_head()->Clear();
@@ -711,7 +715,7 @@ bool Network::process_http_msg(Connection* c) {
     }
 
     if (codec_ret == Codec::STATUS::ERR) {
-        LOG_TRACE("conn read fail. fd: %d", c->fd());
+        LOG_TRACE("conn read failed. fd: %d", c->fd());
         close_conn(c);
         return false;
     }
@@ -781,7 +785,7 @@ void Network::accept_and_transfer_fd(int listen_fd) {
 
     LOG_INFO("accepted client: %s:%d", ip, port);
 
-    chanel_fd = m_woker_data_mgr->get_next_worker_data_fd();
+    chanel_fd = m_worker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd <= 0) {
         LOG_ERROR("find next worker chanel failed!");
         goto end;
@@ -907,34 +911,37 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
         return false;
     }
 
-    // node_t* node;
+    node_t* node;
     std::string node_id;
 
-    // node = m_nodes->get_node_in_hash(node_type, obj);
-    // if (node == nullptr) {
-    //     LOG_ERROR("cant not find node type: %s", node_type.c_str());
-    //     return false;
-    // }
-
-    // node_id = format_nodes_id(node->ip, node->port, node->worker_index);
-    node_id = format_nodes_id("127.0.0.1", 3344, 1);
-    auto it = m_node_conns.find(node_id);
-    return (it != m_node_conns.end())
-               ? send_to(it->second, head, body)
-               : auto_send("127.0.0.1", 3344, 1, head, body);
-    //    : auto_send(node->ip, node->port, node->worker_index, head, body);
-    return true;
-}
-
-bool Network::send_to_children(const MsgHead& head, const MsgBody& body) {
-    if (is_worker()) {
-        LOG_ERROR("send_to_node only for manager!");
+    node = m_nodes->get_node_in_hash(node_type, obj);
+    if (node == nullptr) {
+        LOG_ERROR("cant not find node type: %s", node_type.c_str());
         return false;
     }
 
+    node_id = format_nodes_id(node->ip, node->port, node->worker_index);
+    auto it = m_node_conns.find(node_id);
+    return (it != m_node_conns.end())
+               ? send_to(it->second, head, body)
+               : auto_send(node->ip, node->port, node->worker_index, head, body);
+    return true;
+}
+
+bool Network::send_to_children(int cmd, uint64_t seq, const std::string& data) {
+    LOG_TRACE("send to children, cmd: %d, seq: %llu", cmd, seq);
+
+    if (!is_manager()) {
+        LOG_ERROR("send_to_children only for manager!");
+        return false;
+    }
+
+    MsgHead head;
+    MsgBody body;
+
     /* Parent and child processes communicate through socketpair. */
     const std::unordered_map<int, worker_info_t*>& infos =
-        m_woker_data_mgr->get_infos();
+        m_worker_data_mgr->get_infos();
 
     for (auto& v : infos) {
         auto it = m_conns.find(v.second->ctrl_fd);
@@ -942,6 +949,12 @@ bool Network::send_to_children(const MsgHead& head, const MsgBody& body) {
             LOG_ALERT("ctrl fd is invalid! fd: %d", v.second->ctrl_fd);
             continue;
         }
+
+        body.set_data(data);
+        head.set_cmd(cmd);
+        head.set_seq(seq);
+        head.set_len(body.ByteSizeLong());
+
         if (!send_to(it->second, head, body)) {
             LOG_ALERT("send to child failed! fd: %d", v.second->ctrl_fd);
             continue;
@@ -1362,6 +1375,14 @@ bool Network::load_redis_mgr() {
     m_redis_pool = new kim::RedisMgr(m_logger, m_events->ev_loop());
     if (m_redis_pool == nullptr || !m_redis_pool->init(m_conf["redis"])) {
         LOG_ERROR("init redis mgr failed!");
+        return false;
+    }
+    return true;
+}
+
+bool Network::load_worker_data_mgr() {
+    m_worker_data_mgr = new WorkerDataMgr;
+    if (m_worker_data_mgr == nullptr) {
         return false;
     }
     return true;

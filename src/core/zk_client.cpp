@@ -1,6 +1,7 @@
 #include "zk_client.h"
 
 #include "protobuf/sys/nodes.pb.h"
+#include "sys_cmd.h"
 #include "util/util.h"
 
 namespace kim {
@@ -31,7 +32,8 @@ static const char* cmd_to_string(zk_task_t::CMD cmd) {
     }
 }
 
-ZkClient::ZkClient(Log* logger) : Bio(logger), m_zk(nullptr) {
+ZkClient::ZkClient(Log* logger, INet* net)
+    : Bio(logger), m_net(net), m_zk(nullptr) {
 }
 
 ZkClient::~ZkClient() {
@@ -448,6 +450,9 @@ void ZkClient::on_zk_register(const zk_task_t* task) {
             LOG_ERROR("json to proto failed!");
             continue;
         }
+
+        m_net->sys_cmd()->send_req_add_zk_node(znode);
+
         if (!m_nodes->add_zk_node(znode)) {
             LOG_ERROR("add zk node failed! path: %s", json_nodes[i]("path").c_str());
             continue;

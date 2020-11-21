@@ -177,7 +177,7 @@ void convert() {
     node.set_worker_cnt(3);
 
     if (!proto_to_json(node, json_string)) {
-        std::cout << "proto to json fail!" << std::endl;
+        std::cout << "proto to json failed!" << std::endl;
     } else {
         std::cout << "protobuf to json: " << std::endl
                   << json_string << std::endl;

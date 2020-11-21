@@ -122,9 +122,9 @@ bool Manager::load_network() {
         return false;
     }
 
-    if (!m_net->create_m(m_node_info.mutable_addr_info(), this, m_conf, &m_worker_data_mgr)) {
+    if (!m_net->create_m(m_node_info.mutable_addr_info(), this, m_conf)) {
         SAFE_DELETE(m_net);
-        LOG_ERROR("init network fail!");
+        LOG_ERROR("init network failed!");
         return false;
     }
 
@@ -132,7 +132,7 @@ bool Manager::load_network() {
 }
 
 bool Manager::load_zk_mgr() {
-    m_zk_client = new ZkClient(m_logger);
+    m_zk_client = new ZkClient(m_logger, m_net);
     if (m_zk_client == nullptr) {
         LOG_ERROR("new zk mgr failed!");
         return false;
@@ -175,17 +175,17 @@ bool Manager::restart_worker(pid_t pid) {
     int chs[2];
     int worker_index;
 
-    if (m_worker_data_mgr.get_worker_chanel(pid, chs)) {
+    if (m_net->worker_data_mgr()->get_worker_chanel(pid, chs)) {
         m_net->close_conn(chs[0]);
         m_net->close_conn(chs[1]);
     }
 
-    if (!m_worker_data_mgr.get_worker_index(pid, worker_index)) {
+    if (!m_net->worker_data_mgr()->get_worker_index(pid, worker_index)) {
         LOG_ERROR("can not find pid: %d work info.");
         return false;
     }
 
-    m_worker_data_mgr.del_worker_info(pid);
+    m_net->worker_data_mgr()->del_worker_info(pid);
     m_restart_workers.push_back(worker_index);
     return true;
 }
@@ -267,7 +267,7 @@ bool Manager::create_worker(int worker_index) {
             return false;
         }
 
-        m_worker_data_mgr.add_worker_info(
+        m_net->worker_data_mgr()->add_worker_info(
             worker_index, pid, ctrl_fds[0], data_fds[0]);
         LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
         return true;

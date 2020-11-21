@@ -1,6 +1,7 @@
 #ifndef __KIM_ZOOKEEPER_CLIENT_H__
 #define __KIM_ZOOKEEPER_CLIENT_H__
 
+#include "net.h"
 #include "nodes.h"
 #include "util/json/CJsonObject.hpp"
 #include "util/log.h"
@@ -11,7 +12,7 @@ namespace kim {
 
 class ZkClient : public Bio {
    public:
-    ZkClient(Log* logger);
+    ZkClient(Log* logger, INet* net);
     virtual ~ZkClient();
 
     bool init(const CJsonObject& config);
@@ -52,6 +53,7 @@ class ZkClient : public Bio {
     utility::zoo_rc bio_register_node(zk_task_t* task);
 
    private:
+    INet* m_net = nullptr;
     /* config. */
     CJsonObject m_config;
     /* ketama nodes manager. */
