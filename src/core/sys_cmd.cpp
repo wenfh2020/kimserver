@@ -138,7 +138,7 @@ Cmd::STATUS SysCmd::process_worker_msg(Request& req) {
 
 void SysCmd::on_repeat_timer() {
     if (m_net->is_worker()) {
-        if (++m_timer_index % (60) == 2) {
+        if (++m_timer_index % (60 * 5) == 2) {
             send_parent_sync_zk_nodes(m_net->nodes()->version());
         }
     }
