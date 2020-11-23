@@ -1209,6 +1209,7 @@ void Network::on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task,
                   task->error, task->errstr.c_str());
     }
     module->on_callback(index, task->error, res);
+    SAFE_DELETE(index);
 }
 
 void Network::on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
@@ -1233,6 +1234,7 @@ void Network::on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) 
                   task->error, task->errstr.c_str());
     }
     module->on_callback(index, task->error, nullptr);
+    SAFE_DELETE(index);
 }
 
 void Network::on_redis_lib_callback(redisAsyncContext* ac, void* reply, void* privdata) {
@@ -1244,13 +1246,13 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
     LOG_TRACE("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
 
     Module* module;
-    wait_cmd_info_t* info;
-    info = static_cast<wait_cmd_info_t*>(privdata);
+    wait_cmd_info_t* index;
+    index = static_cast<wait_cmd_info_t*>(privdata);
 
-    module = m_module_mgr->get_module(info->module_id);
+    module = m_module_mgr->get_module(index->module_id);
     if (module == nullptr) {
-        LOG_ERROR("find module failed! module id: %llu.", info->module_id);
-        SAFE_DELETE(info);
+        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
+        SAFE_DELETE(index);
         return;
     }
 
@@ -1264,8 +1266,8 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         }
     }
 
-    module->on_callback(info, c->err, reply);
-    SAFE_DELETE(info);
+    module->on_callback(index, c->err, reply);
+    SAFE_DELETE(index);
 }
 
 bool Network::add_cmd(Cmd* cmd) {

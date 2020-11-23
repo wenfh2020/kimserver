@@ -126,17 +126,17 @@ void Worker::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents)
     worker->on_terminated(s);
 }
 
-void Worker::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Worker* worker = static_cast<Worker*>(w->data);
-    worker->on_repeat_timer(w->data);
-}
-
 void Worker::on_terminated(ev_signal* s) {
     /* catch 'ctrl + c' */
     int signum = s->signum;
     LOG_CRIT("worker terminated by signal: %d", signum);
     SAFE_DELETE(s);
     exit(signum);
+}
+
+void Worker::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    Worker* worker = static_cast<Worker*>(w->data);
+    worker->on_repeat_timer(w->data);
 }
 
 void Worker::on_repeat_timer(void* privdata) {

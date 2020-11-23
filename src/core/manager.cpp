@@ -169,14 +169,24 @@ bool Manager::load_zk_mgr() {
     return true;
 }
 
-void Manager::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
-    Manager* m = static_cast<Manager*>(s->data);
-    (s->signum == SIGCHLD) ? m->on_child_terminated(s) : m->on_terminated(s);
-}
-
 void Manager::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Manager* m = static_cast<Manager*>(w->data);
     m->on_repeat_timer(w->data);
+}
+
+void Manager::on_repeat_timer(void* privdata) {
+    if (m_net != nullptr) {
+        m_net->on_repeat_timer(privdata);
+    }
+    if (m_zk_client != nullptr) {
+        m_zk_client->on_repeat_timer();
+    }
+    restart_workers();
+}
+
+void Manager::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
+    Manager* m = static_cast<Manager*>(s->data);
+    (s->signum == SIGCHLD) ? m->on_child_terminated(s) : m->on_terminated(s);
 }
 
 void Manager::on_terminated(ev_signal* s) {
@@ -234,16 +244,6 @@ void Manager::restart_workers() {
             it++;
         }
     }
-}
-
-void Manager::on_repeat_timer(void* privdata) {
-    if (m_net != nullptr) {
-        m_net->on_repeat_timer(privdata);
-    }
-    if (m_zk_client != nullptr) {
-        m_zk_client->on_repeat_timer();
-    }
-    restart_workers();
 }
 
 bool Manager::create_worker(int worker_index) {
@@ -320,10 +320,7 @@ void Manager::create_workers() {
 }
 
 std::string Manager::worker_name(int index) {
-    char name[64] = {0};
-    snprintf(name, sizeof(name), "%s_w_%d",
-             m_conf("server_name").c_str(), index);
-    return std::string(name);
+    return format_str("%s_w_%d", m_conf("server_name").c_str(), index);
 }
 
 }  // namespace kim
