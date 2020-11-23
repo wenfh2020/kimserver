@@ -32,6 +32,7 @@ message zk_node {
 
 /* sync zk nodes data betwwen manager and worker. */
 message register_node {
+    uint32 version = 1;         /* data version. */
     string my_zk_path = 2;      /* my node zk path. */
     repeated zk_node nodes = 3; /* nodes watched.  */
 }

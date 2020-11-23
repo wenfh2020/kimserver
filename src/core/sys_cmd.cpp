@@ -138,7 +138,7 @@ Cmd::STATUS SysCmd::process_worker_msg(Request& req) {
 
 void SysCmd::on_repeat_timer() {
     if (m_net->is_worker()) {
-        if (++m_timer_index % (60 * 5) == 0) {
+        if (++m_timer_index % (60) == 2) {
             send_parent_sync_zk_nodes(m_net->nodes()->version());
         }
     }
@@ -383,6 +383,8 @@ Cmd::STATUS SysCmd::on_req_sync_zk_nodes(Request& req) {
     register_node rn;
 
     version = str_to_int(req.msg_body()->data());
+    rn.set_version(version);
+
     if (m_net->nodes()->version() != version) {
         rn.set_my_zk_path(m_net->nodes()->get_my_zk_node_path());
         const std::unordered_map<std::string, zk_node>& nodes =
@@ -413,17 +415,19 @@ Cmd::STATUS SysCmd::on_rsp_sync_zk_nodes(Request& req) {
     kim::register_node rn;
     if (!rn.ParseFromString(req.msg_body()->data())) {
         LOG_ERROR("parse CMD_RSP_SYNC_ZK_NODES data failed! fd: %d", req.conn()->fd());
-        send_ack(req, ERR_INVALID_MSG_DATA, "parse request data failed!");
         return Cmd::STATUS::ERROR;
     }
 
-    m_net->nodes()->clear();
-    m_net->nodes()->set_my_zk_node_path(rn.my_zk_path());
-    for (int i = 0; i < rn.nodes_size(); i++) {
-        zn = rn.mutable_nodes(i);
-        m_net->nodes()->add_zk_node(*zn);
+    if (rn.version() != m_net->nodes()->version()) {
+        m_net->nodes()->clear();
+        m_net->nodes()->set_my_zk_node_path(rn.my_zk_path());
+        for (int i = 0; i < rn.nodes_size(); i++) {
+            zn = rn.mutable_nodes(i);
+            m_net->nodes()->add_zk_node(*zn);
+        }
+        m_net->nodes()->print_debug_nodes_info();
     }
-    m_net->nodes()->print_debug_nodes_info();
+
     return Cmd::STATUS::OK;
 }
 
