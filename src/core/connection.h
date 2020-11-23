@@ -14,13 +14,6 @@
 
 namespace kim {
 
-class Connection;
-
-class ConnectionData {
-   public:
-    Connection* m_conn = nullptr;
-};
-
 class Connection : public Timer {
    public:
     enum class STATE {

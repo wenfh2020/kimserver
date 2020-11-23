@@ -70,11 +70,13 @@ bool SessionMgr::del_session(const std::string& sessid) {
     if (it == m_sessions.end()) {
         return false;
     }
+
     Session* s = it->second;
     if (s != nullptr) {
         events()->del_timer_event(s->timer());
         SAFE_DELETE(s);
     }
+
     m_sessions.erase(it);
     return true;
 }

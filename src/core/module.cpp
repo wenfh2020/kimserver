@@ -24,7 +24,6 @@ bool Module::init(Log* logger, INet* net, uint64_t id, const std::string& name) 
 Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
     ev_timer* w;
     Cmd::STATUS ret;
-    callback_info_t* cbi;
 
     ret = cmd->execute(req);
     if (ret != Cmd::STATUS::RUNNING) {
@@ -34,14 +33,14 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
 
     if (!net()->add_cmd(cmd)) {
         LOG_ERROR("add cmd duplicate, id: %llu!", cmd->id());
+        SAFE_DELETE(cmd);
         return Cmd::STATUS::ERROR;
     }
 
-    cbi = new callback_info_t{net(), cmd->id()};
-    w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), (void*)cbi);
+    w = net()->add_cmd_timer(CMD_TIMEOUT_VAL, cmd->timer(), (void*)cmd);
     if (w == nullptr) {
-        net()->del_cmd(cmd);
         LOG_ERROR("module add cmd(%s) timer failed!", cmd->name());
+        net()->del_cmd(cmd);
         return Cmd::STATUS::ERROR;
     }
 
@@ -60,6 +59,7 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
         return status;
     }
 
+    /* status == Cmd::STATUS::RUNNING */
     if (cmd->req()->conn()->is_invalid()) {
         LOG_DEBUG("connection is closed, stop timeout!");
         net()->del_cmd(cmd);

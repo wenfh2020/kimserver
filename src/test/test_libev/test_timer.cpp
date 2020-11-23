@@ -16,38 +16,21 @@ class Connection {
     std::string m_data;
 };
 
-class ConnectionData {
-   public:
-    ConnectionData() { std::cout << "ConnectionData()" << std::endl; }
-    virtual ~ConnectionData() { std::cout << "~ConnectionData()" << std::endl; }
-
-   public:
-    Connection* m_conn;
-};
-
 ev_timer timer;
 
 // another callback, this time for a time-out
 static void
 timeout_cb(EV_P_ ev_timer* w, int revents) {
     puts("timeout");
-    ConnectionData* conn_data = (ConnectionData*)w->data;
-    if (conn_data != nullptr) {
-        std::cout << conn_data->m_conn->m_data << std::endl;
-    }
-
     // this causes the innermost ev_run to stop iterating
     ev_break(EV_A_ EVBREAK_ONE);
-    delete conn_data;
 }
 
 int main(int argc, char** argv) {
-    Connection* c = std::make_shared<Connection>();
+    Connection* c = new Connection();
     c->m_data = "hello world!";
-    ConnectionData* conn_data = new ConnectionData;
-    conn_data->m_conn = c;
 
-    timer.data = conn_data;
+    timer.data = c;
     // use the default event loop unless you have special needs
     struct ev_loop* loop = EV_DEFAULT;
 

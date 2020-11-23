@@ -347,7 +347,6 @@ bool Network::close_conn(int fd) {
 
     ev_timer* w = c->timer();
     if (w != nullptr) {
-        delete static_cast<ConnectionData*>(w->data);
         w->data = nullptr;
         m_events->del_timer_event(w);
         c->set_timer(nullptr);
@@ -442,7 +441,7 @@ void Network::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents
 }
 
 void Network::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Connection* c = static_cast<ConnectionData*>(w->data)->m_conn;
+    Connection* c = static_cast<Connection*>(w->data);
     INet* net = static_cast<INet*>(c->privdata());
     net->on_io_timer(w->data);
 }
@@ -453,9 +452,8 @@ void Network::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int re
 }
 
 void Network::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    callback_info_t* cbi = static_cast<callback_info_t*>(w->data);
-    cbi->net->on_cmd_timer((void*)cbi->callback_id);
-    SAFE_DELETE(cbi);
+    Cmd* cmd = static_cast<Cmd*>(w->data);
+    cmd->net()->on_cmd_timer((void*)cmd);
 }
 
 void Network::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
@@ -563,17 +561,8 @@ void Network::on_cmd_timer(void* privdata) {
     Cmd* cmd;
     double secs;
     Module* module;
-    uint64_t cmd_id;
 
-    cmd_id = (uint64_t)privdata;
-
-    auto it = m_cmds.find(cmd_id);
-    if (it == m_cmds.end()) {
-        LOG_ERROR("find cmd failed!, cmd id: %llu", cmd_id);
-        return;
-    }
-
-    cmd = it->second;
+    cmd = static_cast<Cmd*>(privdata);
     secs = cmd->keep_alive() - (now() - cmd->active_time());
     if (secs > 0) {
         LOG_TRACE("cmd timer restart, cmd id: %llu, restart timer secs: %f",
@@ -599,10 +588,8 @@ void Network::on_io_timer(void* privdata) {
     if (is_worker()) {
         double secs;
         Connection* c;
-        ConnectionData* conn_data;
 
-        conn_data = static_cast<ConnectionData*>(privdata);
-        c = conn_data->m_conn;
+        c = static_cast<Connection*>(privdata);
         secs = c->keep_alive() - (now() - c->active_time());
         if (secs > 0) {
             LOG_TRACE("io timer restart, fd: %d, restart timer secs: %f",
@@ -835,7 +822,6 @@ void Network::read_transfer_fd(int fd) {
     channel_t ch;
     Connection* c;
     Codec::TYPE codec;
-    ConnectionData* conn_data;
     int err, max = MAX_ACCEPTS_PER_CALL;
 
     while (max--) {
@@ -862,17 +848,9 @@ void Network::read_transfer_fd(int fd) {
             goto error;
         }
 
-        conn_data = new ConnectionData;
-        if (conn_data == nullptr) {
-            LOG_ERROR("alloc connection data failed! fd: %d", ch.fd);
-            goto error;
-        }
-
-        conn_data->m_conn = c;
-
         // add timer.
         LOG_TRACE("add io timer, fd: %d, time val: %f", ch.fd, m_keep_alive);
-        w = m_events->add_io_timer(m_keep_alive, c->timer(), conn_data);
+        w = m_events->add_io_timer(m_keep_alive, c->timer(), c);
         if (w == nullptr) {
             LOG_ERROR("add timer failed! fd: %d", ch.fd);
             goto error;
@@ -885,7 +863,6 @@ void Network::read_transfer_fd(int fd) {
 
 error:
     close_conn(ch.fd);
-    SAFE_FREE(conn_data);
     return;
 }
 
@@ -1463,20 +1440,10 @@ void Network::on_session_timer(void* privdata) {
 
 bool Network::add_io_timer(Connection* c, double secs) {
     ev_timer* w;
-    ConnectionData* conn_data;
-
-    /* create connect data for callback. */
-    conn_data = new ConnectionData;
-    if (conn_data == nullptr) {
-        LOG_ERROR("alloc connection data failed! fd: %d", c->fd());
-        goto error;
-    }
-
-    conn_data->m_conn = c;
 
     /* create timer. */
     LOG_TRACE("add io timer, fd: %d, time val: %f", c->fd(), secs);
-    w = m_events->add_io_timer(secs, c->timer(), conn_data);
+    w = m_events->add_io_timer(secs, c->timer(), c);
     if (w == nullptr) {
         LOG_ERROR("add timer failed! fd: %d", c->fd());
         goto error;
@@ -1486,7 +1453,6 @@ bool Network::add_io_timer(Connection* c, double secs) {
 
 error:
     close_conn(c);
-    SAFE_FREE(conn_data);
     return false;
 }
 

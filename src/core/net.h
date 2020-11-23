@@ -29,11 +29,6 @@ typedef struct wait_cmd_info_s {
     int exec_step;
 } wait_cmd_info_t;
 
-typedef struct callback_info_s {
-    INet* net;
-    uint64_t callback_id;
-} callback_info_t;
-
 class INet {
    public:
     INet() {}
