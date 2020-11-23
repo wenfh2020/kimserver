@@ -502,8 +502,7 @@ void Network::on_io_write(int fd) {
             /* nodes connect. */
             if (c->state() == Connection::STATE::TRY_CONNECT) {
                 /* A1 contact with B1. */
-                int worker_index = 1;
-                if (!m_sys_cmd->send_req_connect_to_worker(c, worker_index)) {
+                if (!m_sys_cmd->send_req_connect_to_worker(c)) {
                     LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
                     close_conn(c);
                 }

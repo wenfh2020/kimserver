@@ -10,11 +10,14 @@ SysCmd::SysCmd(Log* logger, INet* net)
     : m_net(net), m_logger(logger) {
 }
 
-bool SysCmd::send_req_connect_to_worker(Connection* c, int worker_index) {
+bool SysCmd::send_req_connect_to_worker(Connection* c) {
     /* A1 contact with B1. */
     LOG_TRACE("send CMD_REQ_CONNECT_TO_WORKER, fd: %d", c->fd());
 
-    std::string node_id = c->get_node_id();
+    int worker_index;
+    std::string node_id;
+
+    node_id = c->get_node_id();
     worker_index = m_net->nodes()->get_node_worker_index(node_id);
     if (worker_index == -1) {
         LOG_ERROR("no node info! node id: %s", node_id.c_str())
@@ -184,16 +187,8 @@ Cmd::STATUS SysCmd::on_rsp_connect_to_worker(Request& req) {
     LOG_TRACE("A1 receive B0's CMD_RSP_CONNECT_TO_WORKER. fd: %d",
               req.conn()->fd());
 
-    if (!req.msg_body()->has_rsp_result()) {
-        LOG_ERROR("no rsp result! fd: %d", req.conn()->fd());
-        return Cmd::STATUS::ERROR;
-    }
-
-    if (req.msg_body()->rsp_result().code() != ERR_OK) {
-        LOG_ERROR("parse CMD_RSP_CONNECT_TO_WORKER failed! fd: %d, error: %d, errstr: %s",
-                  req.conn()->fd(),
-                  req.msg_body()->rsp_result().code(),
-                  req.msg_body()->rsp_result().msg().c_str());
+    if (!check_rsp(req)) {
+        LOG_ERROR("CMD_RSP_CONNECT_TO_WORKER is not ok! fd: %d", req.conn()->fd());
         return Cmd::STATUS::ERROR;
     }
 
@@ -379,7 +374,7 @@ Cmd::STATUS SysCmd::on_rsp_reg_zk_node(Request& req) {
 Cmd::STATUS SysCmd::on_req_sync_zk_nodes(Request& req) {
     LOG_TRACE("handle CMD_REQ_SYNC_ZK_NODES. fd: % d", req.conn()->fd());
     /* check node version. sync reg nodes.*/
-    int version;
+    uint32_t version;
     register_node rn;
 
     version = str_to_int(req.msg_body()->data());

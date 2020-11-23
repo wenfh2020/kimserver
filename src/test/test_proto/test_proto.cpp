@@ -231,10 +231,10 @@ void test_list() {
 
 int main(int argc, char** argv) {
     // check_protobuf();
-    // test_server(argc, argv);
+    test_server(argc, argv);
     // compare_struct();
     // convert();
     // test_proto_convert_json();
-    test_list();
+    // test_list();
     return 0;
 }

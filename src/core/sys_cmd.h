@@ -17,7 +17,7 @@ class SysCmd {
     bool init();
 
    public:
-    bool send_req_connect_to_worker(Connection* c, int worker_index);
+    bool send_req_connect_to_worker(Connection* c);
 
     /* zk nodes. */
     bool send_children_add_zk_node(const zk_node& node);
