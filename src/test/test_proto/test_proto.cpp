@@ -205,11 +205,36 @@ void test_proto_convert_json() {
     }
 }
 
+void test_list() {
+    kim::zk_node* an;
+    kim::zk_node node;
+    kim::register_node rn;
+
+    /* node info. */
+    node.set_path("skdfjdskf");
+    node.set_type("fsdfsfs");
+    node.set_ip("127.0.0.1");
+    node.set_port(123);
+    node.set_worker_cnt(3);
+    node.set_active_time(123455);
+
+    /* list. */
+    rn.set_my_zk_path("fdsjfkdsfjlsf");
+    an = rn.add_nodes();
+    *an = node;
+
+    for (int i = 0; i < rn.nodes_size(); i++) {
+        an = rn.mutable_nodes(i);
+        printf("**node info, ip: %s\n", node.ip().c_str());
+    }
+}
+
 int main(int argc, char** argv) {
     // check_protobuf();
-    test_server(argc, argv);
+    // test_server(argc, argv);
     // compare_struct();
     // convert();
     // test_proto_convert_json();
+    test_list();
     return 0;
 }

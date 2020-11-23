@@ -61,10 +61,6 @@ class INet {
     virtual bool update_conn_state(int fd, Connection::STATE state) { return false; }
     virtual void add_client_conn(const std::string& node_id, Connection* c) {}
 
-    /* zk node. */
-    virtual bool add_zk_node(const zk_node& znode) { return false; }
-    virtual bool del_zk_node(const std::string& path) { return false; }
-
     /* cmd */
     virtual bool
     add_cmd(Cmd* cmd) { return false; }
@@ -85,6 +81,8 @@ class INet {
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) { return false; }
     /* only for manager. */
     virtual bool send_to_children(int cmd, uint64_t seq, const std::string& data) { return false; }
+    /* only for worker. */
+    virtual bool send_to_parent(int cmd, uint64_t seq, const std::string& data) { return false; }
 
     // redis.
     virtual bool redis_send_to(const char* node, Cmd*, const std::vector<std::string>& argv) { return false; }

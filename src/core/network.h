@@ -89,10 +89,6 @@ class Network : public INet {
     virtual bool update_conn_state(int fd, Connection::STATE state) override;
     virtual void add_client_conn(const std::string& node_id, Connection* c) override;
 
-    /* zk node. */
-    virtual bool add_zk_node(const zk_node& znode) override;
-    virtual bool del_zk_node(const std::string& path) override;
-
     /* session */
     virtual bool add_session(Session* s) override;
     virtual Session* get_session(const std::string& sessid, bool re_active = false) override;
@@ -132,6 +128,7 @@ class Network : public INet {
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_children(int cmd, uint64_t seq, const std::string& data) override;
+    virtual bool send_to_parent(int cmd, uint64_t seq, const std::string& data) override;
 
     /* redis. */
     virtual bool redis_send_to(const char* node, Cmd* cmd, const std::vector<std::string>& argv) override;
@@ -207,7 +204,7 @@ class Network : public INet {
     DBMgr* m_db_pool = nullptr;          /* data base connection pool. */
     RedisMgr* m_redis_pool = nullptr;    /* redis connection pool. */
     SessionMgr* m_session_mgr = nullptr; /* session pool. */
-    Nodes* m_nodes = nullptr;            /* server nodes. */
+    Nodes* m_nodes = nullptr;            /* server nodes. ketama nodes manager. */
     SysCmd* m_sys_cmd = nullptr;         /* for node communication.  */
 };
 

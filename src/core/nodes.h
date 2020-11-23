@@ -38,10 +38,14 @@ class Nodes {
     bool del_zk_node(const std::string& path);
     void get_zk_diff_nodes(const std::string& type, std::vector<std::string>& in,
                            std::vector<std::string>& adds, std::vector<std::string>& dels);
-    void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
+
     std::string get_my_zk_node_path() { return m_my_zk_node; }
-    void print_debug_nodes_info();
+    void set_my_zk_node_path(const std::string& path) { m_my_zk_node = path; }
+    const std::unordered_map<std::string, zk_node>& get_zk_nodes() const { return m_zk_nodes; }
+
     void clear();
+    int version() { return m_version; }
+    void print_debug_nodes_info();
 
     /* ketama algorithm for node's distribution. */
     int get_node_worker_index(const std::string& node_id);
@@ -61,6 +65,7 @@ class Nodes {
     int m_vnode_cnt = 200;
     HASH_ALGORITHM m_ha = HASH_ALGORITHM::FNV1A_64;
 
+    int m_version = 0;
     std::string m_my_zk_node;
 
     /* key: host (ip:port), value: zk path. */

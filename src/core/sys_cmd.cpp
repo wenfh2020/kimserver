@@ -30,15 +30,31 @@ bool SysCmd::send_req_connect_to_worker(Connection* c, int worker_index) {
     return true;
 }
 
-bool SysCmd::send_req_add_zk_node(const zk_node& node) {
+bool SysCmd::send_parent_sync_zk_nodes(int version) {
+    LOG_TRACE("send CMD_REQ_SYNC_ZK_NODES");
+    if (!m_net->send_to_parent(
+            CMD_REQ_SYNC_ZK_NODES, m_net->new_seq(), std::to_string(version))) {
+        LOG_ERROR("send CMD_REQ_SYNC_ZK_NODES failed!");
+        return false;
+    }
+    return true;
+}
+
+bool SysCmd::send_children_add_zk_node(const zk_node& node) {
     LOG_TRACE("send CMD_REQ_ADD_ZK_NODE");
     return m_net->send_to_children(
         CMD_REQ_ADD_ZK_NODE, m_net->new_seq(), node.SerializeAsString());
 }
 
-bool SysCmd::send_req_del_zk_node(const std::string& zk_path) {
+bool SysCmd::send_children_del_zk_node(const std::string& zk_path) {
     LOG_TRACE("send CMD_REQ_DEL_ZK_NODE, path: %d", zk_path.c_str());
     return m_net->send_to_children(CMD_REQ_DEL_ZK_NODE, m_net->new_seq(), zk_path);
+}
+
+bool SysCmd::send_children_reg_zk_node(const register_node& rn) {
+    LOG_TRACE("send CMD_REQ_REGISTER_NODE, path: %s", rn.my_zk_path().c_str());
+    return m_net->send_to_children(
+        CMD_REQ_REGISTER_NODE, m_net->new_seq(), rn.SerializeAsString());
 }
 
 /* auto_send(...)
@@ -75,6 +91,12 @@ Cmd::STATUS SysCmd::process_manager_msg(Request& req) {
         case CMD_RSP_DEL_ZK_NODE: {
             return on_rsp_del_zk_node(req);
         }
+        case CMD_RSP_REGISTER_NODE: {
+            return on_rsp_reg_zk_node(req);
+        }
+        case CMD_REQ_SYNC_ZK_NODES: {
+            return on_req_sync_zk_nodes(req);
+        }
         default: {
             return Cmd::STATUS::UNKOWN;
         }
@@ -102,8 +124,22 @@ Cmd::STATUS SysCmd::process_worker_msg(Request& req) {
         case CMD_REQ_DEL_ZK_NODE: {
             return on_req_del_zk_node(req);
         }
+        case CMD_REQ_REGISTER_NODE: {
+            return on_req_reg_zk_node(req);
+        }
+        case CMD_RSP_SYNC_ZK_NODES: {
+            return on_rsp_sync_zk_nodes(req);
+        }
         default: {
             return Cmd::STATUS::UNKOWN;
+        }
+    }
+}
+
+void SysCmd::on_repeat_timer() {
+    if (m_net->is_worker()) {
+        if (++m_timer_index % (60 * 5) == 0) {
+            send_parent_sync_zk_nodes(m_net->nodes()->version());
         }
     }
 }
@@ -246,7 +282,16 @@ Cmd::STATUS SysCmd::on_req_add_zk_node(Request& req) {
         return Cmd::STATUS::ERROR;
     }
 
-    m_net->add_zk_node(zn);
+    if (!m_net->nodes()->add_zk_node(zn)) {
+        LOG_ERROR("add zk node failed! fd: %d, path: %s",
+                  zn.path().c_str(), req.conn()->fd());
+        if (!send_ack(req, ERR_FAILED, "add zk node failed!")) {
+            LOG_ERROR("send CMD_RSP_ADD_ZK_NODE failed! fd: %d", req.conn()->fd());
+        }
+        return Cmd::STATUS::ERROR;
+    }
+
+    m_net->nodes()->print_debug_nodes_info();
 
     if (!send_ack(req, ERR_OK, "ok")) {
         LOG_ERROR("send CMD_RSP_ADD_ZK_NODE failed! fd: %d", req.conn()->fd());
@@ -264,14 +309,6 @@ Cmd::STATUS SysCmd::on_rsp_add_zk_node(Request& req) {
     return Cmd::STATUS::OK;
 }
 
-Cmd::STATUS SysCmd::on_rsp_del_zk_node(Request& req) {
-    if (!check_rsp(req)) {
-        LOG_ERROR("CMD_RSP_DEL_ZK_NODE is not ok! fd: %d", req.conn()->fd());
-        return Cmd::STATUS::ERROR;
-    }
-    return Cmd::STATUS::OK;
-}
-
 Cmd::STATUS SysCmd::on_req_del_zk_node(Request& req) {
     LOG_TRACE("handle CMD_REQ_DEL_ZK_NODE. fd: % d", req.conn()->fd());
 
@@ -282,13 +319,111 @@ Cmd::STATUS SysCmd::on_req_del_zk_node(Request& req) {
         return Cmd::STATUS::ERROR;
     }
 
-    m_net->del_zk_node(zk_path);
+    m_net->nodes()->del_zk_node(zk_path);
+    m_net->nodes()->print_debug_nodes_info();
 
     if (!send_ack(req, ERR_OK, "ok")) {
         LOG_ERROR("send CMD_RSP_DEL_ZK_NODE failed! fd: %d", req.conn()->fd());
         return Cmd::STATUS::ERROR;
     }
 
+    return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS SysCmd::on_rsp_del_zk_node(Request& req) {
+    if (!check_rsp(req)) {
+        LOG_ERROR("CMD_RSP_DEL_ZK_NODE is not ok! fd: %d", req.conn()->fd());
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS SysCmd::on_req_reg_zk_node(Request& req) {
+    LOG_TRACE("handle CMD_REQ_REGISTER_NODE. fd: % d", req.conn()->fd());
+
+    kim::zk_node* zn;
+    kim::register_node rn;
+
+    if (!rn.ParseFromString(req.msg_body()->data())) {
+        LOG_ERROR("parse CMD_REQ_REGISTER_NODE data failed! fd: %d", req.conn()->fd());
+        send_ack(req, ERR_INVALID_MSG_DATA, "parse request data failed!");
+        return Cmd::STATUS::ERROR;
+    }
+
+    m_net->nodes()->clear();
+    m_net->nodes()->set_my_zk_node_path(rn.my_zk_path());
+    for (int i = 0; i < rn.nodes_size(); i++) {
+        zn = rn.mutable_nodes(i);
+        m_net->nodes()->add_zk_node(*zn);
+    }
+    m_net->nodes()->print_debug_nodes_info();
+
+    if (!send_ack(req, ERR_OK, "ok")) {
+        LOG_ERROR("send CMD_RSP_REGISTER_NODE failed! fd: %d", req.conn()->fd());
+        return Cmd::STATUS::ERROR;
+    }
+
+    return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS SysCmd::on_rsp_reg_zk_node(Request& req) {
+    LOG_TRACE("handle CMD_RSP_REGISTER_NODE. fd: % d", req.conn()->fd());
+    if (!check_rsp(req)) {
+        LOG_ERROR("CMD_RSP_REGISTER_NODE is not ok! fd: %d", req.conn()->fd());
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::OK;
+}
+
+/* manager. */
+Cmd::STATUS SysCmd::on_req_sync_zk_nodes(Request& req) {
+    LOG_TRACE("handle CMD_REQ_SYNC_ZK_NODES. fd: % d", req.conn()->fd());
+    /* check node version. sync reg nodes.*/
+    int version;
+    register_node rn;
+
+    version = str_to_int(req.msg_body()->data());
+    if (m_net->nodes()->version() != version) {
+        rn.set_my_zk_path(m_net->nodes()->get_my_zk_node_path());
+        const std::unordered_map<std::string, zk_node>& nodes =
+            m_net->nodes()->get_zk_nodes();
+        for (const auto& it : nodes) {
+            *rn.add_nodes() = it.second;
+        }
+    }
+
+    LOG_TRACE("version, old: %d, new: %d", version, m_net->nodes()->version());
+
+    if (!send_ack(req, ERR_OK, "ok", rn.SerializeAsString())) {
+        LOG_ERROR("send CMD_REQ_SYNC_ZK_NODES failed! fd: %d", req.conn()->fd());
+        return Cmd::STATUS::ERROR;
+    }
+
+    return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS SysCmd::on_rsp_sync_zk_nodes(Request& req) {
+    LOG_TRACE("handle CMD_RSP_SYNC_ZK_NODES. fd: % d", req.conn()->fd());
+    if (!check_rsp(req)) {
+        LOG_ERROR("CMD_RSP_SYNC_ZK_NODES is not ok! fd: %d", req.conn()->fd());
+        return Cmd::STATUS::ERROR;
+    }
+
+    kim::zk_node* zn;
+    kim::register_node rn;
+    if (!rn.ParseFromString(req.msg_body()->data())) {
+        LOG_ERROR("parse CMD_RSP_SYNC_ZK_NODES data failed! fd: %d", req.conn()->fd());
+        send_ack(req, ERR_INVALID_MSG_DATA, "parse request data failed!");
+        return Cmd::STATUS::ERROR;
+    }
+
+    m_net->nodes()->clear();
+    m_net->nodes()->set_my_zk_node_path(rn.my_zk_path());
+    for (int i = 0; i < rn.nodes_size(); i++) {
+        zn = rn.mutable_nodes(i);
+        m_net->nodes()->add_zk_node(*zn);
+    }
+    m_net->nodes()->print_debug_nodes_info();
     return Cmd::STATUS::OK;
 }
 

@@ -56,8 +56,6 @@ class ZkClient : public Bio {
     INet* m_net = nullptr;
     /* config. */
     CJsonObject m_config;
-    /* ketama nodes manager. */
-    Nodes* m_nodes = nullptr;
 
     /* zk. */
     utility::zk_cpp* m_zk = nullptr;

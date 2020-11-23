@@ -17,24 +17,29 @@ message node_info {
     int32 worker_cnt = 6;    /* number of worker's processes. */
 }
 
-/* send to other node, when nodes contact. */
+/* 
+ * zk_node_info
+ * manager send to zookeeper, which will be notified to other zk's watchers.
+ */
+message zk_node {
+    string path = 1;        /* zookeeper path. store which return from zk. */
+    string type = 2;        /* node type. */
+    string ip = 3;          /* node ip. */
+    uint32 port = 4;        /* node port. */
+    uint32 worker_cnt = 5;  /* node worker count. */
+    double active_time = 6; /* node refresh time. */
+}
+
+/* sync zk nodes data betwwen manager and worker. */
+message register_node {
+    string my_zk_path = 2;      /* my node zk path. */
+    repeated zk_node nodes = 3; /* nodes watched.  */
+}
+
+/* use in auto send, contact to other node. */
 message target_node {
     string node_type = 1;
     string ip = 2;
     uint32 port = 3;
     uint32 worker_index = 4;
-}
-
-/* 
- * zk_node_info
- * manager send to zookeeper, which will be notified to other zk's watchers.
- */
-
-message zk_node {
-    string path = 1;        /* zookeeper path. store which return from zk. */
-    string type = 2 ;       /* node type. */
-    string ip = 3;          /* node ip. */
-    uint32 port = 4;        /* node port. */
-    uint32 worker_cnt = 5;  /* node worker count. */
-    double active_time = 6; /* node refresh time. */
 }

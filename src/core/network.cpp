@@ -225,16 +225,30 @@ bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool i
     m_events->set_session_timer_callback_fn(&on_session_timer_callback);
     m_events->set_repeat_timer_callback_fn(&on_repeat_timer_callback);
 
-    if (!add_read_event(fd1, codec, is_worker) ||
-        !add_read_event(fd2, codec, is_worker)) {
+    if (!add_read_event(fd1, codec, is_worker)) {
         close_conn(fd1);
-        close_conn(fd2);
-        LOG_ERROR("add read event failed, fd1: %d, fd2: %d", fd1, fd2);
+        LOG_ERROR("add read event failed, fd: %d", fd1);
         goto error;
     }
 
-    is_worker ? m_events->create_signal_event(SIGINT, s)
-              : m_events->setup_signal_events(s);
+    if (!add_read_event(fd2, codec, is_worker)) {
+        close_conn(fd2);
+        LOG_ERROR("add read event failed, fd: %d", fd2);
+        goto error;
+    }
+
+    if (is_worker) {
+        if (!m_events->create_signal_event(SIGINT, s)) {
+            LOG_ERROR("create signal failed!");
+            goto error;
+        }
+    } else {
+        if (!m_events->setup_signal_events(s)) {
+            LOG_ERROR("setup signal failed!");
+            goto error;
+        }
+    }
+
     return true;
 
 error:
@@ -503,6 +517,10 @@ void Network::on_io_write(int fd) {
 void Network::on_repeat_timer(void* privdata) {
     if (is_manager()) {
         check_wait_send_fds();
+    }
+
+    if (m_sys_cmd != nullptr) {
+        m_sys_cmd->on_repeat_timer();
     }
 }
 
@@ -964,6 +982,31 @@ bool Network::send_to_children(int cmd, uint64_t seq, const std::string& data) {
     return true;
 }
 
+bool Network::send_to_parent(int cmd, uint64_t seq, const std::string& data) {
+    if (!is_worker()) {
+        LOG_ERROR("send_to_parent only for worker!");
+        return false;
+    }
+
+    auto it = m_conns.find(m_manager_ctrl_fd);
+    if (it == m_conns.end()) {
+        return false;
+    }
+
+    MsgHead head;
+    MsgBody body;
+    body.set_data(data);
+    head.set_cmd(cmd);
+    head.set_seq(seq);
+    head.set_len(body.ByteSizeLong());
+
+    if (!send_to(it->second, head, body)) {
+        LOG_ALERT("send to parent failed! fd: %d", m_manager_ctrl_fd);
+        return false;
+    }
+    return true;
+}
+
 /* auto_send(...)
  * A1 contact with B1. (auto_send func)
  * 
@@ -1400,14 +1443,6 @@ bool Network::update_conn_state(int fd, Connection::STATE state) {
 
 void Network::Network::add_client_conn(const std::string& node_id, Connection* c) {
     m_node_conns[node_id] = c;
-}
-
-bool Network::add_zk_node(const zk_node& znode) {
-    return m_nodes->add_zk_node(znode);
-}
-
-bool Network::del_zk_node(const std::string& path) {
-    return m_nodes->del_zk_node(path);
 }
 
 bool Network::add_session(Session* s) {

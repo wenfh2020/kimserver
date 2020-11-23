@@ -18,12 +18,17 @@ class SysCmd {
 
    public:
     bool send_req_connect_to_worker(Connection* c, int worker_index);
-    bool send_req_add_zk_node(const zk_node& node);
-    bool send_req_del_zk_node(const std::string& zk_path);
+
+    /* zk nodes. */
+    bool send_children_add_zk_node(const zk_node& node);
+    bool send_children_del_zk_node(const std::string& zk_path);
+    bool send_children_reg_zk_node(const register_node& rn);
+    bool send_parent_sync_zk_nodes(int version);
 
    public:
     /* communication between nodes.  */
     Cmd::STATUS process(Request& req);
+    void on_repeat_timer();
 
    private:
     Cmd::STATUS on_req_connect_to_worker(Request& req);
@@ -38,6 +43,10 @@ class SysCmd {
     Cmd::STATUS on_rsp_add_zk_node(Request& req);
     Cmd::STATUS on_req_del_zk_node(Request& req);
     Cmd::STATUS on_rsp_del_zk_node(Request& req);
+    Cmd::STATUS on_req_reg_zk_node(Request& req);
+    Cmd::STATUS on_rsp_reg_zk_node(Request& req);
+    Cmd::STATUS on_req_sync_zk_nodes(Request& req);
+    Cmd::STATUS on_rsp_sync_zk_nodes(Request& req);
 
    private:
     Cmd::STATUS process_worker_msg(Request& req);
@@ -50,6 +59,7 @@ class SysCmd {
    protected:
     INet* m_net = nullptr;
     Log* m_logger = nullptr;
+    int m_timer_index = 0;
 };
 
 }  // namespace kim

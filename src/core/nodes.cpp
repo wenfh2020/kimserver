@@ -139,6 +139,8 @@ bool Nodes::add_node(const std::string& node_type, const std::string& ip, int po
         return true;
     }
 
+    m_version++;
+
     node_t* node;
     std::vector<uint32_t> vnodes;
     VNODE2NODE_MAP& vnode2node = m_vnodes[node_type];
@@ -170,10 +172,13 @@ bool Nodes::add_node(const std::string& node_type, const std::string& ip, int po
 
 bool Nodes::del_node(const std::string& node_id) {
     LOG_DEBUG("delete node: %s", node_id.c_str());
+
     auto it = m_nodes.find(node_id);
     if (it == m_nodes.end()) {
         return false;
     }
+
+    m_version++;
 
     /* clear vnode. */
     node_t* node = it->second;

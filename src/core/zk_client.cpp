@@ -39,7 +39,6 @@ ZkClient::ZkClient(Log* logger, INet* net)
 ZkClient::~ZkClient() {
     bio_stop();
     SAFE_DELETE(m_zk);
-    SAFE_DELETE(m_nodes);
 }
 
 bool ZkClient::init(const CJsonObject& config) {
@@ -60,12 +59,6 @@ bool ZkClient::init(const CJsonObject& config) {
     m_zk = new utility::zk_cpp;
     if (m_zk == nullptr) {
         LOG_ERROR("alloc zk_cpp failed!");
-        return false;
-    }
-
-    m_nodes = new Nodes(m_logger);
-    if (m_nodes == nullptr) {
-        LOG_ERROR("alloc nodes obj failed!");
         return false;
     }
 
@@ -152,7 +145,7 @@ bool ZkClient::node_register() {
 
     /* zk info. */
     json_zk.Add("root", node_root);
-    json_zk.Add("old_path", m_nodes->get_my_zk_node_path());
+    json_zk.Add("old_path", m_net->nodes()->get_my_zk_node_path());
     json_zk.Add("subscribe_node_type", m_config["zookeeper"]["subscribe_node_type"]);
 
     json_value.Add("node", json_node);
@@ -421,54 +414,6 @@ void ZkClient::timer_process_ack(zk_task_t* task) {
     }
 }
 
-void ZkClient::on_zk_register(const zk_task_t* task) {
-    if (task->res.error != utility::z_ok) {
-        LOG_ERROR("on zk register failed!, path: %s, error: %d, errstr: %s",
-                  task->path.c_str(), task->res.error, task->res.errstr.c_str());
-        return;
-    }
-
-    CJsonObject res;
-    if (!res.Parse(task->res.value)) {
-        LOG_ERROR("parase ack data failed! path: %s", task->path.c_str());
-        return;
-    }
-
-    m_nodes->clear();
-    m_register_index = 0;
-    m_is_registered = true;
-
-    /* set new. */
-    m_nodes->set_my_zk_node_path(res("my_zk_path"));
-    LOG_TRACE("ack data: %s", res.ToFormattedString().c_str());
-
-    zk_node znode;
-    CJsonObject& json_nodes = res["nodes"];
-
-    for (int i = 0; i < json_nodes.GetArraySize(); i++) {
-        if (!json_to_proto(json_nodes[i].ToString(), znode)) {
-            LOG_ERROR("json to proto failed!");
-            continue;
-        }
-
-        m_net->sys_cmd()->send_req_add_zk_node(znode);
-
-        if (!m_nodes->add_zk_node(znode)) {
-            LOG_ERROR("add zk node failed! path: %s", json_nodes[i]("path").c_str());
-            continue;
-        }
-        LOG_INFO("add zk node done! path: %s", json_nodes[i]("path").c_str());
-    }
-
-    LOG_INFO("on zk register done! path: %s", task->path.c_str());
-    m_nodes->print_debug_nodes_info();
-}
-
-void ZkClient::on_zk_node_deleted(const kim::zk_task_t* task) {
-    LOG_INFO("zk node: %s deleted!", task->path.c_str());
-    m_nodes->del_zk_node(task->path);
-}
-
 void ZkClient::on_zk_node_created(const kim::zk_task_t* task) {
     LOG_INFO("zk node: %s created!", task->path.c_str());
 }
@@ -492,6 +437,60 @@ void ZkClient::on_zk_session_expired(const kim::zk_task_t* task) {
     reconnect();
 }
 
+void ZkClient::on_zk_register(const zk_task_t* task) {
+    if (task->res.error != utility::z_ok) {
+        LOG_ERROR("on zk register failed!, path: %s, error: %d, errstr: %s",
+                  task->path.c_str(), task->res.error, task->res.errstr.c_str());
+        return;
+    }
+
+    CJsonObject res;
+    if (!res.Parse(task->res.value)) {
+        LOG_ERROR("parase ack data failed! path: %s", task->path.c_str());
+        return;
+    }
+
+    m_register_index = 0;
+    m_is_registered = true;
+
+    /* set new. */
+    m_net->nodes()->clear();
+    m_net->nodes()->set_my_zk_node_path(res("my_zk_path"));
+    LOG_TRACE("ack data: %s", res.ToFormattedString().c_str());
+
+    zk_node zn;
+    kim::register_node rn;
+    CJsonObject& json_nodes = res["nodes"];
+
+    rn.set_my_zk_path(res("my_zk_path"));
+
+    for (int i = 0; i < json_nodes.GetArraySize(); i++) {
+        if (!json_to_proto(json_nodes[i].ToString(), zn)) {
+            LOG_ERROR("json to proto failed!");
+            continue;
+        }
+
+        if (!m_net->nodes()->add_zk_node(zn)) {
+            LOG_ERROR("add zk node failed! path: %s", json_nodes[i]("path").c_str());
+            continue;
+        }
+
+        *rn.add_nodes() = zn;
+        LOG_INFO("add zk node done! path: %s", json_nodes[i]("path").c_str());
+    }
+
+    m_net->sys_cmd()->send_children_reg_zk_node(rn);
+    m_net->nodes()->print_debug_nodes_info();
+    LOG_INFO("on zk register done! path: %s", task->path.c_str());
+}
+
+void ZkClient::on_zk_node_deleted(const kim::zk_task_t* task) {
+    LOG_INFO("zk node: %s deleted!", task->path.c_str());
+    if (m_net->nodes()->del_zk_node(task->path)) {
+        m_net->sys_cmd()->send_children_del_zk_node(task->path);
+    }
+}
+
 void ZkClient::on_zk_get_data(const kim::zk_task_t* task) {
     if (task->res.error != utility::z_ok) {
         LOG_ERROR("on zk get data failed!, path: %s, error: %d, errstr: %s",
@@ -507,8 +506,11 @@ void ZkClient::on_zk_get_data(const kim::zk_task_t* task) {
         LOG_ERROR("invalid node info! path: %s", task->path.c_str());
         return;
     }
-    m_nodes->add_zk_node(node);
-    m_nodes->print_debug_nodes_info();
+
+    if (m_net->nodes()->add_zk_node(node)) {
+        m_net->nodes()->print_debug_nodes_info();
+        m_net->sys_cmd()->send_children_add_zk_node(node);
+    }
 }
 
 void ZkClient::on_zk_data_change(const kim::zk_task_t* task) {
@@ -526,8 +528,11 @@ void ZkClient::on_zk_data_change(const kim::zk_task_t* task) {
         LOG_ERROR("invalid node info! path: %s", task->path.c_str());
         return;
     }
-    m_nodes->add_zk_node(node);
-    m_nodes->print_debug_nodes_info();
+
+    if (m_net->nodes()->add_zk_node(node)) {
+        m_net->nodes()->print_debug_nodes_info();
+        m_net->sys_cmd()->send_children_add_zk_node(node);
+    }
 }
 
 void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
@@ -552,7 +557,7 @@ void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
     }
 
     type = task->path.substr(task->path.find_last_of("/") + 1);
-    m_nodes->get_zk_diff_nodes(type, children, new_paths, del_paths);
+    m_net->nodes()->get_zk_diff_nodes(type, children, new_paths, del_paths);
 
     /* add new nodes. */
     if (new_paths.size() > 0) {
@@ -565,11 +570,13 @@ void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
     /* delete paths. */
     if (del_paths.size() > 0) {
         for (size_t i = 0; i < del_paths.size(); i++) {
-            m_nodes->del_zk_node(del_paths[i]);
+            if (m_net->nodes()->del_zk_node(del_paths[i])) {
+                m_net->sys_cmd()->send_children_del_zk_node(del_paths[i]);
+            }
         }
     }
 
-    m_nodes->print_debug_nodes_info();
+    m_net->nodes()->print_debug_nodes_info();
 }
 
 }  // namespace kim
