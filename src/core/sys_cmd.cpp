@@ -105,7 +105,7 @@ Cmd::STATUS SysCmd::process_manager_msg(Request& req) {
 
 Cmd::STATUS SysCmd::process_worker_msg(Request& req) {
     /* worker. */
-    LOG_TRACE("process worker's msg, head cmd: %d, seq: %llu",
+    LOG_TRACE("process worker's msg, head cmd: %d, seq: %u",
               req.msg_head()->cmd(), req.msg_head()->seq());
 
     switch (req.msg_head()->cmd()) {

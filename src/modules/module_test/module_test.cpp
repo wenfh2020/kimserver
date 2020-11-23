@@ -28,7 +28,7 @@ Cmd::STATUS MoudleTest::hello_world(std::shared_ptr<Request> req) {
 
 Cmd::STATUS MoudleTest::test_proto(std::shared_ptr<Request> req) {
     MsgHead* head = req->msg_head();
-    LOG_DEBUG("cmd: %d, seq: %d, len: %d",
+    LOG_DEBUG("cmd: %d, seq: %u, len: %d",
               head->cmd(), head->seq(), head->len());
 
     MsgBody* body = req->msg_body();

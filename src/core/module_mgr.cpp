@@ -178,7 +178,7 @@ Cmd::STATUS ModuleMgr::process_ack(Request& req) {
 
     cmd = net()->get_cmd(req.msg_head()->seq());
     if (cmd == nullptr) {
-        LOG_WARN("can not find cmd! fd: %d, cmd: %d, seq: %llu",
+        LOG_WARN("can not find cmd! fd: %d, cmd: %d, seq: %u",
                  req.conn()->fd(), req.msg_head()->cmd(), req.msg_head()->seq());
         return Cmd::STATUS::UNKOWN;
     }

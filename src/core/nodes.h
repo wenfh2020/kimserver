@@ -44,7 +44,7 @@ class Nodes {
     const std::unordered_map<std::string, zk_node>& get_zk_nodes() const { return m_zk_nodes; }
 
     void clear();
-    int version() { return m_version; }
+    uint32_t version() { return m_version; }
     void print_debug_nodes_info();
 
     /* ketama algorithm for node's distribution. */
@@ -65,7 +65,7 @@ class Nodes {
     int m_vnode_cnt = 200;
     HASH_ALGORITHM m_ha = HASH_ALGORITHM::FNV1A_64;
 
-    int m_version = 0;
+    uint32_t m_version = 0;
     std::string m_my_zk_node;
 
     /* key: host (ip:port), value: zk path. */

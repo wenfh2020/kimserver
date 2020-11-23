@@ -23,7 +23,7 @@ class CmdAutoSend : public Cmd {
         switch (get_exec_step()) {
             case STEP_PARSE_REQUEST: {
                 MsgHead* head = req()->msg_head();
-                LOG_DEBUG("cmd: %d, seq: %d, len: %d",
+                LOG_DEBUG("cmd: %d, seq: %u, len: %d",
                           head->cmd(), head->seq(), head->len());
                 return execute_next_step(err, data);
             }
