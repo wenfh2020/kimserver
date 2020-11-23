@@ -1,5 +1,5 @@
-#ifndef __WORKER_DATA_MGR_H__
-#define __WORKER_DATA_MGR_H__
+#ifndef __KIM_WORKER_DATA_MGR_H__
+#define __KIM_WORKER_DATA_MGR_H__
 
 #include "nodes.h"
 
@@ -37,4 +37,4 @@ class WorkerDataMgr {
 
 }  // namespace kim
 
-#endif  //__WORKER_DATA_MGR_H__
+#endif  //__KIM_WORKER_DATA_MGR_H__

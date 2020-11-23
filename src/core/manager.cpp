@@ -19,6 +19,10 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
+    if (m_net != nullptr) {
+        m_net->events()->del_timer_event(m_timer);
+        m_timer = nullptr;
+    }
     SAFE_DELETE(m_zk_client);
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
@@ -49,6 +53,11 @@ bool Manager::init(const char* conf_path) {
 
     if (!load_network()) {
         LOG_ERROR("create network failed!");
+        return false;
+    }
+
+    if (!load_timer()) {
+        LOG_ERROR("load timer failed!");
         return false;
     }
 
@@ -122,13 +131,29 @@ bool Manager::load_network() {
         return false;
     }
 
-    if (!m_net->create_m(m_node_info.mutable_addr_info(), this, m_conf)) {
-        SAFE_DELETE(m_net);
+    if (!m_net->create_m(m_node_info.mutable_addr_info(), m_conf)) {
         LOG_ERROR("init network failed!");
-        return false;
+        goto error;
+    }
+
+    /* set events. */
+    m_net->events()->set_sig_callback_fn(&on_signal_callback);
+    if (!m_net->events()->setup_signal_events(this)) {
+        LOG_ERROR("setup signal failed!");
+        goto error;
     }
 
     return true;
+
+error:
+    SAFE_DELETE(m_net);
+    return false;
+}
+
+bool Manager::load_timer() {
+    m_net->events()->set_repeat_timer_callback_fn(&on_repeat_timer_callback);
+    m_timer = m_net->events()->add_repeat_timer(REPEAT_TIMEOUT_VAL, m_timer, this);
+    return (m_timer != nullptr);
 }
 
 bool Manager::load_zk_mgr() {
@@ -144,12 +169,18 @@ bool Manager::load_zk_mgr() {
     return true;
 }
 
+void Manager::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
+    Manager* m = static_cast<Manager*>(s->data);
+    (s->signum == SIGCHLD) ? m->on_child_terminated(s) : m->on_terminated(s);
+}
+
+void Manager::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
+    Manager* m = static_cast<Manager*>(w->data);
+    m->on_repeat_timer(w->data);
+}
+
 void Manager::on_terminated(ev_signal* s) {
-    if (s == nullptr) {
-        return;
-    }
-    LOG_WARN("%s terminated by signal %d!",
-             m_conf("server_name").c_str(), s->signum);
+    LOG_WARN("%s terminated by signal %d!", m_conf("server_name").c_str(), s->signum);
     SAFE_DELETE(s);
     destory();
     exit(s->signum);

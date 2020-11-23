@@ -9,7 +9,7 @@
 
 namespace kim {
 
-class Manager : public INet {
+class Manager {
    public:
     Manager();
     virtual ~Manager();
@@ -18,14 +18,18 @@ class Manager : public INet {
     void destory();
     void run();
 
-    // signal callback
-    virtual void on_terminated(ev_signal* s) override;
-    virtual void on_child_terminated(ev_signal* s) override;
-    virtual void on_repeat_timer(void* privdata) override;
+    /* libev callback. */
+    static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
+    static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
+
+    void on_terminated(ev_signal* s);
+    void on_child_terminated(ev_signal* s);
+    void on_repeat_timer(void* privdata);
 
    private:
     bool load_logger();
     bool load_network();
+    bool load_timer();
     bool load_config(const char* path);
     bool load_zk_mgr();
 
@@ -36,8 +40,9 @@ class Manager : public INet {
     std::string worker_name(int index);
 
    private:
-    Log* m_logger = nullptr;  /* logger. */
-    Network* m_net = nullptr; /* net work. */
+    Log* m_logger = nullptr;     /* logger. */
+    Network* m_net = nullptr;    /* net work. */
+    ev_timer* m_timer = nullptr; /* repeat timer. */
 
     CJsonObject m_conf, m_old_conf;   /* config. */
     node_info m_node_info;            /* cluster node. */

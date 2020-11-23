@@ -91,10 +91,6 @@ class INet {
     virtual bool del_cmd_timer(ev_timer*) { return false; }
 
    public:
-    /* signal. */
-    virtual void on_terminated(ev_signal* s) {}
-    virtual void on_child_terminated(ev_signal* s) {}
-
     /* socket. */
     virtual void on_io_read(int fd) {}
     virtual void on_io_write(int fd) {}
@@ -103,7 +99,6 @@ class INet {
     /* timer. */
     virtual void on_io_timer(void* privdata) {}
     virtual void on_cmd_timer(void* privdata) {}
-    virtual void on_repeat_timer(void* privdata) {}
     virtual void on_session_timer(void* privdata) {}
 
     /* redis callback */

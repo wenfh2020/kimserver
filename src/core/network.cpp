@@ -19,11 +19,6 @@ Network::~Network() {
 }
 
 void Network::destory() {
-    if (m_events != nullptr) {
-        m_events->del_timer_event(m_timer);
-        m_timer = nullptr;
-    }
-
     end_ev_loop();
     close_conns();
 
@@ -80,9 +75,9 @@ bool Network::load_config(const CJsonObject& config) {
 }
 
 /* parent. */
-bool Network::create_m(const addr_info* ai, INet* net, const CJsonObject& config) {
+bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
     int fd = -1;
-    if (ai == nullptr || net == nullptr) {
+    if (ai == nullptr) {
         return false;
     }
 
@@ -113,13 +108,8 @@ bool Network::create_m(const addr_info* ai, INet* net, const CJsonObject& config
 
     LOG_INFO("node fd: %d, gate fd: %d", m_node_host_fd, m_gate_host_fd);
 
-    if (!create_events(net, m_node_host_fd, m_gate_host_fd, m_gate_codec, false)) {
+    if (!create_events(m_node_host_fd, m_gate_host_fd, m_gate_codec, false)) {
         LOG_ERROR("create events failed!");
-        return false;
-    }
-
-    if (!load_timer(net)) {
-        LOG_ERROR("load timer failed!");
         return false;
     }
 
@@ -137,9 +127,8 @@ bool Network::create_m(const addr_info* ai, INet* net, const CJsonObject& config
 }
 
 /* children. */
-bool Network::create_w(INet* net, const CJsonObject& config,
-                       int ctrl_fd, int data_fd, int index) {
-    if (!create_events(net, ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
+bool Network::create_w(const CJsonObject& config, int ctrl_fd, int data_fd, int index) {
+    if (!create_events(ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
         LOG_ERROR("create events failed!");
         return false;
     }
@@ -171,11 +160,6 @@ bool Network::create_w(INet* net, const CJsonObject& config,
     }
     LOG_INFO("load modules ok!");
 
-    if (!load_timer(net)) {
-        LOG_ERROR("load timer failed!");
-        return false;
-    }
-
     if (!load_public()) {
         LOG_ERROR("load public failed!");
         return false;
@@ -206,7 +190,7 @@ bool Network::load_public() {
     return true;
 }
 
-bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker) {
+bool Network::create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker) {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -219,11 +203,9 @@ bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool i
     }
 
     m_events->set_io_callback_fn(&on_io_callback);
-    m_events->set_sig_callback_fn(&on_signal_callback);
     m_events->set_io_timer_callback_fn(&on_io_timer_callback);
     m_events->set_cmd_timer_callback_fn(&on_cmd_timer_callback);
     m_events->set_session_timer_callback_fn(&on_session_timer_callback);
-    m_events->set_repeat_timer_callback_fn(&on_repeat_timer_callback);
 
     if (!add_read_event(fd1, codec, is_worker)) {
         close_conn(fd1);
@@ -235,18 +217,6 @@ bool Network::create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool i
         close_conn(fd2);
         LOG_ERROR("add read event failed, fd: %d", fd2);
         goto error;
-    }
-
-    if (is_worker) {
-        if (!m_events->create_signal_event(SIGINT, s)) {
-            LOG_ERROR("create signal failed!");
-            goto error;
-        }
-    } else {
-        if (!m_events->setup_signal_events(s)) {
-            LOG_ERROR("setup signal failed!");
-            goto error;
-        }
     }
 
     return true;
@@ -431,24 +401,10 @@ void Network::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
     }
 }
 
-void Network::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
-    if (s == nullptr || s->data == nullptr) {
-        return;
-    }
-
-    INet* net = static_cast<INet*>(s->data);
-    (s->signum == SIGCHLD) ? net->on_child_terminated(s) : net->on_terminated(s);
-}
-
 void Network::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
     Connection* c = static_cast<Connection*>(w->data);
     INet* net = static_cast<INet*>(c->privdata());
     net->on_io_timer(w->data);
-}
-
-void Network::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    INet* net = static_cast<INet*>(w->data);
-    net->on_repeat_timer(w->data);
 }
 
 void Network::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
@@ -888,14 +844,6 @@ bool Network::load_modules() {
         return false;
     }
     return m_module_mgr->init(m_conf);
-}
-
-bool Network::load_timer(INet* net) {
-    if (m_events == nullptr || net == nullptr) {
-        return false;
-    }
-    m_timer = m_events->add_repeat_timer(REPEAT_TIMEOUT_VAL, m_timer, net);
-    return (m_timer != nullptr);
 }
 
 bool Network::send_to_node(const std::string& node_type, const std::string& obj,

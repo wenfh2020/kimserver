@@ -39,14 +39,13 @@ class Network : public INet {
     Network& operator=(const Network&) = delete;
 
     /* for manager. */
-    bool create_m(const addr_info* ainfo, INet* net, const CJsonObject& config);
+    bool create_m(const addr_info* ainfo, const CJsonObject& config);
     /* for worker. */
-    bool create_w(INet* net, const CJsonObject& config, int ctrl_fd, int data_fd, int index);
+    bool create_w(const CJsonObject& config, int ctrl_fd, int data_fd, int index);
     void destory();
 
     /* init. */
     bool load_config(const CJsonObject& config);
-    bool load_timer(INet* net);
     bool load_modules();
     bool load_db();
     bool load_redis_mgr();
@@ -106,11 +105,9 @@ class Network : public INet {
 
     /* libev callback. */
     static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
-    static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
     static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
     static void on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
-    static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
 
     // io callback.
     virtual void on_io_read(int fd) override;
@@ -120,7 +117,7 @@ class Network : public INet {
     virtual void on_io_timer(void* privdata) override;
     virtual void on_cmd_timer(void* privdata) override;
     virtual void on_session_timer(void* privdata) override;
-    virtual void on_repeat_timer(void* privdata) override;
+    void on_repeat_timer(void* privdata);
 
     /* socket. */
     virtual bool send_to(Connection* c, const HttpMsg& msg) override;
@@ -148,7 +145,7 @@ class Network : public INet {
    private:
     void close_fd(int fd);
     void check_wait_send_fds();
-    bool create_events(INet* s, int fd1, int fd2, Codec::TYPE codec, bool is_worker);
+    bool create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker);
 
     ev_io* add_write_event(Connection* c);
 
@@ -198,7 +195,6 @@ class Network : public INet {
     ModuleMgr* m_module_mgr = nullptr;
     std::unordered_map<uint64_t, Cmd*> m_cmds; /* key: cmd id. */
 
-    ev_timer* m_timer = nullptr;                      /* repeat timer for idle handle. */
     std::list<chanel_resend_data_t*> m_wait_send_fds; /* sendmsg maybe return -1 and errno == EAGAIN. */
 
     DBMgr* m_db_pool = nullptr;          /* data base connection pool. */
