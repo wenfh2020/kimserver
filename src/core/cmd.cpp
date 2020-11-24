@@ -4,8 +4,8 @@
 
 namespace kim {
 
-Cmd::Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name)
-    : Base(id, logger, n, name), m_module_id(mid) {
+Cmd::Cmd(Log* logger, INet* n, uint64_t id, const std::string& name)
+    : Base(id, logger, n, name) {
     set_keep_alive(CMD_TIMEOUT_VAL);
     set_max_timeout_cnt(CMD_MAX_TIMEOUT_CNT);
     set_active_time(net()->now());

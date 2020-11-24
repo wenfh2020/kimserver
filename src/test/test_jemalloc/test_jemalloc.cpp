@@ -25,11 +25,6 @@ long long mstime() {
     return mst;
 }
 
-typedef struct cmd_index_data_s {
-    uint64_t cmd_id;
-    uint64_t module_id;
-} cmd_index_data_t;
-
 int main() {
     srand((unsigned)time(NULL));
     long long begin = mstime();

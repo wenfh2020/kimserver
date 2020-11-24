@@ -18,15 +18,10 @@ class Module : public Base, public So {
     virtual ~Module();
     virtual void register_handle_func() {}
 
-    virtual Cmd::STATUS process_req(const Request& req) { return Cmd::STATUS::UNKOWN; }
-
     bool init(Log* logger, INet* net, uint64_t id, const std::string& name = "");
+    virtual Cmd::STATUS process_req(const Request& req) { return Cmd::STATUS::UNKOWN; }
     Cmd::STATUS execute_cmd(Cmd* cmd, const Request& req);
     Cmd::STATUS response_http(const fd_t& f, const std::string& data, int status_code = 200);
-
-    // callback.
-    Cmd::STATUS on_timeout(Cmd* cmd);
-    Cmd::STATUS on_callback(wait_cmd_info_t* index, int err, void* data);
 };
 
 #define REGISTER_HANDLER(class_name)                                              \
@@ -62,16 +57,16 @@ class Module : public Base, public So {
 #define HANDLE_PROTO_FUNC(id, func) \
     m_cmd_funcs[id] = &func;
 
-#define HANDLE_CMD(_cmd)                                                    \
-    do {                                                                    \
-        _cmd* p = new _cmd(m_logger, m_net, id(), m_net->new_seq(), #_cmd); \
-        p->set_req(req);                                                    \
-        if (!p->init()) {                                                   \
-            LOG_ERROR("init cmd failed! %s", p->name());                    \
-            SAFE_DELETE(p);                                                 \
-            return Cmd::STATUS::ERROR;                                      \
-        }                                                                   \
-        return execute_cmd(p, req);                                         \
+#define HANDLE_CMD(_cmd)                                              \
+    do {                                                              \
+        _cmd* p = new _cmd(m_logger, m_net, m_net->new_seq(), #_cmd); \
+        p->set_req(req);                                              \
+        if (!p->init()) {                                             \
+            LOG_ERROR("init cmd failed! %s", p->name());              \
+            SAFE_DELETE(p);                                           \
+            return Cmd::STATUS::ERROR;                                \
+        }                                                             \
+        return execute_cmd(p, req);                                   \
     } while (0);
 
 }  // namespace kim

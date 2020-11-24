@@ -18,9 +18,8 @@ class CmdTestMysql : public Cmd {
         STEP_DATABASE_QUERY_CALLBACK,
     };
 
-    CmdTestMysql(Log* logger, INet* net,
-                 uint64_t mid, uint64_t id, const std::string& name = "")
-        : Cmd(logger, net, mid, id, name) {
+    CmdTestMysql(Log* logger, INet* net, uint64_t id, const std::string& name = "")
+        : Cmd(logger, net, id, name) {
     }
 
    private:
@@ -38,7 +37,7 @@ class CmdTestMysql : public Cmd {
                     return Cmd::STATUS::ERROR;
                 }
 
-                LOG_DEBUG("cmd test database, http path: %s, data: %s",
+                LOG_DEBUG("cmd test db, http path: %s, data: %s",
                           msg->path().c_str(), msg->body().c_str());
 
                 CJsonObject req(msg->body());
@@ -59,7 +58,7 @@ class CmdTestMysql : public Cmd {
             }
 
             case STEP_DATABASE_INSERT: {
-                LOG_DEBUG("step: database insert, value: %s", m_value.c_str());
+                LOG_DEBUG("step: db insert, value: %s", m_value.c_str());
                 snprintf(m_sql, sizeof(m_sql),
                          "insert into mytest.test_async_mysql (value) values ('%s');",
                          m_value.c_str());
@@ -75,15 +74,15 @@ class CmdTestMysql : public Cmd {
             }
 
             case STEP_DATABASE_INSERT_CALLBACK: {
-                LOG_DEBUG("step: database insert callback!");
+                LOG_DEBUG("step: db insert callback!");
                 if (err != ERR_OK) {
-                    LOG_ERROR("database inert callback failed! eror: %d");
-                    response_http(ERR_FAILED, "database insert data failed!");
+                    LOG_ERROR("db inert callback failed! eror: %d");
+                    response_http(ERR_FAILED, "db insert data failed!");
                     return Cmd::STATUS::ERROR;
                 }
 
                 if (m_oper == "write") {
-                    if (!response_http(ERR_OK, "database write data done!")) {
+                    if (!response_http(ERR_OK, "db write data done!")) {
                         return Cmd::STATUS::ERROR;
                     }
                     return Cmd::STATUS::COMPLETED;
@@ -93,14 +92,14 @@ class CmdTestMysql : public Cmd {
             }
 
             case STEP_DATABASE_QUERY: {
-                LOG_DEBUG("step: database query, id: %s.", m_key.c_str());
+                LOG_DEBUG("step: db query, id: %s.", m_key.c_str());
                 if (m_is_session) {
                     // query from session.
                     SessionTest* s = dynamic_cast<SessionTest*>(net()->get_session(m_key));
                     if (s != nullptr) {
                         LOG_DEBUG("query data from session ok, id: %s, value: %s",
                                   m_key.c_str(), s->value().c_str())
-                        response_http(ERR_OK, "database query data from session ok!");
+                        response_http(ERR_OK, "query data from session ok!");
                         return Cmd::STATUS::COMPLETED;
                     }
                 }
@@ -120,10 +119,10 @@ class CmdTestMysql : public Cmd {
             }
 
             case STEP_DATABASE_QUERY_CALLBACK: {
-                LOG_DEBUG("step: database query callback!");
+                LOG_DEBUG("step: db query callback!");
                 if (err != ERR_OK) {
-                    LOG_ERROR("database query callback failed! error: %d");
-                    response_http(ERR_FAILED, "database insert data failed!");
+                    LOG_ERROR("db query callback failed! error: %d");
+                    response_http(ERR_FAILED, "db insert data failed!");
                     return Cmd::STATUS::ERROR;
                 }
 
@@ -135,7 +134,7 @@ class CmdTestMysql : public Cmd {
                 res = static_cast<MysqlResult*>(data);
                 if (res == nullptr || (size = res->result_data(query_data)) == 0) {
                     LOG_ERROR("query no data!");
-                    response_http(ERR_FAILED, "query no data from db!");
+                    response_http(ERR_FAILED, "query no data in db!");
                     return Cmd::STATUS::ERROR;
                 }
 
@@ -154,7 +153,7 @@ class CmdTestMysql : public Cmd {
                         LOG_DEBUG("col: %s, data: %s", it.first.c_str(), it.second.c_str());
                     }
                 }
-                response_http(ERR_OK, "database query data done!");
+                response_http(ERR_OK, "db query done!");
                 return Cmd::STATUS::COMPLETED;
             }
 

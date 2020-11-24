@@ -514,9 +514,10 @@ void Network::check_wait_send_fds() {
 }
 
 void Network::on_cmd_timer(void* privdata) {
+    int old;
     Cmd* cmd;
     double secs;
-    Module* module;
+    Cmd::STATUS status;
 
     cmd = static_cast<Cmd*>(privdata);
     secs = cmd->keep_alive() - (now() - cmd->active_time());
@@ -524,20 +525,36 @@ void Network::on_cmd_timer(void* privdata) {
         LOG_TRACE("cmd timer restart, cmd id: %llu, restart timer secs: %f",
                   cmd->id(), secs);
         m_events->restart_timer(secs, cmd->timer(), privdata);
-    } else {
-        module = m_module_mgr->get_module(cmd->module_id());
-        if (module == nullptr) {
-            LOG_ERROR("find module failed!, module id: %llu", cmd->module_id());
-            return;
-        }
-        /* note: cmd will be deleted, when status != Cmd::STATUS::RUNNING.
-         * and the same to cmd's timer.*/
-        if (module->on_timeout(cmd) == Cmd::STATUS::RUNNING) {
-            LOG_TRACE("cmd timer reset, cmd id: %llu, restart timer secs: %f",
-                      cmd->id(), secs);
-            m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->timer(), privdata);
-        }
+        return;
     }
+
+    /* timeup, cmd run again? */
+    old = cmd->cur_timeout_cnt();
+    status = cmd->on_timeout();
+    if (status != Cmd::STATUS::RUNNING) {
+        del_cmd(cmd);
+        return;
+    }
+
+    /* status == Cmd::STATUS::RUNNING */
+    // if (cmd->req()->conn()->is_invalid()) {
+    //     LOG_DEBUG("connection is closed, stop timeout!");
+    //     net()->del_cmd(cmd);
+    //     return;
+    // }
+
+    if (old == cmd->cur_timeout_cnt()) {
+        cmd->refresh_cur_timeout_cnt();
+    }
+
+    if (cmd->cur_timeout_cnt() >= cmd->max_timeout_cnt()) {
+        LOG_WARN("pls check timeout logic! %s", cmd->name());
+        del_cmd(cmd);
+        return;
+    }
+
+    LOG_TRACE("reset cmd timer, cmd id: %llu, restart timer secs: %f", cmd->id(), secs);
+    m_events->restart_timer(CMD_TIMEOUT_VAL, cmd->timer(), privdata);
 }
 
 void Network::on_io_timer(void* privdata) {
@@ -1025,37 +1042,44 @@ error:
 }
 
 bool Network::send_to(Connection* c, const HttpMsg& msg) {
+    if (c == nullptr) {
+        return false;
+    }
+
     if (!handle_write_events(c, c->conn_write(msg))) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
         return false;
     }
+
     return true;
 }
 
 bool Network::send_to(Connection* c, const MsgHead& head, const MsgBody& body) {
+    if (c == nullptr) {
+        return false;
+    }
+
     if (!handle_write_events(c, c->conn_write(head, body))) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
         return false;
     }
+
     return true;
 }
 
-bool Network::send_to(const fd_t& f, const HttpMsg& msg) {
+Connection* Network::get_conn(const fd_t& f) {
     auto it = m_conns.find(f.fd);
-    if (it == m_conns.end()) {
-        return false;
-    }
-    return send_to(it->second, msg);
+    return (it == m_conns.end() || it->second->id() != f.id) ? nullptr : it->second;
+}
+
+bool Network::send_to(const fd_t& f, const HttpMsg& msg) {
+    return send_to(get_conn(f), msg);
 }
 
 bool Network::send_to(const fd_t& f, const MsgHead& head, const MsgBody& body) {
-    auto it = m_conns.find(f.fd);
-    if (it == m_conns.end()) {
-        return false;
-    }
-    return send_to(it->second, head, body);
+    return send_to(get_conn(f), head, body);
 }
 
 bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::string& data) {
@@ -1139,17 +1163,15 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
 
     LOG_TRACE("redis send to node: %s", node);
 
+    uint64_t cmd_id;
     wait_cmd_info_t* info;
-    uint64_t module_id, cmd_id;
 
     cmd_id = cmd->id();
-    module_id = cmd->module_id();
 
     // delete info when callback.
-    info = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
+    info = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
     if (info == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
-                  cmd_id, module_id);
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
         return false;
     }
 
@@ -1170,15 +1192,13 @@ bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
 
     LOG_DEBUG("database exec, node: %s, sql: %s", node, sql);
 
+    uint64_t cmd_id;
     wait_cmd_info_t* index;
-    uint64_t cmd_id, module_id;
 
     cmd_id = cmd->id();
-    module_id = cmd->module_id();
-    index = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
-                  cmd_id, module_id);
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
         return false;
     }
 
@@ -1199,15 +1219,13 @@ bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
 
     LOG_DEBUG("database query, node: %s, sql: %s", node, sql);
 
+    uint64_t cmd_id;
     wait_cmd_info_t* index;
-    uint64_t cmd_id, module_id;
 
     cmd_id = cmd->id();
-    module_id = cmd->module_id();
-    index = new wait_cmd_info_t{this, module_id, cmd_id, cmd->get_exec_step()};
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu, module id: %llu",
-                  cmd_id, module_id);
+        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
         return false;
     }
 
@@ -1226,22 +1244,13 @@ void Network::on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* t
 }
 
 void Network::on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) {
-    Module* module;
-    wait_cmd_info_t* index;
-
-    index = static_cast<wait_cmd_info_t*>(task->privdata);
-    module = m_module_mgr->get_module(index->module_id);
-    if (module == nullptr) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-        SAFE_DELETE(index);
-        return;
-    }
-
     if (task->error != ERR_OK) {
         LOG_ERROR("database query failed, error: %d, errstr: %s",
                   task->error, task->errstr.c_str());
     }
-    module->on_callback(index, task->error, res);
+
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(task->privdata);
+    handle_cmd_callback(index, task->error, res);
     SAFE_DELETE(index);
 }
 
@@ -1251,22 +1260,12 @@ void Network::on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* ta
 }
 
 void Network::on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) {
-    Module* module;
-    wait_cmd_info_t* index;
-
-    index = static_cast<wait_cmd_info_t*>(task->privdata);
-    module = m_module_mgr->get_module(index->module_id);
-    if (module == nullptr) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-        SAFE_DELETE(index);
-        return;
-    }
-
     if (task->error != ERR_OK) {
         LOG_ERROR("database query failed, error: %d, errstr: %s",
                   task->error, task->errstr.c_str());
     }
-    module->on_callback(index, task->error, nullptr);
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(task->privdata);
+    handle_cmd_callback(index, task->error, nullptr);
     SAFE_DELETE(index);
 }
 
@@ -1275,19 +1274,31 @@ void Network::on_redis_lib_callback(redisAsyncContext* ac, void* reply, void* pr
     index->net->on_redis_callback(ac, reply, privdata);
 }
 
+bool Network::handle_cmd_callback(wait_cmd_info_t* index, int err, void* data) {
+    if (index == nullptr) {
+        return false;
+    }
+
+    Cmd* cmd;
+    Cmd::STATUS ret;
+
+    cmd = get_cmd(index->cmd_id);
+    if (cmd == nullptr) {
+        LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
+        return false;
+    }
+
+    cmd->set_active_time(now());
+    ret = cmd->on_callback(err, data);
+    if (ret != Cmd::STATUS::RUNNING) {
+        del_cmd(cmd);
+    }
+
+    return true;
+}
+
 void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {
     LOG_TRACE("redis callback. host: %s, port: %d.", c->c.tcp.host, c->c.tcp.port);
-
-    Module* module;
-    wait_cmd_info_t* index;
-    index = static_cast<wait_cmd_info_t*>(privdata);
-
-    module = m_module_mgr->get_module(index->module_id);
-    if (module == nullptr) {
-        LOG_ERROR("find module failed! module id: %llu.", index->module_id);
-        SAFE_DELETE(index);
-        return;
-    }
 
     if (reply != nullptr) {
         redisReply* r = (redisReply*)reply;
@@ -1299,7 +1310,8 @@ void Network::on_redis_callback(redisAsyncContext* c, void* reply, void* privdat
         }
     }
 
-    module->on_callback(index, c->err, reply);
+    wait_cmd_info_t* index = static_cast<wait_cmd_info_t*>(privdata);
+    handle_cmd_callback(index, c->err, reply);
     SAFE_DELETE(index);
 }
 
@@ -1395,18 +1407,17 @@ bool Network::update_conn_state(int fd, Connection::STATE state) {
     if (it == m_conns.end()) {
         return false;
     }
-
     it->second->set_state(state);
     return true;
 }
 
 bool Network::Network::add_client_conn(const std::string& node_id, const fd_t& f) {
-    auto it = m_conns.find(f.fd);
-    if (it != m_conns.end() || it->second->id() != f.id) {
+    Connection* c = get_conn(f);
+    if (c == nullptr) {
         return false;
     }
-    m_node_conns[node_id] = it->second;
-    return false;
+    m_node_conns[node_id] = c;
+    return true;
 }
 
 bool Network::add_session(Session* s) {

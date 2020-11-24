@@ -7,9 +7,8 @@ namespace kim {
 
 class CmdHello : public Cmd {
    public:
-    CmdHello(Log* logger, INet* net,
-             uint64_t mid, uint64_t id, const std::string& name = "")
-        : Cmd(logger, net, mid, id, name) {
+    CmdHello(Log* logger, INet* net, uint64_t id, const std::string& name = "")
+        : Cmd(logger, net, id, name) {
     }
 
    public:

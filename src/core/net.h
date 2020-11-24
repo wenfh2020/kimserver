@@ -25,7 +25,6 @@ class Request;
 /* privdata for cmd callback. */
 typedef struct wait_cmd_info_s {
     INet* net;
-    uint64_t module_id;
     uint64_t cmd_id;
     int exec_step;
 } wait_cmd_info_t;

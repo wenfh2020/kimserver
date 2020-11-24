@@ -20,10 +20,9 @@ class Cmd : public Timer, public Base {
         ERROR,
     };
 
-    Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name);
+    Cmd(Log* logger, INet* net, uint64_t id, const std::string& name);
     virtual ~Cmd();
 
-    uint64_t module_id() { return m_module_id; }
     CJsonObject& config() { return m_net->config(); }
 
     void set_req(const Request& req);
@@ -57,7 +56,6 @@ class Cmd : public Timer, public Base {
 
    protected:
     int m_step = 0;  // async step.
-    uint64_t m_module_id = 0;
     Request* m_req = nullptr;
 };
 

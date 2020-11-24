@@ -7,8 +7,8 @@ namespace kim {
 
 class CmdTestTimeout : public Cmd {
    public:
-    CmdTestTimeout(Log* logger, INet* net, uint64_t mid, uint64_t id, const std::string& name = "")
-        : Cmd(logger, net, mid, id, name) {
+    CmdTestTimeout(Log* logger, INet* net, uint64_t id, const std::string& name = "")
+        : Cmd(logger, net, id, name) {
     }
 
    public:

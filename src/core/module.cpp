@@ -48,64 +48,6 @@ Cmd::STATUS Module::execute_cmd(Cmd* cmd, const Request& req) {
     return ret;
 }
 
-Cmd::STATUS Module::on_timeout(Cmd* cmd) {
-    int old;
-    Cmd::STATUS status;
-
-    old = cmd->cur_timeout_cnt();
-    status = cmd->on_timeout();
-    if (status != Cmd::STATUS::RUNNING) {
-        net()->del_cmd(cmd);
-        return status;
-    }
-
-    /* status == Cmd::STATUS::RUNNING */
-    // if (cmd->req()->conn()->is_invalid()) {
-    //     LOG_DEBUG("connection is closed, stop timeout!");
-    //     net()->del_cmd(cmd);
-    //     return Cmd::STATUS::ERROR;
-    // }
-
-    if (old == cmd->cur_timeout_cnt()) {
-        cmd->refresh_cur_timeout_cnt();
-    }
-
-    if (cmd->cur_timeout_cnt() >= cmd->max_timeout_cnt()) {
-        LOG_WARN("pls check timeout logic! %s", cmd->name());
-        net()->del_cmd(cmd);
-        return Cmd::STATUS::ERROR;
-    }
-
-    return status;
-}
-
-Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
-    LOG_TRACE("callback, module id: %llu, cmd id: %llu, err: %d",
-              index->module_id, index->cmd_id, err);
-
-    if (index == nullptr) {
-        LOG_WARN("invalid timer for cmd!");
-        return Cmd::STATUS::ERROR;
-    }
-
-    Cmd* cmd;
-    Cmd::STATUS ret;
-
-    cmd = net()->get_cmd(index->cmd_id);
-    if (cmd == nullptr) {
-        LOG_WARN("find cmd failed! seq: %llu", index->cmd_id);
-        return Cmd::STATUS::ERROR;
-    }
-
-    cmd->set_active_time(net()->now());
-    ret = cmd->on_callback(err, data);
-    if (ret != Cmd::STATUS::RUNNING) {
-        net()->del_cmd(cmd);
-    }
-
-    return ret;
-}
-
 Cmd::STATUS Module::response_http(const fd_t& f, const std::string& data, int status_code) {
     HttpMsg msg;
     msg.set_type(HTTP_RESPONSE);

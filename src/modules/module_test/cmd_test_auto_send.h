@@ -13,9 +13,8 @@ class CmdAutoSend : public Cmd {
         STEP_AUTO_SEND_CALLBACK,
     };
 
-    CmdAutoSend(Log* logger, INet* net,
-                uint64_t mid, uint64_t id, const std::string& name = "")
-        : Cmd(logger, net, mid, id, name) {
+    CmdAutoSend(Log* logger, INet* net, uint64_t id, const std::string& name = "")
+        : Cmd(logger, net, id, name) {
     }
 
    public:

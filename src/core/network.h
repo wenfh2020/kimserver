@@ -56,6 +56,8 @@ class Network : public INet {
     void set_keep_alive(double secs) { m_keep_alive = secs; }
     double keep_alive() { return m_keep_alive; }
     bool is_request(int cmd) { return (cmd & 0x00000001); }
+    bool handle_cmd_callback(wait_cmd_info_t* index, int err, void* data);
+    Connection* get_conn(const fd_t& f);
 
     /* manager and worker contack by socketpair. */
     void close_chanel(int* fds);
