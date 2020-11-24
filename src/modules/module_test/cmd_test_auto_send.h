@@ -42,7 +42,7 @@ class CmdAutoSend : public Cmd {
             case STEP_AUTO_SEND_CALLBACK: {
                 /* send back to client. */
                 if (!response_tcp(ERR_OK, "OK", "good job.")) {
-                    LOG_ERROR("send ack failed! fd: %d", m_req->conn()->fd());
+                    LOG_ERROR("send ack failed! fd: %d", m_req->fd());
                     return Cmd::STATUS::ERROR;
                 }
                 return Cmd::STATUS::COMPLETED;

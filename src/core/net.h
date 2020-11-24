@@ -20,6 +20,7 @@ class zk_node;
 class SysCmd;
 class WorkerDataMgr;
 class Nodes;
+class Request;
 
 /* privdata for cmd callback. */
 typedef struct wait_cmd_info_s {
@@ -54,7 +55,7 @@ class INet {
 
     /* connection. */
     virtual bool update_conn_state(int fd, Connection::STATE state) { return false; }
-    virtual void add_client_conn(const std::string& node_id, Connection* c) {}
+    virtual bool add_client_conn(const std::string& node_id, const fd_t& f) { return false; }
 
     /* cmd */
     virtual bool
@@ -71,6 +72,13 @@ class INet {
     /* socket. */
     virtual bool send_to(Connection* c, const HttpMsg& msg) { return false; }
     virtual bool send_to(Connection* c, const MsgHead& head, const MsgBody& body) { return false; }
+    virtual bool send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::string& data) { return false; }
+    virtual bool send_to(const fd_t& f, const HttpMsg& msg) { return false; }
+    virtual bool send_to(const fd_t& f, const MsgHead& head, const MsgBody& body) { return false; }
+    virtual bool send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::string& data) { return false; }
+    virtual bool send_ack(const Request& req, int err, const std::string& errstr, const std::string& data = "") { return false; }
+
+    /* send to other node. */
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) { return false; }
     /* only for worker. */
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) { return false; }

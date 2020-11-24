@@ -20,14 +20,15 @@ class Cmd : public Timer, public Base {
         ERROR,
     };
 
-    Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name = "");
+    Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& name);
     virtual ~Cmd();
 
     uint64_t module_id() { return m_module_id; }
     CJsonObject& config() { return m_net->config(); }
 
-    void set_req(const std::shared_ptr<Request>& req) { m_req = req; }
-    const std::shared_ptr<Request>& req() const { return m_req; }
+    void set_req(const Request& req);
+    const Request* req() const { return m_req; }
+    Request* req() { return m_req; }
 
     /* async step. -- status machine. */
     void set_exec_step(int step) { m_step = step; }
@@ -39,7 +40,7 @@ class Cmd : public Timer, public Base {
     virtual bool init() { return true; }
     virtual Cmd::STATUS on_timeout();
     virtual Cmd::STATUS on_callback(int err, void* data);
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req);
+    virtual Cmd::STATUS execute(const Request& req);
 
    public:
     virtual bool response_http(const std::string& data, int status_code = 200);
@@ -57,7 +58,7 @@ class Cmd : public Timer, public Base {
    protected:
     int m_step = 0;  // async step.
     uint64_t m_module_id = 0;
-    std::shared_ptr<Request> m_req = nullptr;
+    Request* m_req = nullptr;
 };
 
 }  // namespace kim

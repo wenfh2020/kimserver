@@ -86,7 +86,7 @@ class Network : public INet {
     virtual int worker_index() override { return m_worker_index; }
 
     virtual bool update_conn_state(int fd, Connection::STATE state) override;
-    virtual void add_client_conn(const std::string& node_id, Connection* c) override;
+    virtual bool add_client_conn(const std::string& node_id, const fd_t& f) override;
 
     /* session */
     virtual bool add_session(Session* s) override;
@@ -122,6 +122,12 @@ class Network : public INet {
     /* socket. */
     virtual bool send_to(Connection* c, const HttpMsg& msg) override;
     virtual bool send_to(Connection* c, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_to(const fd_t& f, const HttpMsg& msg) override;
+    virtual bool send_to(const fd_t& f, const MsgHead& head, const MsgBody& body) override;
+    virtual bool send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::string& data) override;
+    virtual bool send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::string& data) override;
+    virtual bool send_ack(const Request& req, int err, const std::string& errstr, const std::string& data = "") override;
+
     virtual bool auto_send(const std::string& ip, int port, int worker_index, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_node(const std::string& node_type, const std::string& obj, const MsgHead& head, const MsgBody& body) override;
     virtual bool send_to_children(int cmd, uint64_t seq, const std::string& data) override;
@@ -159,7 +165,6 @@ class Network : public INet {
     bool process_tcp_msg(Connection* c);
     bool process_http_msg(Connection* c);
     bool handle_write_events(Connection* c, Codec::STATUS status);
-    bool process_sys_req(Request& req);
 
     /* connection. */
     Connection* create_conn(int fd);

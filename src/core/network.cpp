@@ -271,7 +271,8 @@ Connection* Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
 Connection* Network::create_conn(int fd) {
     auto it = m_conns.find(fd);
     if (it != m_conns.end()) {
-        return it->second;
+        LOG_WARN("find old connection, fd: %d", fd);
+        close_conn(fd);
     }
 
     uint64_t seq;
@@ -372,11 +373,11 @@ void Network::close_conns() {
 }
 
 void Network::close_fds() {
+    Connection* c;
     for (const auto& it : m_conns) {
-        int fd = it.second->fd();
-        if (fd != -1) {
-            close_fd(fd);
-            it.second->set_fd(-1);
+        c = it.second;
+        if (!c->is_invalid()) {
+            close_conn(c);
         }
     }
 }
@@ -604,7 +605,7 @@ bool Network::process_tcp_msg(Connection* c) {
     int fd;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
-    Request req(c, false);
+    Request req(c->fd_data(), false);
 
     fd = c->fd();
     codec_ret = c->conn_read(*req.msg_head(), *req.msg_body());
@@ -662,7 +663,7 @@ bool Network::process_http_msg(Connection* c) {
     HttpMsg msg;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
-    Request req(c, true);
+    Request req(c->fd_data(), true);
 
     codec_ret = c->conn_read(*req.http_msg());
     LOG_TRACE("connection is http, read ret: %d", (int)codec_ret);
@@ -681,27 +682,6 @@ bool Network::process_http_msg(Connection* c) {
     }
 
     return true;
-}
-
-bool Network::process_sys_req(Request& req) {
-    Connection* c;
-    Cmd::STATUS cmd_ret;
-
-    c = req.conn();
-    cmd_ret = m_sys_cmd->process(req);
-    if (cmd_ret == Cmd::STATUS::RUNNING) {
-        /* send waiting buffer. */
-        if (add_write_event(c) == nullptr) {
-            LOG_ERROR("add write event failed! fd: %d", req.conn()->fd());
-            close_conn(c);
-        }
-    } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
-        close_conn(c);
-    } else if (cmd_ret == Cmd::STATUS::ERROR) {
-        close_conn(c);
-    }
-
-    return (cmd_ret != Cmd::STATUS::UNKOWN);
 }
 
 void Network::accept_server_conn(int listen_fd) {
@@ -950,7 +930,7 @@ bool Network::send_to_parent(int cmd, uint64_t seq, const std::string& data) {
  */
 bool Network::auto_send(const std::string& host, int port, int worker_index,
                         const MsgHead& head, const MsgBody& body) {
-    LOG_TRACE("send to node, ip: %s, port: %d, worker: %d, msg cmd: %d, msg seq: %d",
+    LOG_TRACE("auto send to node, ip: %s, port: %d, worker: %d, msg cmd: %d, msg seq: %d",
               host.c_str(), port, worker_index, head.cmd(), head.seq());
 
     int fd;
@@ -1060,6 +1040,59 @@ bool Network::send_to(Connection* c, const MsgHead& head, const MsgBody& body) {
         return false;
     }
     return true;
+}
+
+bool Network::send_to(const fd_t& f, const HttpMsg& msg) {
+    auto it = m_conns.find(f.fd);
+    if (it == m_conns.end()) {
+        return false;
+    }
+    return send_to(it->second, msg);
+}
+
+bool Network::send_to(const fd_t& f, const MsgHead& head, const MsgBody& body) {
+    auto it = m_conns.find(f.fd);
+    if (it == m_conns.end()) {
+        return false;
+    }
+    return send_to(it->second, head, body);
+}
+
+bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::string& data) {
+    MsgHead head;
+    MsgBody body;
+
+    body.set_data(data);
+    head.set_cmd(cmd);
+    head.set_seq(seq);
+    head.set_len(body.ByteSizeLong());
+
+    return send_to(c, head, body);
+}
+
+bool Network::send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::string& data) {
+    MsgHead head;
+    MsgBody body;
+    body.set_data(data);
+    head.set_seq(seq);
+    head.set_cmd(cmd);
+    head.set_len(body.ByteSizeLong());
+    return send_to(f, head, body);
+}
+
+bool Network::send_ack(const Request& req, int err, const std::string& errstr, const std::string& data) {
+    MsgHead head;
+    MsgBody body;
+
+    body.set_data(data);
+    body.mutable_rsp_result()->set_code(err);
+    body.mutable_rsp_result()->set_msg(errstr);
+
+    head.set_seq(req.msg_head()->seq());
+    head.set_cmd(req.msg_head()->cmd() + 1);
+    head.set_len(body.ByteSizeLong());
+
+    return send_to(req.fd_data(), head, body);
 }
 
 bool Network::handle_write_events(Connection* c, Codec::STATUS codec_ret) {
@@ -1367,8 +1400,13 @@ bool Network::update_conn_state(int fd, Connection::STATE state) {
     return true;
 }
 
-void Network::Network::add_client_conn(const std::string& node_id, Connection* c) {
-    m_node_conns[node_id] = c;
+bool Network::Network::add_client_conn(const std::string& node_id, const fd_t& f) {
+    auto it = m_conns.find(f.fd);
+    if (it != m_conns.end() || it->second->id() != f.id) {
+        return false;
+    }
+    m_node_conns[node_id] = it->second;
+    return false;
 }
 
 bool Network::add_session(Session* s) {

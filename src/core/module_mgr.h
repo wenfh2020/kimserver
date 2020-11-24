@@ -15,7 +15,7 @@ class ModuleMgr : Base {
     bool init(CJsonObject& config);
     Module* get_module(uint64_t id);
 
-    Cmd::STATUS process_req(Request& req);
+    Cmd::STATUS process_req(const Request& req);
     Cmd::STATUS process_ack(Request& req);
     bool reload_so(const std::string& name);
 

@@ -10,6 +10,11 @@ CodecProto::CodecProto(Log* logger, Codec::TYPE codec)
 
 Codec::STATUS
 CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf) {
+    if (sbuf == nullptr) {
+        LOG_ERROR("invalid sbuf. head cmd: %d, seq: %u", head.cmd(), head.seq());
+        return CodecProto::STATUS::ERR;
+    }
+
     size_t len = 0;
     size_t write_len = 0;
 
@@ -40,6 +45,11 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
 }
 
 Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& body) {
+    if (sbuf == nullptr) {
+        LOG_ERROR("invalid sbuf. head cmd: %d, seq: %u", head.cmd(), head.seq());
+        return CodecProto::STATUS::ERR;
+    }
+
     LOG_TRACE("decode data len: %d, cur read index: %d, write index: %d",
               sbuf->readable_len(), sbuf->read_index(), sbuf->write_index());
 

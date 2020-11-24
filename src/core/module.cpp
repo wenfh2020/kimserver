@@ -21,7 +21,7 @@ bool Module::init(Log* logger, INet* net, uint64_t id, const std::string& name) 
     return true;
 }
 
-Cmd::STATUS Module::execute_cmd(Cmd* cmd, std::shared_ptr<Request> req) {
+Cmd::STATUS Module::execute_cmd(Cmd* cmd, const Request& req) {
     ev_timer* w;
     Cmd::STATUS ret;
 
@@ -60,11 +60,11 @@ Cmd::STATUS Module::on_timeout(Cmd* cmd) {
     }
 
     /* status == Cmd::STATUS::RUNNING */
-    if (cmd->req()->conn()->is_invalid()) {
-        LOG_DEBUG("connection is closed, stop timeout!");
-        net()->del_cmd(cmd);
-        return Cmd::STATUS::ERROR;
-    }
+    // if (cmd->req()->conn()->is_invalid()) {
+    //     LOG_DEBUG("connection is closed, stop timeout!");
+    //     net()->del_cmd(cmd);
+    //     return Cmd::STATUS::ERROR;
+    // }
 
     if (old == cmd->cur_timeout_cnt()) {
         cmd->refresh_cur_timeout_cnt();
@@ -106,7 +106,7 @@ Cmd::STATUS Module::on_callback(wait_cmd_info_t* index, int err, void* data) {
     return ret;
 }
 
-Cmd::STATUS Module::response_http(Connection* c, const std::string& data, int status_code) {
+Cmd::STATUS Module::response_http(const fd_t& f, const std::string& data, int status_code) {
     HttpMsg msg;
     msg.set_type(HTTP_RESPONSE);
     msg.set_status_code(status_code);
@@ -114,7 +114,7 @@ Cmd::STATUS Module::response_http(Connection* c, const std::string& data, int st
     msg.set_http_minor(1);
     msg.set_body(data);
 
-    if (!net()->send_to(c, msg)) {
+    if (!net()->send_to(f, msg)) {
         return Cmd::STATUS::ERROR;
     }
     return Cmd::STATUS::OK;

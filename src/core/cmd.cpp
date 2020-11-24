@@ -13,6 +13,11 @@ Cmd::Cmd(Log* logger, INet* n, uint64_t mid, uint64_t id, const std::string& nam
 
 Cmd::~Cmd() {}
 
+void Cmd::set_req(const Request& req) {
+    SAFE_DELETE(m_req);
+    m_req = new Request(req);
+}
+
 bool Cmd::response_http(const std::string& data, int status_code) {
     const HttpMsg* req_msg = m_req->http_msg();
     if (req_msg == nullptr) {
@@ -27,7 +32,7 @@ bool Cmd::response_http(const std::string& data, int status_code) {
     msg.set_http_minor(req_msg->http_minor());
     msg.set_body(data);
 
-    if (!m_net->send_to(m_req->conn(), msg)) {
+    if (!m_net->send_to(m_req->fd_data(), msg)) {
         return false;
     }
     return true;
@@ -50,18 +55,7 @@ bool Cmd::response_http(int err, const std::string& errstr,
 }
 
 bool Cmd::response_tcp(int err, const std::string& errstr, const std::string& data) {
-    MsgHead head;
-    MsgBody body;
-
-    body.set_data(data);
-    body.mutable_rsp_result()->set_code(err);
-    body.mutable_rsp_result()->set_msg(errstr);
-
-    head.set_cmd(m_req->msg_head()->cmd() + 1);
-    head.set_seq(m_req->msg_head()->seq());
-    head.set_len(body.ByteSizeLong());
-
-    return net()->send_to(m_req->conn(), head, body);
+    return net()->send_ack(*m_req, err, errstr, data);
 }
 
 Cmd::STATUS Cmd::redis_send_to(const char* node, const std::vector<std::string>& argv) {
@@ -106,7 +100,7 @@ Cmd::STATUS Cmd::execute_next_step(int err, void* data, int step) {
     return execute_steps(err, data);
 }
 
-Cmd::STATUS Cmd::execute(std::shared_ptr<Request> req) {
+Cmd::STATUS Cmd::execute(const Request& req) {
     return execute_steps(ERR_OK, nullptr);
 }
 

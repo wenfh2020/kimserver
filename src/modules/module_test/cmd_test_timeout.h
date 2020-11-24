@@ -12,7 +12,7 @@ class CmdTestTimeout : public Cmd {
     }
 
    public:
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {
+    virtual Cmd::STATUS execute(const Request& req) {
         const HttpMsg* msg = m_req->http_msg();
         if (msg == nullptr) {
             return Cmd::STATUS::ERROR;

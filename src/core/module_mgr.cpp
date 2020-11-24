@@ -156,7 +156,7 @@ Module* ModuleMgr::get_module(const std::string& name) {
     return module;
 }
 
-Cmd::STATUS ModuleMgr::process_req(Request& req) {
+Cmd::STATUS ModuleMgr::process_req(const Request& req) {
     Module* module;
     Cmd::STATUS cmd_stat;
     for (const auto& it : m_modules) {
@@ -171,7 +171,7 @@ Cmd::STATUS ModuleMgr::process_req(Request& req) {
 }
 
 Cmd::STATUS ModuleMgr::process_ack(Request& req) {
-    LOG_TRACE("module process ack, fd: %d", req.conn()->fd());
+    LOG_TRACE("module process ack, fd: %d", req.fd());
 
     Cmd* cmd;
     Cmd::STATUS ret;
@@ -179,7 +179,7 @@ Cmd::STATUS ModuleMgr::process_ack(Request& req) {
     cmd = net()->get_cmd(req.msg_head()->seq());
     if (cmd == nullptr) {
         LOG_WARN("can not find cmd! fd: %d, cmd: %d, seq: %u",
-                 req.conn()->fd(), req.msg_head()->cmd(), req.msg_head()->seq());
+                 req.fd(), req.msg_head()->cmd(), req.msg_head()->seq());
         return Cmd::STATUS::UNKOWN;
     }
 

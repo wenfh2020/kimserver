@@ -27,34 +27,31 @@ class SysCmd {
 
    public:
     /* communication between nodes.  */
-    Cmd::STATUS process(Request& req);
+    Cmd::STATUS process(const Request& req);
     void on_repeat_timer();
 
    private:
-    Cmd::STATUS on_req_connect_to_worker(Request& req);
-    Cmd::STATUS on_rsp_connect_to_worker(Request& req);
-    Cmd::STATUS on_req_tell_worker(Request& req);
-    Cmd::STATUS on_rsp_tell_worker(Request& req);
+    Cmd::STATUS on_req_connect_to_worker(const Request& req);
+    Cmd::STATUS on_rsp_connect_to_worker(const Request& req);
+    Cmd::STATUS on_req_tell_worker(const Request& req);
+    Cmd::STATUS on_rsp_tell_worker(const Request& req);
 
     /* parent and child. */
 
     /* zookeeper notice. */
-    Cmd::STATUS on_req_add_zk_node(Request& req);
-    Cmd::STATUS on_rsp_add_zk_node(Request& req);
-    Cmd::STATUS on_req_del_zk_node(Request& req);
-    Cmd::STATUS on_rsp_del_zk_node(Request& req);
-    Cmd::STATUS on_req_reg_zk_node(Request& req);
-    Cmd::STATUS on_rsp_reg_zk_node(Request& req);
-    Cmd::STATUS on_req_sync_zk_nodes(Request& req);
-    Cmd::STATUS on_rsp_sync_zk_nodes(Request& req);
+    Cmd::STATUS on_req_add_zk_node(const Request& req);
+    Cmd::STATUS on_rsp_add_zk_node(const Request& req);
+    Cmd::STATUS on_req_del_zk_node(const Request& req);
+    Cmd::STATUS on_rsp_del_zk_node(const Request& req);
+    Cmd::STATUS on_req_reg_zk_node(const Request& req);
+    Cmd::STATUS on_rsp_reg_zk_node(const Request& req);
+    Cmd::STATUS on_req_sync_zk_nodes(const Request& req);
+    Cmd::STATUS on_rsp_sync_zk_nodes(const Request& req);
 
    private:
-    Cmd::STATUS process_worker_msg(Request& req);
-    Cmd::STATUS process_manager_msg(Request& req);
-    bool check_rsp(Request& req);
-    bool send_req(Request& req, const std::string& data);
-    bool send_req(Connection* c, int cmd, const std::string& data);
-    bool send_ack(Request& req, int err, const std::string& errstr, const std::string& data = "");
+    Cmd::STATUS process_worker_msg(const Request& req);
+    Cmd::STATUS process_manager_msg(const Request& req);
+    bool check_rsp(const Request& req);
 
    protected:
     INet* m_net = nullptr;

@@ -26,15 +26,15 @@ class MoudleTest : public Module {
 
    private:
     // protobuf.
-    Cmd::STATUS test_proto(std::shared_ptr<Request> req);
-    Cmd::STATUS test_auto_send(std::shared_ptr<Request> req);
+    Cmd::STATUS test_proto(const Request& req);
+    Cmd::STATUS test_auto_send(const Request& req);
 
     // http.
-    Cmd::STATUS test_cmd(std::shared_ptr<Request> req);
-    Cmd::STATUS test_redis(std::shared_ptr<Request> req);
-    Cmd::STATUS test_mysql(std::shared_ptr<Request> req);
-    Cmd::STATUS hello_world(std::shared_ptr<Request> req);
-    Cmd::STATUS test_timeout(std::shared_ptr<Request> req);
+    Cmd::STATUS test_cmd(const Request& req);
+    Cmd::STATUS test_redis(const Request& req);
+    Cmd::STATUS test_mysql(const Request& req);
+    Cmd::STATUS hello_world(const Request& req);
+    Cmd::STATUS test_timeout(const Request& req);
 };
 
 }  // namespace kim

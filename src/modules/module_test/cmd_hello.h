@@ -13,8 +13,8 @@ class CmdHello : public Cmd {
     }
 
    public:
-    virtual Cmd::STATUS execute(std::shared_ptr<Request> req) {
-        const HttpMsg* msg = req->http_msg();
+    virtual Cmd::STATUS execute(const Request& req) {
+        const HttpMsg* msg = req.http_msg();
         if (msg == nullptr) {
             return Cmd::STATUS::ERROR;
         }

@@ -113,7 +113,7 @@ class CmdTestMysql : public Cmd {
                 if (status == Cmd::STATUS::ERROR) {
                     response_http(ERR_FAILED, "query data failed!");
                     return status;
-                } 
+                }
 
                 set_next_step();
                 return status;

@@ -6,8 +6,8 @@
 
 namespace kim {
 
-Connection::Connection(Log* logger, int fd, uint64_t id)
-    : m_id(id), m_logger(logger), m_fd(fd) {
+Connection::Connection(Log* logger, int fd, uint64_t id) : m_logger(logger) {
+    set_fd_data(fd, id);
     set_active_time(time_now());
 }
 
@@ -20,25 +20,24 @@ Connection::~Connection() {
 }
 
 bool Connection::init(Codec::TYPE codec) {
-    LOG_TRACE("connection init fd: %d, codec type: %d", m_fd, (int)codec);
+    LOG_TRACE("connection init fd: %d, codec type: %d", fd(), (int)codec);
 
-    try {
-        switch (codec) {
-            case Codec::TYPE::HTTP: {
-                m_codec = new CodecHttp(m_logger, codec);
-                break;
-            }
-            case Codec::TYPE::PROTOBUF: {
-                m_codec = new CodecProto(m_logger, codec);
-                break;
-            }
-            default: {
-                LOG_ERROR("invalid codec type: %d", (int)codec);
-                break;
-            }
+    switch (codec) {
+        case Codec::TYPE::HTTP: {
+            m_codec = new CodecHttp(m_logger, codec);
+            break;
         }
-    } catch (std::bad_alloc& e) {
-        LOG_ERROR("%s", e.what());
+        case Codec::TYPE::PROTOBUF: {
+            m_codec = new CodecProto(m_logger, codec);
+            break;
+        }
+        default: {
+            LOG_ERROR("invalid codec type: %d", (int)codec);
+            break;
+        }
+    }
+
+    if (m_codec == nullptr) {
         return false;
     }
 
@@ -51,15 +50,12 @@ bool Connection::init(Codec::TYPE codec) {
 }
 
 bool Connection::is_http() {
-    if (m_codec == nullptr) {
-        return false;
-    }
-    return (m_codec->codec() == Codec::TYPE::HTTP);
+    return (m_codec == nullptr) ? false : (m_codec->codec() == Codec::TYPE::HTTP);
 }
 
 bool Connection::conn_read() {
     if (is_invalid()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", fd(), id());
         return false;
     }
 
@@ -67,17 +63,17 @@ bool Connection::conn_read() {
         return false;
     }
 
-    int read_len = m_recv_buf->read_fd(m_fd, m_errno);
+    int read_len = m_recv_buf->read_fd(fd(), m_errno);
     LOG_TRACE("read from fd: %d, data len: %d, readed data len: %d",
-              m_fd, read_len, m_recv_buf->readable_len());
+              fd(), read_len, m_recv_buf->readable_len());
     if (read_len == 0) {
-        LOG_TRACE("connection is closed! fd: %d!", m_fd);
+        LOG_TRACE("connection is closed! fd: %d!", fd());
         return false;
     }
 
     if (read_len < 0 && errno != EAGAIN) {
         LOG_DEBUG("connection read error! fd: %d, err: %d, error: %s",
-                  m_fd, errno, strerror(errno));
+                  fd(), errno, strerror(errno));
         return false;
     }
 
@@ -93,25 +89,13 @@ bool Connection::conn_read() {
     return true;
 }
 
-Codec::STATUS Connection::decode_http(HttpMsg& msg) {
-    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
-    if (codec == nullptr) {
-        return Codec::STATUS::ERR;
-    }
-    return codec->decode(m_recv_buf, msg);
-}
-
-Codec::STATUS Connection::decode_proto(MsgHead& head, MsgBody& body) {
-    CodecProto* codec = dynamic_cast<CodecProto*>(m_codec);
-    if (codec == nullptr) {
-        return Codec::STATUS::ERR;
-    }
-    return codec->decode(m_recv_buf, head, body);
-}
-
 Codec::STATUS Connection::conn_write() {
-    SocketBuffer* sbuf = m_send_buf;
+    if (is_invalid()) {
+        LOG_ERROR("conn is invalid, fd: %d, %llu", fd(), id());
+        return Codec::STATUS::ERR;
+    }
 
+    SocketBuffer* sbuf = m_send_buf;
     if (is_connected()) {
         /* pls send waiting buffer firstly. */
         if (m_wait_send_buf != nullptr && m_wait_send_buf->readable_len() > 0) {
@@ -120,24 +104,24 @@ Codec::STATUS Connection::conn_write() {
     }
 
     if (sbuf == nullptr || !sbuf->is_readable()) {
-        LOG_TRACE("no data to send! fd: %d, seq: %llu", m_fd, m_id);
+        LOG_TRACE("no data to send! fd: %d, seq: %llu", fd(), id());
         return Codec::STATUS::OK;
     }
 
-    int write_len = sbuf->write_fd(m_fd, m_errno);
+    int write_len = sbuf->write_fd(fd(), m_errno);
     if (write_len < 0) {
         if (m_errno == EAGAIN) {
             m_active_time = time_now();
             return Codec::STATUS::PAUSE;
         } else {
             LOG_ERROR("send data failed! fd: %d, seq: %llu, readable len: %d",
-                      m_fd, m_id, sbuf->readable_len());
+                      fd(), id(), sbuf->readable_len());
             return Codec::STATUS::ERR;
         }
     }
 
     LOG_TRACE("send to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
-              m_fd, m_id, write_len, sbuf->readable_len());
+              fd(), id(), write_len, sbuf->readable_len());
 
     /* recovery socket buffer. */
     if (sbuf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
@@ -156,11 +140,20 @@ Codec::STATUS Connection::conn_read(MsgHead& head, MsgBody& body) {
 }
 
 Codec::STATUS Connection::fetch_data(MsgHead& head, MsgBody& body) {
-    if (is_invalid()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+    /* continue to handle the data in buffer. */
+    if (m_state == STATE::UNKOWN || m_state == STATE::ERROR) {
+        LOG_ERROR("conn is invalid! fd: %d, seq: %llu", fd(), id());
         return Codec::STATUS::ERR;
     }
     return decode_proto(head, body);
+}
+
+Codec::STATUS Connection::decode_proto(MsgHead& head, MsgBody& body) {
+    CodecProto* codec = dynamic_cast<CodecProto*>(m_codec);
+    if (codec == nullptr) {
+        return Codec::STATUS::ERR;
+    }
+    return codec->decode(m_recv_buf, head, body);
 }
 
 Codec::STATUS Connection::conn_write(const MsgHead& head, const MsgBody& body) {
@@ -174,7 +167,7 @@ Codec::STATUS Connection::conn_write_waiting(const MsgHead& head, const MsgBody&
 Codec::STATUS Connection::conn_write(
     const MsgHead& head, const MsgBody& body, SocketBuffer** buf, bool is_send) {
     if (is_invalid()) {
-        LOG_ERROR("conn is invalid! fd: %d, seq: %llu", m_fd, m_id);
+        LOG_ERROR("conn is invalid! fd: %d, seq: %llu", fd(), id());
         return Codec::STATUS::ERR;
     }
 
@@ -191,7 +184,7 @@ Codec::STATUS Connection::conn_write(
     Codec::STATUS status = codec->encode(head, body, *buf);
     if (status != Codec::STATUS::OK) {
         LOG_DEBUG("encode packed failed! fd: %d, seq: %llu, status: %d",
-                  m_fd, m_id, (int)status);
+                  fd(), id(), (int)status);
         return status;
     }
 
@@ -206,11 +199,20 @@ Codec::STATUS Connection::conn_read(HttpMsg& msg) {
 }
 
 Codec::STATUS Connection::fetch_data(HttpMsg& msg) {
-    if (is_invalid()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+    /* continue to handle the data in buffer. */
+    if (m_state == STATE::UNKOWN || m_state == STATE::ERROR) {
+        LOG_ERROR("conn is invalid! fd: %d, seq: %llu", fd(), id());
         return Codec::STATUS::ERR;
     }
     return decode_http(msg);
+}
+
+Codec::STATUS Connection::decode_http(HttpMsg& msg) {
+    CodecHttp* codec = dynamic_cast<CodecHttp*>(m_codec);
+    if (codec == nullptr) {
+        return Codec::STATUS::ERR;
+    }
+    return codec->decode(m_recv_buf, msg);
 }
 
 Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
@@ -219,7 +221,7 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg) {
 
 Codec::STATUS Connection::conn_write(const HttpMsg& msg, SocketBuffer** buf) {
     if (is_invalid()) {
-        LOG_ERROR("conn is closed! fd: %d, seq: %llu", m_fd, m_id);
+        LOG_ERROR("conn is closed! fd: %d, seq: %llu", fd(), id());
         return Codec::STATUS::ERR;
     }
 
@@ -236,7 +238,7 @@ Codec::STATUS Connection::conn_write(const HttpMsg& msg, SocketBuffer** buf) {
     Codec::STATUS status = codec->encode(msg, *buf);
     if (status != Codec::STATUS::OK) {
         LOG_DEBUG("encode http packed failed! fd: %d, seq: %llu, status: %d",
-                  m_fd, m_id, (int)status);
+                  fd(), id(), (int)status);
         return status;
     }
 

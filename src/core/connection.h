@@ -14,13 +14,17 @@
 
 namespace kim {
 
+typedef struct fd_s {
+    int fd;
+    uint64_t id;
+} fd_t;
+
 class Connection : public Timer {
    public:
     enum class STATE {
         UNKOWN = 0,
         TRY_CONNECT,
         CONNECTING,
-        ACCEPTING,
         CONNECTED,
         CLOSED,
         ERROR
@@ -30,10 +34,13 @@ class Connection : public Timer {
     virtual ~Connection();
 
     bool init(Codec::TYPE codec);
+    bool is_http();
 
-    uint64_t id() const { return m_id; }
-    int fd() const { return m_fd; }
-    void set_fd(int fd) { m_fd = fd; }
+    int fd() { return m_fd_data.fd; }
+    uint64_t id() const { return m_fd_data.id; }
+    const fd_t& fd_data() const { return m_fd_data; }
+    void set_fd_data(int fd, uint64_t id) { m_fd_data = {fd, id}; }
+
     void set_privdata(void* data) { m_privdata = data; }
     void* privdata() const { return m_privdata; }
 
@@ -42,7 +49,7 @@ class Connection : public Timer {
     bool is_connected() { return m_state == STATE::CONNECTED; }
     bool is_closed() { return m_state == STATE::CLOSED; }
     bool is_connecting() { return m_state == STATE::CONNECTING; }
-    bool is_invalid() { return m_state == STATE::CLOSED || m_state == STATE::ERROR; }
+    bool is_invalid() { return (m_state == STATE::UNKOWN || m_state == STATE::CLOSED || m_state == STATE::ERROR); }
 
     void set_errno(int err) { m_errno = err; }
     int get_errno() const { return m_errno; }
@@ -56,8 +63,6 @@ class Connection : public Timer {
 
     void set_node_id(const std::string& node_id) { m_node_id = node_id; }
     const std::string& get_node_id() const { return m_node_id; }
-
-    bool is_http();
 
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);
@@ -81,7 +86,7 @@ class Connection : public Timer {
     Codec::STATUS conn_write(const MsgHead& head, const MsgBody& body, SocketBuffer** buf, bool is_send = true);
 
    private:
-    uint64_t m_id = 0;           // sequence.
+    fd_t m_fd_data;
     Log* m_logger = nullptr;     // logger.
     void* m_privdata = nullptr;  // private data.
     ev_io* m_ev_io = nullptr;    // libev io event.
