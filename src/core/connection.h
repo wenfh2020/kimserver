@@ -49,6 +49,7 @@ class Connection : public Timer {
     bool is_connected() { return m_state == STATE::CONNECTED; }
     bool is_closed() { return m_state == STATE::CLOSED; }
     bool is_connecting() { return m_state == STATE::CONNECTING; }
+    bool is_try_connect() { return m_state == STATE::TRY_CONNECT; }
     bool is_invalid() { return (m_state == STATE::UNKOWN || m_state == STATE::CLOSED || m_state == STATE::ERROR); }
 
     void set_errno(int err) { m_errno = err; }

@@ -56,6 +56,7 @@ void test_server(int argc, char** argv) {
     const char* port = "3355";
     const char* ip = "127.0.0.1";
     struct addrinfo hints, *servinfo;
+    int i = 100;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -75,7 +76,7 @@ void test_server(int argc, char** argv) {
     }
     freeaddrinfo(servinfo);
 
-    while (1) {
+    while (i-- > 0) {
         /* send. */
         body.set_data("hello world!");
         head.set_seq(123);
@@ -100,10 +101,10 @@ void test_server(int argc, char** argv) {
 
         head.ParseFromArray(buf, PROTO_MSG_HEAD_LEN);
         body.ParseFromArray(buf + PROTO_MSG_HEAD_LEN, head.len());
-        printf("cmd: %d, seq: %d, len: %d, body len: %zu, %s\n",
-               head.cmd(), head.seq(), head.len(),
+        printf("%d, cmd: %d, seq: %d, len: %d, body len: %zu, %s\n",
+               i, head.cmd(), head.seq(), head.len(),
                body.data().length(), body.data().c_str());
-        break;
+        // break;
     }
 
     close(fd);

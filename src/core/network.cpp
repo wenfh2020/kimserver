@@ -415,25 +415,24 @@ void Network::on_io_write(int fd) {
 
     Connection* c = it->second;
     if (c->is_invalid()) {
+        LOG_WARN("invalid conn in write event! fd: %d", c->fd());
+        close_conn(c);
         return;
     }
 
-    if (c->is_connected()) {
+    if (c->is_connected() || c->is_connecting()) {
         if (!handle_write_events(c, c->conn_write())) {
             close_conn(c);
             LOG_WARN("handle write event failed! fd: %d", c->fd());
         }
-    } else {
-        if (!c->is_http()) {
-            /* nodes connect. */
-            if (c->state() == Connection::STATE::TRY_CONNECT) {
-                /* A1 contact with B1. */
-                if (!m_sys_cmd->send_req_connect_to_worker(c)) {
-                    LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
-                    close_conn(c);
-                }
-            }
+    } else if (c->state() == Connection::STATE::TRY_CONNECT) {
+        /* A1 contact with B1. */
+        if (!m_sys_cmd->send_req_connect_to_worker(c)) {
+            LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
+            close_conn(c);
         }
+    } else {
+        /* ... */
     }
 }
 
@@ -822,6 +821,7 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
     }
 
     node_t* node;
+    Connection* c;
     std::string node_id;
 
     node = m_nodes->get_node_in_hash(node_type, obj);
@@ -832,10 +832,21 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
 
     node_id = format_nodes_id(node->ip, node->port, node->worker_index);
     auto it = m_node_conns.find(node_id);
-    return (it != m_node_conns.end())
-               ? send_to(it->second, head, body)
-               : auto_send(node->ip, node->port, node->worker_index, head, body);
-    return true;
+    if (it == m_node_conns.end()) {
+        return auto_send(node->ip, node->port, node->worker_index, head, body);
+    }
+
+    c = it->second;
+    if (c->is_connected()) {
+        return send_to(c, head, body);
+    } else if (c->is_connecting() || c->is_try_connect()) {
+        /* if TRY_CONNECT / CONNECTING, write in waitting buffer. */
+        return (c->conn_write_waiting(head, body) != Codec::STATUS::ERR);
+    } else {
+        LOG_ERROR("send to node failed! conn status: %d, fd: %d",
+                  (int)c->state(), c->fd());
+        return false;
+    }
 }
 
 bool Network::send_to_children(int cmd, uint64_t seq, const std::string& data) {
@@ -1039,15 +1050,19 @@ bool Network::send_to(const fd_t& f, const MsgHead& head, const MsgBody& body) {
     return send_to(get_conn(f), head, body);
 }
 
-bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::string& data) {
+bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq,
+                       const std::string& data) {
+    if (c == nullptr) {
+        LOG_DEBUG("invalid connection!");
+        return false;
+    }
+
     MsgHead head;
     MsgBody body;
-
     body.set_data(data);
     head.set_cmd(cmd);
     head.set_seq(seq);
     head.set_len(body.ByteSizeLong());
-
     return send_to(c, head, body);
 }
 

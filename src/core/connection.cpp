@@ -97,7 +97,7 @@ Codec::STATUS Connection::conn_write() {
 
     SocketBuffer* sbuf = m_send_buf;
     if (is_connected()) {
-        /* pls send waiting buffer firstly. */
+        /* pls send waiting buffer firstly, when connected. */
         if (m_wait_send_buf != nullptr && m_wait_send_buf->readable_len() > 0) {
             sbuf = m_wait_send_buf;
         }

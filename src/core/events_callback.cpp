@@ -98,10 +98,9 @@ void EventsCallback::on_signal_callback(struct ev_loop* loop, ev_signal* s, int 
 }
 
 void EventsCallback::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
-    int fd = w->fd;
     EventsCallback* e = (EventsCallback*)w->data;
-    if (events & EV_READ) e->on_io_read(fd);
-    if (events & EV_WRITE) e->on_io_write(fd);
+    if (events & EV_READ) e->on_io_read(w->fd);
+    if (events & EV_WRITE) e->on_io_write(w->fd);
 }
 
 void EventsCallback::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
