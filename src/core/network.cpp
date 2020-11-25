@@ -517,6 +517,7 @@ void Network::on_cmd_timer(void* privdata) {
     int old;
     Cmd* cmd;
     double secs;
+    Connection* c;
     Cmd::STATUS status;
 
     cmd = static_cast<Cmd*>(privdata);
@@ -537,11 +538,12 @@ void Network::on_cmd_timer(void* privdata) {
     }
 
     /* status == Cmd::STATUS::RUNNING */
-    // if (cmd->req()->conn()->is_invalid()) {
-    //     LOG_DEBUG("connection is closed, stop timeout!");
-    //     net()->del_cmd(cmd);
-    //     return;
-    // }
+    c = get_conn(cmd->req()->fd_data());
+    if (c == nullptr || c->is_invalid()) {
+        LOG_DEBUG("connection is closed, stop timeout!");
+        del_cmd(cmd);
+        return;
+    }
 
     if (old == cmd->cur_timeout_cnt()) {
         cmd->refresh_cur_timeout_cnt();
