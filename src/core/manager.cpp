@@ -19,10 +19,6 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    if (m_net != nullptr) {
-        m_net->events()->del_timer_event(m_timer);
-        m_timer = nullptr;
-    }
     SAFE_DELETE(m_zk_client);
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
@@ -56,7 +52,12 @@ bool Manager::init(const char* conf_path) {
         return false;
     }
 
-    if (!load_timer()) {
+    if (!EventsCallback::init(m_logger, m_net)) {
+        LOG_ERROR("init events callback failed!");
+        return false;
+    }
+
+    if (!setup_timer()) {
         LOG_ERROR("load timer failed!");
         return false;
     }
@@ -136,24 +137,11 @@ bool Manager::load_network() {
         goto error;
     }
 
-    /* set events. */
-    m_net->events()->set_sig_callback_fn(&on_signal_callback);
-    if (!m_net->events()->setup_signal_events(this)) {
-        LOG_ERROR("setup signal failed!");
-        goto error;
-    }
-
     return true;
 
 error:
     SAFE_DELETE(m_net);
     return false;
-}
-
-bool Manager::load_timer() {
-    m_net->events()->set_repeat_timer_callback_fn(&on_repeat_timer_callback);
-    m_timer = m_net->events()->add_repeat_timer(REPEAT_TIMEOUT_VAL, m_timer, this);
-    return (m_timer != nullptr);
 }
 
 bool Manager::load_zk_mgr() {
@@ -169,11 +157,6 @@ bool Manager::load_zk_mgr() {
     return true;
 }
 
-void Manager::on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Manager* m = static_cast<Manager*>(w->data);
-    m->on_repeat_timer(w->data);
-}
-
 void Manager::on_repeat_timer(void* privdata) {
     if (m_net != nullptr) {
         m_net->on_repeat_timer(privdata);
@@ -182,11 +165,6 @@ void Manager::on_repeat_timer(void* privdata) {
         m_zk_client->on_repeat_timer();
     }
     restart_workers();
-}
-
-void Manager::on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents) {
-    Manager* m = static_cast<Manager*>(s->data);
-    (s->signum == SIGCHLD) ? m->on_child_terminated(s) : m->on_terminated(s);
 }
 
 void Manager::on_terminated(ev_signal* s) {

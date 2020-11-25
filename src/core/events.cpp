@@ -110,7 +110,7 @@ ev_io* Events::add_read_event(int fd, ev_io* w, void* privdata) {
     }
     w->data = privdata;
 
-    LOG_TRACE("add read ev io, fd: %d", fd);
+    LOG_TRACE("add read ev io, io: %p, fd: %d", w, fd);
     return w;
 }
 
@@ -250,7 +250,7 @@ bool Events::del_timer_event(ev_timer* w) {
     return true;
 }
 
-bool Events::stop_event(ev_io* w) {
+bool Events::stop_io_event(ev_io* w) {
     if (w == nullptr) {
         return false;
     }

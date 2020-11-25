@@ -6,6 +6,7 @@
 #include "connection.h"
 #include "db/db_mgr.h"
 #include "events.h"
+#include "events_callback.h"
 #include "module_mgr.h"
 #include "net/anet.h"
 #include "net/chanel.h"
@@ -17,7 +18,7 @@
 
 namespace kim {
 
-class Network : public INet {
+class Network : public EventsCallback, public INet {
    public:
     enum class TYPE {
         UNKNOWN = 0,
@@ -100,26 +101,16 @@ class Network : public INet {
     virtual bool add_cmd(Cmd* cmd) override;
     virtual Cmd* get_cmd(uint64_t id) override;
     virtual bool del_cmd(Cmd* cmd) override;
-
-    /* cmd timer. */
     virtual ev_timer* add_cmd_timer(double secs, ev_timer* w, void* privdata) override;
     virtual bool del_cmd_timer(ev_timer* w) override;
 
-    /* libev callback. */
-    static void on_io_callback(struct ev_loop* loop, ev_io* w, int events);
-    static void on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
-    static void on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
-    static void on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
-
-    // io callback.
     virtual void on_io_read(int fd) override;
     virtual void on_io_write(int fd) override;
-
-    // timer callback.
     virtual void on_io_timer(void* privdata) override;
     virtual void on_cmd_timer(void* privdata) override;
     virtual void on_session_timer(void* privdata) override;
-    void on_repeat_timer(void* privdata);
+    /* call by manager/worker. */
+    virtual void on_repeat_timer(void* privdata) override;
 
     /* socket. */
     virtual bool send_to(Connection* c, const HttpMsg& msg) override;
@@ -143,8 +134,6 @@ class Network : public INet {
     /* database. */
     virtual bool db_exec(const char* node, const char* sql, Cmd* cmd) override;
     virtual bool db_query(const char* node, const char* sql, Cmd* cmd) override;
-
-    /* database callback. */
     static void on_mysql_lib_exec_callback(const MysqlAsyncConn* c, sql_task_t* task);
     static void on_mysql_lib_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res);
     virtual void on_mysql_exec_callback(const MysqlAsyncConn* c, sql_task_t* task) override;
@@ -177,7 +166,6 @@ class Network : public INet {
     bool add_io_timer(Connection* c, double secs);
 
    private:
-    Log* m_logger = nullptr;
     Events* m_events = nullptr;  /* libev's event manager. */
     uint64_t m_seq = 0;          /* cur increasing sequence. */
     char m_errstr[ANET_ERR_LEN]; /* error string. */

@@ -36,7 +36,7 @@ class Events {
     ev_io* add_write_event(int fd, ev_io* w, void* privdata);
     bool del_write_event(ev_io* w);
     bool del_io_event(ev_io* w);
-    bool stop_event(ev_io* w);
+    bool stop_io_event(ev_io* w);
 
     /* signal */
     bool setup_signal_events(void* privdata);

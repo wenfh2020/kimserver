@@ -11,7 +11,7 @@
 namespace kim {
 
 Network::Network(Log* logger, TYPE type)
-    : m_logger(logger), m_type(type) {
+    : EventsCallback(logger, this), m_type(type) {
 }
 
 Network::~Network() {
@@ -202,10 +202,15 @@ bool Network::create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker)
         goto error;
     }
 
-    m_events->set_io_callback_fn(&on_io_callback);
-    m_events->set_io_timer_callback_fn(&on_io_timer_callback);
-    m_events->set_cmd_timer_callback_fn(&on_cmd_timer_callback);
-    m_events->set_session_timer_callback_fn(&on_session_timer_callback);
+    if (!EventsCallback::init(m_logger, this)) {
+        LOG_ERROR("init events callback failed!");
+        return false;
+    }
+
+    setup_io_callback();
+    setup_io_timer_callback();
+    setup_cmd_timer_callback();
+    setup_session_timer_callback();
 
     if (!add_read_event(fd1, codec, is_worker)) {
         close_conn(fd1);
@@ -380,42 +385,6 @@ void Network::close_fds() {
             close_conn(c);
         }
     }
-}
-
-void Network::on_io_callback(struct ev_loop* loop, ev_io* w, int events) {
-    if (w->data == nullptr) {
-        return;
-    }
-
-    int fd;
-    INet* net;
-
-    fd = w->fd;
-    net = static_cast<INet*>(w->data);
-
-    if (events & EV_READ) {
-        net->on_io_read(fd);
-    }
-
-    if (events & EV_WRITE) {
-        net->on_io_write(fd);
-    }
-}
-
-void Network::on_io_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Connection* c = static_cast<Connection*>(w->data);
-    INet* net = static_cast<INet*>(c->privdata());
-    net->on_io_timer(w->data);
-}
-
-void Network::on_cmd_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Cmd* cmd = static_cast<Cmd*>(w->data);
-    cmd->net()->on_cmd_timer((void*)cmd);
-}
-
-void Network::on_session_timer_callback(struct ev_loop* loop, ev_timer* w, int revents) {
-    Session* s = static_cast<Session*>(w->data);
-    s->net()->on_session_timer(s);
 }
 
 void Network::on_io_read(int fd) {
@@ -1154,7 +1123,7 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
     LOG_TRACE("redis send to node: %s", node);
 
     uint64_t cmd_id;
-    wait_cmd_info_t* info;
+    wait_cmd_info_t* index;
 
     // delete index when callback.
     cmd_id = cmd->id();

@@ -98,16 +98,6 @@ class INet {
     virtual bool del_cmd_timer(ev_timer*) { return false; }
 
    public:
-    /* socket. */
-    virtual void on_io_read(int fd) {}
-    virtual void on_io_write(int fd) {}
-    virtual void on_io_error(int fd) {}
-
-    /* timer. */
-    virtual void on_io_timer(void* privdata) {}
-    virtual void on_cmd_timer(void* privdata) {}
-    virtual void on_session_timer(void* privdata) {}
-
     /* redis callback */
     virtual void on_redis_callback(redisAsyncContext* c, void* reply, void* privdata) {}
 

@@ -1,6 +1,7 @@
 #ifndef __MANAGER_H__
 #define __MANAGER_H__
 
+#include "events_callback.h"
 #include "net.h"
 #include "network.h"
 #include "nodes.h"
@@ -9,7 +10,7 @@
 
 namespace kim {
 
-class Manager {
+class Manager : public EventsCallback {
    public:
     Manager();
     virtual ~Manager();
@@ -19,17 +20,13 @@ class Manager {
     void run();
 
     /* libev callback. */
-    static void on_signal_callback(struct ev_loop* loop, ev_signal* s, int revents);
-    static void on_repeat_timer_callback(struct ev_loop* loop, ev_timer* w, int revents);
-
-    void on_terminated(ev_signal* s);
-    void on_child_terminated(ev_signal* s);
-    void on_repeat_timer(void* privdata);
+    virtual void on_terminated(ev_signal* s) override;
+    virtual void on_child_terminated(ev_signal* s) override;
+    virtual void on_repeat_timer(void* privdata) override;
 
    private:
     bool load_logger();
     bool load_network();
-    bool load_timer();
     bool load_config(const char* path);
     bool load_zk_mgr();
 
@@ -40,9 +37,8 @@ class Manager {
     std::string worker_name(int index);
 
    private:
-    Log* m_logger = nullptr;     /* logger. */
-    Network* m_net = nullptr;    /* net work. */
-    ev_timer* m_timer = nullptr; /* repeat timer. */
+    Log* m_logger = nullptr;  /* logger. */
+    Network* m_net = nullptr; /* net work. */
 
     CJsonObject m_conf, m_old_conf;   /* config. */
     node_info m_node_info;            /* cluster node. */
