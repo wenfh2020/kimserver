@@ -877,9 +877,6 @@ bool Network::send_to_children(int cmd, uint64_t seq, const std::string& data) {
         return false;
     }
 
-    MsgHead head;
-    MsgBody body;
-
     /* Parent and child processes communicate through socketpair. */
     const std::unordered_map<int, worker_info_t*>& infos =
         m_worker_data_mgr->get_infos();
@@ -891,12 +888,7 @@ bool Network::send_to_children(int cmd, uint64_t seq, const std::string& data) {
             continue;
         }
 
-        body.set_data(data);
-        head.set_cmd(cmd);
-        head.set_seq(seq);
-        head.set_len(body.ByteSizeLong());
-
-        if (!send_to(it->second, head, body)) {
+        if (!send_req(it->second, cmd, seq, data)) {
             LOG_ALERT("send to child failed! fd: %d", v.second->ctrl_fd);
             continue;
         }
@@ -913,17 +905,11 @@ bool Network::send_to_parent(int cmd, uint64_t seq, const std::string& data) {
 
     auto it = m_conns.find(m_manager_ctrl_fd);
     if (it == m_conns.end()) {
+        LOG_ERROR("can not find manager ctrl fd, fd: %d", m_manager_ctrl_fd);
         return false;
     }
 
-    MsgHead head;
-    MsgBody body;
-    body.set_data(data);
-    head.set_cmd(cmd);
-    head.set_seq(seq);
-    head.set_len(body.ByteSizeLong());
-
-    if (!send_to(it->second, head, body)) {
+    if (!send_req(it->second, cmd, seq, data)) {
         LOG_ALERT("send to parent failed! fd: %d", m_manager_ctrl_fd);
         return false;
     }
@@ -1096,7 +1082,8 @@ bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq, const std::str
     return send_to(c, head, body);
 }
 
-bool Network::send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::string& data) {
+bool Network::send_req(const fd_t& f, uint32_t cmd,
+                       uint32_t seq, const std::string& data) {
     MsgHead head;
     MsgBody body;
     body.set_data(data);
@@ -1106,7 +1093,8 @@ bool Network::send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::str
     return send_to(f, head, body);
 }
 
-bool Network::send_ack(const Request& req, int err, const std::string& errstr, const std::string& data) {
+bool Network::send_ack(const Request& req, int err,
+                       const std::string& errstr, const std::string& data) {
     MsgHead head;
     MsgBody body;
 
@@ -1168,18 +1156,17 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
     uint64_t cmd_id;
     wait_cmd_info_t* info;
 
+    // delete index when callback.
     cmd_id = cmd->id();
-
-    // delete info when callback.
-    info = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
-    if (info == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
+    if (index == nullptr) {
+        LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;
     }
 
-    if (!m_redis_pool->send_to(node, argv, on_redis_lib_callback, info)) {
+    if (!m_redis_pool->send_to(node, argv, on_redis_lib_callback, index)) {
         LOG_ERROR("redis send data failed! node: %s.", node);
-        SAFE_DELETE(info);
+        SAFE_DELETE(index);
         return false;
     }
 
@@ -1200,7 +1187,7 @@ bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
     cmd_id = cmd->id();
     index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
+        LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;
     }
 
@@ -1227,7 +1214,7 @@ bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
     cmd_id = cmd->id();
     index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
     if (index == nullptr) {
-        LOG_ERROR("add wait cmd info failed! cmd id: %llu", cmd_id);
+        LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;
     }
 
@@ -1398,10 +1385,7 @@ bool Network::load_redis_mgr() {
 
 bool Network::load_worker_data_mgr() {
     m_worker_data_mgr = new WorkerDataMgr;
-    if (m_worker_data_mgr == nullptr) {
-        return false;
-    }
-    return true;
+    return (m_worker_data_mgr != nullptr);
 }
 
 bool Network::update_conn_state(int fd, Connection::STATE state) {
@@ -1439,21 +1423,16 @@ void Network::on_session_timer(void* privdata) {
 }
 
 bool Network::add_io_timer(Connection* c, double secs) {
-    ev_timer* w;
-
     /* create timer. */
     LOG_TRACE("add io timer, fd: %d, time val: %f", c->fd(), secs);
-    w = m_events->add_io_timer(secs, c->timer(), c);
+    ev_timer* w = m_events->add_io_timer(secs, c->timer(), c);
     if (w == nullptr) {
         LOG_ERROR("add timer failed! fd: %d", c->fd());
-        goto error;
+        close_conn(c);
+        return false;
     }
     c->set_timer(w);
     return true;
-
-error:
-    close_conn(c);
-    return false;
 }
 
 }  // namespace kim
