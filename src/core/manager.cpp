@@ -247,12 +247,7 @@ bool Manager::create_worker(int worker_index) {
         close(ctrl_fds[0]);
         close(data_fds[0]);
 
-        worker_info_t info;
-        info.work_path = m_node_info.work_path();
-        info.ctrl_fd = ctrl_fds[1];
-        info.data_fd = data_fds[1];
-        info.index = worker_index;
-
+        worker_info_t info{0, worker_index, ctrl_fds[1], data_fds[1], m_node_info.work_path()};
         LOG_INFO("worker chanels, fd1: %d, fd2: %d", info.ctrl_fd, info.data_fd);
 
         Worker worker(worker_name(worker_index));

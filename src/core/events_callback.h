@@ -31,8 +31,8 @@ class EventsCallback {
 
     virtual void on_terminated(ev_signal* s) {}
     virtual void on_child_terminated(ev_signal* s) {}
-    virtual void on_io_read(int fd) { printf("88888888\n"); }
-    virtual void on_io_write(int fd) { printf("777777777\n"); }
+    virtual void on_io_read(int fd) {}
+    virtual void on_io_write(int fd) {}
     virtual void on_repeat_timer(void* privdata) {}
     virtual void on_io_timer(void* privdata) {}
     virtual void on_cmd_timer(void* privdata) {}

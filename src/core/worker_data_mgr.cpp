@@ -5,45 +5,41 @@
 namespace kim {
 
 WorkerDataMgr::WorkerDataMgr() {
-    m_itr_worker_info = m_worker_info.begin();
+    m_itr_worker = m_workers.begin();
 }
 
 WorkerDataMgr::~WorkerDataMgr() {
-    for (auto& it : m_worker_info) {
+    for (auto& it : m_workers) {
         SAFE_DELETE(it.second);
     }
-
-    m_worker_info.clear();
-    m_itr_worker_info = m_worker_info.end();
+    m_workers.clear();
+    m_itr_worker = m_workers.end();
     m_fd_pid.clear();
 }
 
-void WorkerDataMgr::add_worker_info(int index, int pid, int ctrl_fd, int data_fd) {
-    worker_info_t* info = new worker_info_t;
-    info->pid = pid;
-    info->index = index;
-    info->ctrl_fd = ctrl_fd;
-    info->data_fd = data_fd;
-
-    m_fd_pid[ctrl_fd] = pid;
-    m_fd_pid[data_fd] = pid;
-    m_worker_info[pid] = info;
-
-    m_itr_worker_info = m_worker_info.begin();
+bool WorkerDataMgr::add_worker_info(int index, int pid, int ctrl_fd, int data_fd) {
+    worker_info_t* info = new worker_info_t{pid, index, ctrl_fd, data_fd};
+    if (info != nullptr) {
+        m_fd_pid[ctrl_fd] = pid;
+        m_fd_pid[data_fd] = pid;
+        m_workers[pid] = info;
+        m_itr_worker = m_workers.begin();
+        return true;
+    }
+    return false;
 }
 
 bool WorkerDataMgr::get_worker_index(int pid, int& index) {
-    auto it = m_worker_info.find(pid);
-    if (it == m_worker_info.end()) {
-        return false;
+    auto it = m_workers.find(pid);
+    if (it != m_workers.end()) {
+        index = it->second->index;
+        return true;
     }
-
-    index = it->second->index;
-    return true;
+    return false;
 }
 
 int WorkerDataMgr::get_worker_data_fd(int worker_index) {
-    for (auto& v : m_worker_info) {
+    for (auto& v : m_workers) {
         if (v.second->index == worker_index) {
             return v.second->data_fd;
         }
@@ -52,14 +48,14 @@ int WorkerDataMgr::get_worker_data_fd(int worker_index) {
 }
 
 bool WorkerDataMgr::del_worker_info(int pid) {
-    auto it = m_worker_info.find(pid);
-    if (it == m_worker_info.end()) {
+    auto it = m_workers.find(pid);
+    if (it == m_workers.end()) {
         return false;
     }
 
     worker_info_t* info = it->second;
     if (info == nullptr) {
-        m_worker_info.erase(it);
+        m_workers.erase(it);
         return false;
     }
 
@@ -74,8 +70,8 @@ bool WorkerDataMgr::del_worker_info(int pid) {
     }
 
     SAFE_DELETE(info);
-    m_worker_info.erase(it);
-    m_itr_worker_info = m_worker_info.begin();
+    m_workers.erase(it);
+    m_itr_worker = m_workers.begin();
     return true;
 }
 
@@ -84,8 +80,8 @@ bool WorkerDataMgr::get_worker_chanel(int pid, int* chs) {
         return false;
     }
 
-    auto it = m_worker_info.find(pid);
-    if (chs == nullptr || it == m_worker_info.end() || it->second == nullptr) {
+    auto it = m_workers.find(pid);
+    if (chs == nullptr || it == m_workers.end() || it->second == nullptr) {
         return false;
     }
 
@@ -96,16 +92,16 @@ bool WorkerDataMgr::get_worker_chanel(int pid, int* chs) {
 }
 
 int WorkerDataMgr::get_next_worker_data_fd() {
-    if (m_worker_info.empty()) {
+    if (m_workers.empty()) {
         return -1;
     }
 
-    m_itr_worker_info++;
-    if (m_itr_worker_info == m_worker_info.end()) {
-        m_itr_worker_info = m_worker_info.begin();
+    m_itr_worker++;
+    if (m_itr_worker == m_workers.end()) {
+        m_itr_worker = m_workers.begin();
     }
 
-    return m_itr_worker_info->second->data_fd;
+    return m_itr_worker->second->data_fd;
 }
 
 }  // namespace kim
