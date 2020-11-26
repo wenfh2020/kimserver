@@ -1,6 +1,15 @@
 #include "pressure.h"
 
+#include "error.h"
 #include "net/anet.h"
+#include "protocol.h"
+
+enum {
+    KP_REQ_TEST_PROTO = 1001,
+    KP_RSP_TEST_PROTO = 1002,
+    KP_REQ_TEST_AUTO_SEND = 1003,
+    KP_RSP_TEST_AUTO_SEND = 1004,
+};
 
 namespace kim {
 
@@ -49,10 +58,10 @@ bool Pressure::start(const char* host, int port, int users, int packets) {
     return true;
 }
 
-void Pressure::show_statics_result() {
+void Pressure::show_statics_result(bool force) {
     LOG_DEBUG("send cnt: %d, cur callback cnt: %d", m_send_cnt, m_cur_callback_cnt);
 
-    if (m_send_cnt == m_cur_callback_cnt) {
+    if (m_send_cnt == m_cur_callback_cnt || force) {
         std::cout << "------" << std::endl
                   << "spend time: " << time_now() - m_begin_time << std::endl
                   << "avg:        " << m_send_cnt / (time_now() - m_begin_time) << std::endl;
@@ -143,7 +152,7 @@ bool Pressure::send_packets(Connection* c) {
             }
             m_send_cnt++;
             e->stat.send_cnt++;
-            if (!send_proto(c, 1)) {
+            if (!send_proto(c, KP_REQ_TEST_AUTO_SEND, "hello1234")) {
                 return false;
             }
             continue;
@@ -156,20 +165,16 @@ bool Pressure::send_packets(Connection* c) {
     return true;
 }
 
-bool Pressure::send_proto(Connection* c, int cmd) {
+bool Pressure::send_proto(Connection* c, int cmd, const std::string& data) {
     LOG_DEBUG("send proto, fd: %d, cmd: %d!", c->fd(), cmd);
 
     MsgHead head;
     MsgBody body;
 
-    if (cmd == 1) {
-        body.set_data("hello!1223fdsfsdfdsfds45+");
-        head.set_cmd(1);
-        head.set_seq(new_seq());
-        head.set_len(body.ByteSizeLong());
-    } else {
-        return false;
-    }
+    body.set_data(data);
+    head.set_cmd(cmd);
+    head.set_seq(new_seq());
+    head.set_len(body.ByteSizeLong());
 
     LOG_DEBUG("send seq: %d, body len: %d, data: <%s>",
               head.seq(),
@@ -302,6 +307,22 @@ void Pressure::del_read_event(Connection* c) {
     }
 }
 
+bool Pressure::check_rsp(Connection* c, const MsgHead& head, const MsgBody& body) {
+    if (!body.has_rsp_result()) {
+        LOG_ERROR("no rsp result! fd: %d, cmd: %d", c->fd(), head.cmd());
+        return false;
+    }
+
+    if (body.rsp_result().code() != ERR_OK) {
+        LOG_ERROR("rsp code is not ok, error! fd: %d, error: %d, errstr: %s",
+                  c->fd(),
+                  body.rsp_result().code(),
+                  body.rsp_result().msg().c_str());
+        return false;
+    }
+    return true;
+}
+
 void Pressure::async_handle_read(Connection* c) {
     if (!check_connect(c)) {
         return;
@@ -322,6 +343,7 @@ void Pressure::async_handle_read(Connection* c) {
         LOG_DEBUG("cmd: %d, seq: %d, len: %d, body len: %zu, %s",
                   head.cmd(), head.seq(), head.len(),
                   body.data().length(), body.data().c_str());
+        check_rsp(c, head, body);
         show_statics_result();
 
         head.Clear();

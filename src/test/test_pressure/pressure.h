@@ -7,7 +7,7 @@
 
 #include "connection.h"
 #include "events.h"
-#include "proto/msg.pb.h"
+#include "protobuf/proto/msg.pb.h"
 #include "server.h"
 #include "util/json/CJsonObject.hpp"
 #include "util/log.h"
@@ -45,7 +45,7 @@ class Pressure {
 
     bool start(const char* host, int port, int users, int packets);
     int new_seq() { return ++m_seq; }
-    void show_statics_result();
+    void show_statics_result(bool force = false);
 
     // connection.
     Connection* get_connect(const char* host, int port);
@@ -53,8 +53,9 @@ class Pressure {
     bool check_connect(Connection* c);
 
     bool send_packets(Connection* c);
-    bool send_proto(Connection* c, int cmd);
+    bool send_proto(Connection* c, int cmd, const std::string& data);
     bool send_proto(Connection* c, MsgHead& head, MsgBody& body);
+    bool check_rsp(Connection* c, const MsgHead& head, const MsgBody& body);
 
     // events.
     bool attach_libev(Connection* c, int packets);

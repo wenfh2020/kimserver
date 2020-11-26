@@ -51,6 +51,8 @@ int main(int args, char** argv) {
 
     m_logger->set_level(kim::Log::LL_INFO);
     // m_logger->set_level(kim::Log::LL_DEBUG);
+    m_logger->set_worker_index(0);
+    m_logger->set_process_type(true);
 
     loop = EV_DEFAULT;
     // ev_timer_init(&m_timer, libev_timer_cb, 1.0, 1.0);
@@ -63,6 +65,7 @@ int main(int args, char** argv) {
     }
 
     ev_run(loop, 0);
+    g_pressure->show_statics_result(true);
     SAFE_DELETE(g_pressure);
     SAFE_DELETE(m_logger);
     return 0;
