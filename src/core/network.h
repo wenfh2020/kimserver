@@ -16,6 +16,7 @@
 #include "session.h"
 #include "sys_cmd.h"
 #include "worker_data_mgr.h"
+#include "zk_client.h"
 
 namespace kim {
 
@@ -53,6 +54,7 @@ class Network : public EventsCallback, public INet {
     bool load_redis_mgr();
     bool load_worker_data_mgr();
     bool load_public();
+    bool load_zk_mgr();
 
     bool set_gate_codec(const std::string& codec);
     void set_keep_alive(double secs) { m_keep_alive = secs; }
@@ -197,16 +199,16 @@ class Network : public EventsCallback, public INet {
     std::unordered_map<int, Connection*> m_conns;              /* key: fd, value: connection. */
     std::unordered_map<std::string, Connection*> m_node_conns; /* key: node_id */
 
-    ModuleMgr* m_module_mgr = nullptr;
-    std::unordered_map<uint64_t, Cmd*> m_cmds; /* key: cmd id. */
-
+    std::unordered_map<uint64_t, Cmd*> m_cmds;        /* key: cmd id. */
     std::list<chanel_resend_data_t*> m_wait_send_fds; /* sendmsg maybe return -1 and errno == EAGAIN. */
 
+    ModuleMgr* m_module_mgr = nullptr;   /* modules so. */
     DBMgr* m_db_pool = nullptr;          /* data base connection pool. */
     RedisMgr* m_redis_pool = nullptr;    /* redis connection pool. */
     SessionMgr* m_session_mgr = nullptr; /* session pool. */
     Nodes* m_nodes = nullptr;            /* server nodes. ketama nodes manager. */
     SysCmd* m_sys_cmd = nullptr;         /* for node communication.  */
+    ZkClient* m_zk_client = nullptr;     /* zookeeper client. */
     Payload m_payload;
 };
 

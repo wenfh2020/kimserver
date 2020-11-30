@@ -21,6 +21,7 @@ typedef struct zk_task_s {
         UNKNOWN = 0,
         REGISTER,
         GET,
+        SET_DATA,
         NOTIFY_SESSION_CONNECTD,
         NOTIFY_SESSION_CONNECTING,
         NOTIFY_SESSION_EXPIRED,

@@ -6,7 +6,6 @@
 #include "network.h"
 #include "nodes.h"
 #include "server.h"
-#include "zk_client.h"
 
 namespace kim {
 
@@ -28,7 +27,6 @@ class Manager : public EventsCallback {
     bool load_logger();
     bool load_network();
     bool load_config(const char* path);
-    bool load_zk_mgr();
 
     void create_workers();                /* fork children. */
     bool create_worker(int worker_index); /* creates the specified index process. */
@@ -43,7 +41,6 @@ class Manager : public EventsCallback {
     CJsonObject m_conf, m_old_conf;   /* config. */
     node_info m_node_info;            /* cluster node. */
     std::list<int> m_restart_workers; /* workers waiting to restart. restore worker's index. */
-    ZkClient* m_zk_client = nullptr;  /* zookeeper client. */
 };
 
 }  // namespace kim

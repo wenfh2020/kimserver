@@ -214,7 +214,7 @@ void test_list() {
     /* node info. */
     node.set_path("skdfjdskf");
     node.set_type("fsdfsfs");
-    node.set_ip("127.0.0.1");
+    node.set_host("127.0.0.1");
     node.set_port(123);
     node.set_worker_cnt(3);
     node.set_active_time(123455);
@@ -226,7 +226,7 @@ void test_list() {
 
     for (int i = 0; i < rn.nodes_size(); i++) {
         an = rn.mutable_nodes(i);
-        printf("**node info, ip: %s\n", node.ip().c_str());
+        printf("**node info, ip: %s\n", node.host().c_str());
     }
 }
 

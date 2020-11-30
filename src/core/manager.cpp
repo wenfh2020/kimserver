@@ -19,7 +19,6 @@ Manager::~Manager() {
 }
 
 void Manager::destory() {
-    SAFE_DELETE(m_zk_client);
     SAFE_DELETE(m_net);
     SAFE_DELETE(m_logger);
 }
@@ -65,12 +64,6 @@ bool Manager::init(const char* conf_path) {
     create_workers();
     set_proc_title("%s", m_conf("server_name").c_str());
     LOG_INFO("init manager done!");
-
-    if (!load_zk_mgr()) {
-        LOG_ERROR("load zookeeper mgr failed!");
-        return false;
-    }
-
     return true;
 }
 
@@ -144,25 +137,9 @@ error:
     return false;
 }
 
-bool Manager::load_zk_mgr() {
-    m_zk_client = new ZkClient(m_logger, m_net);
-    if (m_zk_client == nullptr) {
-        LOG_ERROR("new zk mgr failed!");
-        return false;
-    }
-
-    if (m_zk_client->init(m_conf)) {
-        LOG_INFO("load zk client done!");
-    }
-    return true;
-}
-
 void Manager::on_repeat_timer(void* privdata) {
     if (m_net != nullptr) {
         m_net->on_repeat_timer(privdata);
-    }
-    if (m_zk_client != nullptr) {
-        m_zk_client->on_repeat_timer();
     }
     restart_workers();
 }

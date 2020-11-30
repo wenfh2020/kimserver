@@ -22,8 +22,6 @@ class ZkClient : public Bio {
     bool connect(const std::string& servers);
     /* when notify expired, reconnect to zookeeper. */
     bool reconnect();
-    /* register to zookeeper. */
-    bool node_register();
     /* set zk log before connect. */
     void set_zk_log(const std::string& path, utility::zoo_log_lvl level = utility::zoo_log_lvl_info);
 
@@ -34,6 +32,9 @@ class ZkClient : public Bio {
     /* call by timer (async). */
     virtual void timer_process_ack(zk_task_t* task) override;
 
+    /* payload data. */
+    bool set_payload_data(const std::string& data);
+
     /* callback by zookeeper-client-c. */
     static void on_zookeeper_watch_events(zhandle_t* zh, int type, int state, const char* path, void* privdata);
     void on_zk_watch_events(int type, int state, const char* path, void* privdata);
@@ -41,6 +42,7 @@ class ZkClient : public Bio {
     /* call by timer. */
     void on_zk_register(const kim::zk_task_t* task);
     void on_zk_get_data(const kim::zk_task_t* task);
+    void on_zk_set_data(const kim::zk_task_t* task);
     void on_zk_data_change(const kim::zk_task_t* task);
     void on_zk_child_change(const kim::zk_task_t* task);
     void on_zk_node_deleted(const kim::zk_task_t* task);
@@ -50,9 +52,12 @@ class ZkClient : public Bio {
     void on_zk_session_expired(const kim::zk_task_t* task);
 
    private:
-    /* register node in new thread. */
-    utility::zoo_rc bio_register_node(zk_task_t* task);
+    /* register node to zookeeper. */
+    bool node_register();
+    /* check and create parent before register nodes. */
     utility::zoo_rc bio_create_parent(const std::string& parent);
+    /* register node to zk. */
+    utility::zoo_rc bio_register_node(zk_task_t* task);
 
    private:
     INet* m_net = nullptr;
@@ -66,6 +71,8 @@ class ZkClient : public Bio {
     bool m_is_expired = false;
     /* for reconnect. */
     int m_register_index = 0;
+
+    std::string m_payload_node_path;
 };
 
 }  // namespace kim

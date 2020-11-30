@@ -28,6 +28,7 @@ void Network::destory() {
     for (const auto& it : m_cmds) delete it.second;
     m_cmds.clear();
 
+    SAFE_DELETE(m_zk_client);
     SAFE_DELETE(m_db_pool);
     SAFE_DELETE(m_redis_pool);
     SAFE_DELETE(m_session_mgr);
@@ -70,6 +71,19 @@ bool Network::load_config(const CJsonObject& config) {
     if (m_node_type.empty() || m_node_host.empty() || m_node_port == 0) {
         LOG_ERROR("invalid inner node info!");
         return false;
+    }
+    return true;
+}
+
+bool Network::load_zk_mgr() {
+    m_zk_client = new ZkClient(m_logger, this);
+    if (m_zk_client == nullptr) {
+        LOG_ERROR("new zk mgr failed!");
+        return false;
+    }
+
+    if (m_zk_client->init(m_conf)) {
+        LOG_INFO("load zk client done!");
     }
     return true;
 }
@@ -122,6 +136,11 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
 
     if (!load_public()) {
         LOG_ERROR("load public failed!");
+        return false;
+    }
+
+    if (!load_zk_mgr()) {
+        LOG_ERROR("load zookeeper mgr failed!");
         return false;
     }
 
@@ -441,14 +460,17 @@ void Network::on_io_write(int fd) {
 void Network::on_repeat_timer(void* privdata) {
     if (is_manager()) {
         check_wait_send_fds();
-        // report_payload_to_zookeeper();
+        if (m_zk_client != nullptr) {
+            m_zk_client->on_repeat_timer();
+        }
+        report_payload_to_zookeeper();
     } else {
         /* send payload info to parent. */
-        // report_payload_to_parent();
+        report_payload_to_parent();
     }
 
     if (m_sys_cmd != nullptr) {
-        // m_sys_cmd->on_repeat_timer();
+        m_sys_cmd->on_repeat_timer();
     }
 }
 
@@ -531,6 +553,9 @@ bool Network::report_payload_to_zookeeper() {
     }
 
     // LOG_TRACE("data: %s", json_data.c_str());
+    if (m_zk_client != nullptr) {
+        m_zk_client->set_payload_data(json_data);
+    }
     return true;
 }
 

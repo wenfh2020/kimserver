@@ -13,6 +13,8 @@ static const char* cmd_to_string(zk_task_t::CMD cmd) {
         return "register";
     } else if (cmd == zk_task_t::CMD::GET) {
         return "get";
+    } else if (cmd == zk_task_t::CMD::SET_DATA) {
+        return "set payload data";
     } else if (cmd == zk_task_t::CMD::NOTIFY_SESSION_CONNECTD) {
         return "session connected";
     } else if (cmd == zk_task_t::CMD::NOTIFY_SESSION_CONNECTING) {
@@ -144,6 +146,9 @@ void ZkClient::bio_process_cmd(zk_task_t* task) {
         case zk_task_t::CMD::NOTIFY_NODE_DATA_CAHNGED:
             ret = m_zk->watch_data_change(task->path.c_str(), task->res.value);
             break;
+        case zk_task_t::CMD::SET_DATA:
+            ret = m_zk->set_node(task->path.c_str(), task->value.c_str(), -1);
+            break;
         case zk_task_t::CMD::NOTIFY_NODE_CHILD_CAHNGED: {
             ret = m_zk->watch_children_event(task->path.c_str(), task->res.values);
             break;
@@ -210,6 +215,7 @@ utility::zoo_rc ZkClient::bio_create_parent(const std::string& parent) {
             }
         }
     }
+
     return ret;
 }
 /* 
@@ -300,6 +306,8 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
                   path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
         return ret;
     }
+
+    m_payload_node_path = path;
     LOG_INFO("create payload node: %s done!", path.c_str());
 
     /* set node data. */
@@ -408,6 +416,9 @@ void ZkClient::timer_process_ack(zk_task_t* task) {
             break;
         case zk_task_t::CMD::GET:
             on_zk_get_data(task);
+            break;
+        case zk_task_t::CMD::SET_DATA:
+            on_zk_set_data(task);
             break;
         case zk_task_t::CMD::NOTIFY_SESSION_CONNECTING:
             on_zk_session_connecting(task);
@@ -534,6 +545,15 @@ void ZkClient::on_zk_get_data(const kim::zk_task_t* task) {
     }
 }
 
+void ZkClient::on_zk_set_data(const kim::zk_task_t* task) {
+    if (task->res.error != utility::z_ok) {
+        LOG_ERROR("on zk get data failed!, path: %s, error: %d, errstr: %s",
+                  task->path.c_str(), task->res.error, task->res.errstr.c_str());
+        return;
+    }
+    LOG_TRACE("on zk set node data done! path: %s", task->path.c_str());
+}
+
 void ZkClient::on_zk_data_change(const kim::zk_task_t* task) {
     if (task->res.error != utility::z_ok) {
         LOG_ERROR("on zk data change failed!, path: %s, error: %d, errstr: %s",
@@ -598,6 +618,15 @@ void ZkClient::on_zk_child_change(const kim::zk_task_t* task) {
     }
 
     m_net->nodes()->print_debug_nodes_info();
+}
+
+bool ZkClient::set_payload_data(const std::string& data) {
+    if (m_zk == nullptr || !m_is_connected || m_payload_node_path.empty()) {
+        LOG_ERROR("invalid zk status!");
+        return false;
+    }
+    LOG_TRACE("set payload data: %s", data.c_str());
+    return add_cmd_task(m_payload_node_path, zk_task_t::CMD::SET_DATA, data);
 }
 
 }  // namespace kim

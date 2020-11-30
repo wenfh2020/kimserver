@@ -84,7 +84,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
     }
 
     sbuf->skip_bytes(PROTO_MSG_HEAD_LEN + head.len());
-    LOG_DEBUG("sbuf readable len: %d, body size: %d",
+    LOG_TRACE("sbuf readable len: %d, body size: %d",
               sbuf->readable_len(), body.ByteSizeLong());
     return CodecProto::STATUS::OK;
 }
