@@ -57,7 +57,7 @@ bool Network::load_config(const CJsonObject& config) {
 
     codec = m_conf("gate_codec");
     if (!codec.empty()) {
-        if (set_gate_codec(codec)) {
+        if (!set_gate_codec(codec)) {
             LOG_ERROR("invalid codec: %s", codec.c_str());
             return false;
         }
