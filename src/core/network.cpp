@@ -104,6 +104,8 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
             return false;
         }
         m_gate_host_fd = fd;
+        m_gate_host = ai->gate_host();
+        m_gate_port = ai->gate_port();
     }
 
     LOG_INFO("node fd: %d, gate fd: %d", m_node_host_fd, m_gate_host_fd);
@@ -421,7 +423,7 @@ void Network::on_io_write(int fd) {
     }
 
     if (c->is_connected() || c->is_connecting()) {
-        if (!handle_write_events(c, c->conn_write())) {
+        if (!handle_write_events(c)) {
             close_conn(c);
             LOG_WARN("handle write event failed! fd: %d", c->fd());
         }
@@ -439,22 +441,112 @@ void Network::on_io_write(int fd) {
 void Network::on_repeat_timer(void* privdata) {
     if (is_manager()) {
         check_wait_send_fds();
+        // report_payload_to_zookeeper();
+    } else {
+        /* send payload info to parent. */
+        // report_payload_to_parent();
     }
 
     if (m_sys_cmd != nullptr) {
-        m_sys_cmd->on_repeat_timer();
+        // m_sys_cmd->on_repeat_timer();
     }
 }
 
-void Network::check_wait_send_fds() {
-    auto it = m_wait_send_fds.begin();
-    for (; it != m_wait_send_fds.end();) {
-        int err;
-        int chanel_fd;
-        chanel_resend_data_t* data;
+bool Network::report_payload_to_parent() {
+    if (!is_worker()) {
+        LOG_ERROR("report payload to manager, only for worker!");
+        return false;
+    }
 
+    m_payload.set_worker_index(worker_index());
+    m_payload.set_load(m_cmds.size());
+    m_payload.set_conn_cnt(m_conns.size() + m_node_conns.size());
+    m_payload.set_create_time(now());
+
+    if (!m_sys_cmd->send_parent_payload(m_payload)) {
+        m_payload.Clear();
+        return false;
+    } else {
+        m_payload.Clear();
+        return true;
+    }
+}
+
+bool Network::report_payload_to_zookeeper() {
+    if (!is_manager()) {
+        LOG_ERROR("report payload to zk, only for manager!");
+        return false;
+    }
+
+    NodeData* node;
+    PayloadStats pls;
+    Payload *manager_pls, *worker_pls;
+    std::string json_data;
+    int load = 0, conn_cnt = 0, read_cnt = 0, write_cnt = 0,
+        read_bytes = 0, write_bytes = 0;
+    const std::unordered_map<int, worker_info_t*>& infos =
+        m_worker_data_mgr->get_infos();
+
+    /* node info. */
+    node = pls.mutable_node();
+    node->set_zk_path(m_nodes->get_my_zk_node_path());
+    node->set_node_type(node_type());
+    node->set_node_host(node_host());
+    node->set_node_port(node_port());
+    node->set_gate_host(m_gate_host);
+    node->set_node_port(m_gate_port);
+    node->set_worker_cnt(infos.size());
+
+    /* worker payload infos. */
+    for (const auto& it : infos) {
+        load += it.second->payload.load();
+        conn_cnt += it.second->payload.conn_cnt();
+        read_cnt += it.second->payload.read_cnt();
+        read_bytes += it.second->payload.read_bytes();
+        write_cnt += it.second->payload.write_cnt();
+        write_bytes += it.second->payload.write_bytes();
+        worker_pls = pls.add_workers();
+        *worker_pls = it.second->payload;
+        if (it.second->payload.worker_index() == 0) {
+            worker_pls->set_worker_index(it.second->index);
+        }
+    }
+
+    /* manager statistics data results。 */
+    manager_pls = pls.mutable_manager();
+    manager_pls->set_worker_index(worker_index());
+    manager_pls->set_load(load);
+    manager_pls->set_conn_cnt(conn_cnt + m_conns.size());
+    manager_pls->set_read_cnt(read_cnt + m_payload.read_cnt());
+    manager_pls->set_read_bytes(read_bytes + m_payload.read_bytes());
+    manager_pls->set_write_cnt(write_cnt + m_payload.write_cnt());
+    manager_pls->set_write_bytes(write_bytes + m_payload.write_bytes());
+    manager_pls->set_create_time(now());
+
+    m_payload.Clear();
+
+    if (!proto_to_json(pls, json_data)) {
+        LOG_TRACE("proto to json failed!");
+        return false;
+    }
+
+    // LOG_TRACE("data: %s", json_data.c_str());
+    return true;
+}
+
+void Network::check_wait_send_fds() {
+    int err;
+    int chanel_fd;
+    chanel_resend_data_t* data;
+
+    for (auto it = m_wait_send_fds.begin(); it != m_wait_send_fds.end();) {
         data = *it;
         chanel_fd = m_worker_data_mgr->get_next_worker_data_fd();
+        if (chanel_fd <= 0) {
+            LOG_ERROR("can not find next worker chanel!");
+            return;
+        }
+
         err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
         if (err == 0 || (err != 0 && err != EAGAIN)) {
             if (err != 0) {
@@ -573,29 +665,26 @@ ev_io* Network::add_write_event(Connection* c) {
 }
 
 bool Network::process_msg(Connection* c) {
-    if (c->is_http()) {
-        return process_http_msg(c);
-    } else {
-        return process_tcp_msg(c);
-    }
-
-    // if (c->keep_alive() == 0.0) {
-    //     LOG_DEBUG("short connection! fd: %d", fd);
-    //     close_conn(c);
-    //     return false;
-    // }
-
-    return true;
+    return (c->is_http()) ? process_http_msg(c) : process_tcp_msg(c);
 }
 
 bool Network::process_tcp_msg(Connection* c) {
     int fd;
+    int old_cnt, old_bytes;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
     Request req(c->fd_data(), false);
 
     fd = c->fd();
+    old_cnt = c->read_cnt();
+    old_bytes = c->read_bytes();
+
     codec_ret = c->conn_read(*req.msg_head(), *req.msg_body());
+    if (codec_ret != Codec::STATUS::ERR) {
+        m_payload.set_read_cnt(m_payload.read_cnt() + (c->read_cnt() - old_cnt));
+        m_payload.set_read_bytes(m_payload.read_bytes() + (c->read_bytes() - old_bytes));
+    }
+
     LOG_TRACE("conn read result, fd: %d, ret: %d", fd, (int)codec_ret);
 
     while (codec_ret == Codec::STATUS::OK) {
@@ -648,11 +737,20 @@ error:
 
 bool Network::process_http_msg(Connection* c) {
     HttpMsg msg;
+    int old_cnt, old_bytes;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
     Request req(c->fd_data(), true);
 
+    old_cnt = c->read_cnt();
+    old_bytes = c->read_bytes();
+
     codec_ret = c->conn_read(*req.http_msg());
+    if (codec_ret != Codec::STATUS::ERR) {
+        m_payload.set_read_cnt(m_payload.read_cnt() + (c->read_cnt() - old_cnt));
+        m_payload.set_read_bytes(m_payload.read_bytes() + (c->read_bytes() - old_bytes));
+    }
+
     LOG_TRACE("connection is http, read ret: %d", (int)codec_ret);
 
     while (codec_ret == Codec::STATUS::OK) {
@@ -710,7 +808,7 @@ void Network::accept_and_transfer_fd(int listen_fd) {
         return;
     }
 
-    LOG_INFO("accepted client: %s:%d", ip, port);
+    LOG_INFO("accepted client: %s:%d, fd: %d", ip, port, fd);
 
     chanel_fd = m_worker_data_mgr->get_next_worker_data_fd();
     if (chanel_fd <= 0) {
@@ -830,10 +928,10 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
         return false;
     }
 
-    node_id = format_nodes_id(node->ip, node->port, node->worker_index);
+    node_id = format_nodes_id(node->host, node->port, node->worker_index);
     auto it = m_node_conns.find(node_id);
     if (it == m_node_conns.end()) {
-        return auto_send(node->ip, node->port, node->worker_index, head, body);
+        return auto_send(node->host, node->port, node->worker_index, head, body);
     }
 
     c = it->second;
@@ -1014,7 +1112,7 @@ bool Network::send_to(Connection* c, const HttpMsg& msg) {
         return false;
     }
 
-    if (!handle_write_events(c, c->conn_write(msg))) {
+    if (!handle_write_events(c, msg)) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
         return false;
@@ -1028,7 +1126,7 @@ bool Network::send_to(Connection* c, const MsgHead& head, const MsgBody& body) {
         return false;
     }
 
-    if (!handle_write_events(c, c->conn_write(head, body))) {
+    if (!handle_write_events(c, head, body)) {
         close_conn(c);
         LOG_WARN("handle write event failed! fd: %d", c->fd());
         return false;
@@ -1093,12 +1191,49 @@ bool Network::send_ack(const Request& req, int err,
     return send_to(req.fd_data(), head, body);
 }
 
-bool Network::handle_write_events(Connection* c, Codec::STATUS codec_ret) {
-    if (c->is_invalid()) {
-        LOG_WARN("connection is closed! fd: %d", c->fd());
-        return false;
-    }
+bool Network::handle_write_events(Connection* c) {
+    Codec::STATUS ret;
+    int old_cnt, old_bytes;
 
+    old_cnt = c->write_cnt();
+    old_bytes = c->write_bytes();
+    ret = c->conn_write();
+    if (ret != Codec::STATUS::ERR) {
+        m_payload.set_write_cnt(m_payload.write_cnt() + (c->write_cnt() - old_cnt));
+        m_payload.set_write_bytes(m_payload.write_bytes() + (c->write_bytes() - old_bytes));
+    }
+    return handle_write_events(c, ret);
+}
+
+bool Network::handle_write_events(Connection* c, const HttpMsg& msg) {
+    int old_cnt, old_bytes;
+    Codec::STATUS ret;
+
+    old_cnt = c->write_cnt();
+    old_bytes = c->write_bytes();
+    ret = c->conn_write(msg);
+    if (ret != Codec::STATUS::ERR) {
+        m_payload.set_write_cnt(m_payload.write_cnt() + (c->write_cnt() - old_cnt));
+        m_payload.set_write_bytes(m_payload.write_bytes() + (c->write_bytes() - old_bytes));
+    }
+    return handle_write_events(c, ret);
+}
+
+bool Network::handle_write_events(Connection* c, const MsgHead& head, const MsgBody& body) {
+    Codec::STATUS ret;
+    int old_cnt, old_bytes;
+
+    old_cnt = c->write_cnt();
+    old_bytes = c->write_bytes();
+    ret = c->conn_write(head, body);
+    if (ret != Codec::STATUS::ERR) {
+        m_payload.set_write_cnt(m_payload.write_cnt() + (c->write_cnt() - old_cnt));
+        m_payload.set_write_bytes(m_payload.write_bytes() + (c->write_bytes() - old_bytes));
+    }
+    return handle_write_events(c, ret);
+}
+
+bool Network::handle_write_events(Connection* c, Codec::STATUS codec_ret) {
     int fd = c->fd();
     ev_io* w = c->get_ev_io();
 
@@ -1368,7 +1503,7 @@ bool Network::load_redis_mgr() {
 }
 
 bool Network::load_worker_data_mgr() {
-    m_worker_data_mgr = new WorkerDataMgr;
+    m_worker_data_mgr = new WorkerDataMgr(m_logger);
     return (m_worker_data_mgr != nullptr);
 }
 

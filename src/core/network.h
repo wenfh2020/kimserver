@@ -11,6 +11,7 @@
 #include "net/anet.h"
 #include "net/chanel.h"
 #include "nodes.h"
+#include "protobuf/sys/payload.pb.h"
 #include "redis/redis_mgr.h"
 #include "session.h"
 #include "sys_cmd.h"
@@ -59,6 +60,10 @@ class Network : public EventsCallback, public INet {
     bool is_request(int cmd) { return (cmd & 0x00000001); }
     bool handle_cmd_callback(wait_cmd_info_t* index, int err, void* data);
     Connection* get_conn(const fd_t& f);
+
+    /* payload. */
+    bool report_payload_to_parent();
+    bool report_payload_to_zookeeper();
 
     /* manager and worker contack by socketpair. */
     void close_chanel(int* fds);
@@ -155,6 +160,9 @@ class Network : public EventsCallback, public INet {
     bool process_msg(Connection* c);
     bool process_tcp_msg(Connection* c);
     bool process_http_msg(Connection* c);
+    bool handle_write_events(Connection* c);
+    bool handle_write_events(Connection* c, const HttpMsg& msg);
+    bool handle_write_events(Connection* c, const MsgHead& head, const MsgBody& body);
     bool handle_write_events(Connection* c, Codec::STATUS status);
 
     /* connection. */
@@ -172,7 +180,9 @@ class Network : public EventsCallback, public INet {
 
     std::string m_node_type;
     std::string m_node_host;
+    std::string m_gate_host;
     int m_node_port = 0;
+    int m_gate_port = 0;
     int m_worker_index = 0;
 
     int m_node_host_fd = -1;    /* host for inner servers. */
@@ -197,6 +207,7 @@ class Network : public EventsCallback, public INet {
     SessionMgr* m_session_mgr = nullptr; /* session pool. */
     Nodes* m_nodes = nullptr;            /* server nodes. ketama nodes manager. */
     SysCmd* m_sys_cmd = nullptr;         /* for node communication.  */
+    Payload m_payload;
 };
 
 }  // namespace kim

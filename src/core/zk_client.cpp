@@ -115,45 +115,6 @@ bool ZkClient::reconnect() {
     return true;
 }
 
-bool ZkClient::node_register() {
-    std::string node_path;
-    std::string ip(m_config("node_host"));
-    std::string node_type(m_config("node_type"));
-    std::string node_root(m_config["zookeeper"]("root"));
-    std::string server_name(m_config("server_name"));
-    std::string node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
-    int port = str_to_int(m_config("node_port"));
-    int worker_cnt = str_to_int(m_config("worker_cnt"));
-    CJsonObject json_node, json_zk, json_value;
-
-    if (node_type.empty() || node_root.empty() ||
-        server_name.empty() || ip.empty() || port <= 0 || worker_cnt <= 0) {
-        LOG_ERROR("invalid node info!");
-        return false;
-    }
-
-    node_path = format_str(
-        "%s/%s/%s", node_root.c_str(), node_type.c_str(), node_name.c_str());
-
-    /* node info. */
-    json_node.Add("path", node_path);
-    json_node.Add("type", node_type);
-    json_node.Add("ip", ip);
-    json_node.Add("port", port);
-    json_node.Add("worker_cnt", worker_cnt);
-    json_node.Add("active_time", time_now());
-
-    /* zk info. */
-    json_zk.Add("root", node_root);
-    json_zk.Add("old_path", m_net->nodes()->get_my_zk_node_path());
-    json_zk.Add("subscribe_node_type", m_config["zookeeper"]["subscribe_node_type"]);
-
-    json_value.Add("node", json_node);
-    json_value.Add("zookeeper", json_zk);
-    // LOG_DEBUG("config: %s", json_value.ToFormattedString().c_str());
-    return add_cmd_task(node_path, zk_task_t::CMD::REGISTER, json_value.ToString());
-}
-
 void ZkClient::set_zk_log(const std::string& path, utility::zoo_log_lvl level) {
     if (m_zk != nullptr) {
         m_zk->set_log_lvl(level);
@@ -209,30 +170,57 @@ void ZkClient::on_repeat_timer() {
     Bio::on_repeat_timer();
 }
 
-/* 
-    json_value: 
-    {
-        "node": {
-            "path": "/kimserver/gate/kimserver-gate",
-            "type": "gate",
-            "ip": "127.0.0.1",
-            "port": "3344",
-            "worker_cnt": "1",
-            "active_time": 123.134
-        },
-        "zookeeper": {
-            "root": "/kimserver",
-            "old_path": "",
-            "subscribe_node_type": ["gate", "logic"]
+bool ZkClient::node_register() {
+    if (m_config["zookeeper"].IsEmpty()) {
+        LOG_ERROR("invalid zk config!");
+        return false;
+    }
+    CJsonObject config(m_config);
+    config["old_path"] = m_net->nodes()->get_my_zk_node_path();
+    return add_cmd_task("", zk_task_t::CMD::REGISTER, m_config.ToString());
+}
+
+utility::zoo_rc ZkClient::bio_create_parent(const std::string& parent) {
+    std::string path;
+    std::vector<std::string> paths;
+    std::vector<utility::zoo_acl_t> acl;
+    utility::zoo_rc ret = utility::zoo_rc::z_system_error;
+
+    acl.push_back(utility::zk_cpp::create_world_acl(utility::zoo_perm_all));
+
+    /* check nodes parent. */
+    ret = m_zk->exists_node(parent.c_str(), nullptr, true);
+    if (ret != utility::zoo_rc::z_ok && ret != utility::zoo_rc::z_no_node) {
+        LOG_ERROR("zk parent node: %s not exists! error: %d, errstr: %s",
+                  parent.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+        return ret;
+    }
+
+    /* create nodes parent. */
+    if (ret == utility::zoo_rc::z_no_node) {
+        split_str(parent, paths, "/");
+        for (auto& v : paths) {
+            path.append("/").append(v);
+            LOG_INFO("create path: %s", path.c_str());
+            ret = m_zk->create_persistent_node(path.c_str(), "", acl);
+            if (ret != utility::zoo_rc::z_ok && ret != utility::zoo_rc::z_node_exists) {
+                LOG_ERROR("create root failed: %s failed! error: %d, errstr: %s",
+                          path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+                return ret;
+            }
         }
     }
+    return ret;
+}
+/* 
+    json_value: config.json
 
     json_res:
     {
         "my_zk_path": "/kimserver/gate/kimserver-gate000000001",
         "nodes": [{
             "path": "/kimserver/gate/kimserver-gate000000001",
-            "ip": "127.0.0.1",
+            "host": "127.0.0.1",
             "port": 3344,
             "type": "gate",
             "worker_cnt": 1,
@@ -241,68 +229,101 @@ void ZkClient::on_repeat_timer() {
     }
 */
 utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
+    std::vector<std::string> paths;
     std::vector<std::string> children;
     std::vector<utility::zoo_acl_t> acl;
     CJsonObject json_value, json_data, json_res;
-    std::string path, root, out, parent(task->path);
+    std::string root, path, parent, out, node_path, node_type,
+        node_name, server_name, payload_root, payload_parent;
     utility::zoo_rc ret = utility::zoo_rc::z_system_error;
-    parent = parent.substr(0, parent.find_last_of("/"));
 
+    /* check config. */
     if (!json_value.Parse(task->value)) {
         LOG_ERROR("value convert json object failed!");
         return ret;
     }
 
-    root = json_value["zookeeper"]("root");
-    CJsonObject& node_types = json_value["zookeeper"]["subscribe_node_type"];
+    root = json_value["zookeeper"]["nodes"]("root");
+    payload_root = json_value["zookeeper"]["payload"]("root");
+    if (root.empty() || payload_root.empty()) {
+        LOG_ERROR("no zookeepr nodes root data in config!");
+        return ret;
+    }
+
+    CJsonObject& subscribes = json_value["zookeeper"]["nodes"]["subscribe_node_type"];
     LOG_TRACE("node info: %s", json_value.ToFormattedString().c_str());
-    if (!node_types.IsArray()) {
-        LOG_ERROR("node types is not array!");
+    if (!subscribes.IsArray()) {
+        LOG_ERROR("zk subscribe node types is not array!");
         return ret;
     }
 
-    /* check parent. */
-    ret = m_zk->exists_node(parent.c_str(), nullptr, true);
+    node_type = json_value("node_type");
+    root = json_value["zookeeper"]["nodes"]("root");
+    server_name = json_value("server_name");
+
+    parent = format_str("%s/%s", root.c_str(), node_type.c_str());
+    node_name = format_str("%s-%s", server_name.c_str(), node_type.c_str());
+    node_path = format_str("%s/%s", parent.c_str(), node_name.c_str());
+    LOG_TRACE("node path: %s", node_path.c_str());
+
+    /* check nodes parent. */
+    ret = bio_create_parent(parent);
     if (ret != utility::zoo_rc::z_ok) {
-        LOG_ERROR("zk parent node: %s not exists! error: %d, errstr: %s",
-                  parent.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+        LOG_ERROR("create nodes parent failed! path: %s", parent.c_str());
         return ret;
     }
 
-    /* check node. */
-    ret = m_zk->exists_node(task->path.c_str(), nullptr, true);
-    if (ret != utility::zoo_rc::z_no_node) {
-        LOG_ERROR("zk node: %s exists! error: %d, errstr: %s",
-                  task->path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+    /* create playload parent. */
+    payload_parent = format_str("%s/%s", payload_root.c_str(), node_type.c_str());
+    ret = bio_create_parent(payload_parent);
+    if (ret != utility::zoo_rc::z_ok) {
+        LOG_ERROR("create payload parent failed! path: %s", payload_parent.c_str());
         return ret;
     }
 
     /* create node. */
     acl.push_back(utility::zk_cpp::create_world_acl(utility::zoo_perm_all));
-    ret = m_zk->create_sequance_ephemeral_node(task->path.c_str(), "", acl, path);
+    ret = m_zk->create_sequance_ephemeral_node(node_path.c_str(), "", acl, node_path);
     if (ret != utility::zoo_rc::z_ok) {
-        LOG_ERROR("create zk node: %s failed! error: %d, errstr: %s",
-                  task->path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+        LOG_ERROR("create nodes zk node: %s failed! error: %d, errstr: %s",
+                  node_path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
         return ret;
     }
-    LOG_INFO("create node: %s done!", path.c_str());
+    LOG_INFO("create nodes node: %s done!", node_path.c_str());
 
-    /* set node data. */
-    json_value["node"].Replace("path", path);
-    LOG_TRACE("node info: %s", json_value["node"].ToString().c_str());
-    ret = m_zk->set_node(path.c_str(), json_value["node"].ToString(), -1);
+    /* create payload node. */
+    node_name = node_path.substr(node_path.find_last_of("/") + 1).c_str();
+    path = format_str("%s/%s", payload_parent.c_str(), node_name.c_str());
+    ret = m_zk->create_ephemeral_node(path.c_str(), "", acl);
     if (ret != utility::zoo_rc::z_ok) {
-        LOG_ERROR("set zk node data failed! path, error: %d, errstr: %s",
+        LOG_ERROR("create payload zk node: %s failed! error: %d, errstr: %s",
                   path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
         return ret;
     }
+    LOG_INFO("create payload node: %s done!", path.c_str());
 
-    json_res.Add("my_zk_path", path);
+    /* set node data. */
+    json_data.Add("path", node_path);
+    json_data.Add("type", json_value("node_type"));
+    json_data.Add("host", json_value("node_host"));
+    json_data.Add("port", json_value("node_port"));
+    json_data.Add("worker_cnt", str_to_int(m_config("worker_cnt")));
+    json_data.Add("active_time", time_now());
+
+    LOG_TRACE("node info: %s", json_data["node"].ToString().c_str());
+    ret = m_zk->set_node(node_path.c_str(), json_data.ToString(), -1);
+    if (ret != utility::zoo_rc::z_ok) {
+        LOG_ERROR("set zk node data failed! path, error: %d, errstr: %s",
+                  node_path.c_str(), (int)ret, utility::zk_cpp::error_string(ret));
+        return ret;
+    }
+
+    json_res.Add("my_zk_path", node_path);
     json_res.Add("nodes", kim::CJsonObject("[]"));
 
-    for (int i = 0; i < node_types.GetArraySize(); i++) {
+    for (int i = 0; i < subscribes.GetArraySize(); i++) {
         children.clear();
-        parent = format_str("%s/%s", root.c_str(), node_types(i).c_str());
+        parent = format_str("%s/%s", root.c_str(), subscribes(i).c_str());
 
         /* get and watch children change. */
         ret = m_zk->watch_children_event(parent.c_str(), children);
@@ -338,10 +359,10 @@ utility::zoo_rc ZkClient::bio_register_node(zk_task_t* task) {
     }
 
     /* delele old. */
-    path = json_value["zookeeper"]("old_path");
-    if (!path.empty()) {
-        m_zk->delete_node(path.c_str(), -1);
-        LOG_INFO("delete old zk path: %s", path.c_str());
+    node_path = json_value["zookeeper"]("old_path");
+    if (!node_path.empty()) {
+        m_zk->delete_node(node_path.c_str(), -1);
+        LOG_INFO("delete old zk path: %s", node_path.c_str());
     }
 
     task->res.value = json_res.ToString();

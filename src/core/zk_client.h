@@ -50,7 +50,9 @@ class ZkClient : public Bio {
     void on_zk_session_expired(const kim::zk_task_t* task);
 
    private:
+    /* register node in new thread. */
     utility::zoo_rc bio_register_node(zk_task_t* task);
+    utility::zoo_rc bio_create_parent(const std::string& parent);
 
    private:
     INet* m_net = nullptr;

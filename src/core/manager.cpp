@@ -199,7 +199,8 @@ bool Manager::restart_worker(pid_t pid) {
         m_net->close_conn(chs[1]);
     }
 
-    if (!m_net->worker_data_mgr()->get_worker_index(pid, worker_index)) {
+    worker_index = m_net->worker_data_mgr()->get_worker_index(pid);
+    if (worker_index == -1) {
         LOG_ERROR("can not find pid: %d work info.");
         return false;
     }

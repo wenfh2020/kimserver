@@ -14,12 +14,12 @@ Nodes::~Nodes() {
 }
 
 bool Nodes::is_valid_zk_node(const zk_node& znode) {
-    return !(znode.path().empty() || znode.ip().empty() || znode.port() == 0 ||
+    return !(znode.path().empty() || znode.host().empty() || znode.port() == 0 ||
              znode.type().empty() || znode.worker_cnt() == 0 || znode.active_time() == 0);
 }
 
 bool Nodes::check_zk_node_host(const zk_node& cur) {
-    std::string host = format_str("%s:%d", cur.ip().c_str(), cur.port());
+    std::string host = format_str("%s:%d", cur.host().c_str(), cur.port());
     auto it = m_host_zk_paths.find(host);
     if (it == m_host_zk_paths.end()) {
         return true;
@@ -53,8 +53,8 @@ bool Nodes::add_zk_node(const zk_node& znode) {
     if (!is_valid_zk_node(znode)) {
         LOG_ERROR(
             "add zk znode failed, invalid znode data! "
-            "znode path: %s, ip: %s,  port: %d, type: %s, worker_cnt: %d",
-            znode.path().c_str(), znode.ip().c_str(), znode.port(),
+            "znode path: %s, host %s,  port: %d, type: %s, worker_cnt: %d",
+            znode.path().c_str(), znode.host().c_str(), znode.port(),
             znode.type().c_str(), znode.worker_cnt());
         return false;
     }
@@ -67,23 +67,23 @@ bool Nodes::add_zk_node(const zk_node& znode) {
     if (it == m_zk_nodes.end()) {
         m_zk_nodes[znode.path()] = znode;
         for (size_t i = 1; i <= znode.worker_cnt(); i++) {
-            add_node(znode.type(), znode.ip(), znode.port(), i);
+            add_node(znode.type(), znode.host(), znode.port(), i);
         }
     } else {
         const zk_node& old = it->second;
         if (old.SerializeAsString() != znode.SerializeAsString()) {
             m_zk_nodes[znode.path()] = znode;
             for (size_t i = 1; i < old.worker_cnt(); i++) {
-                del_node(format_nodes_id(old.ip(), old.port(), i));
+                del_node(format_nodes_id(old.host(), old.port(), i));
             }
             for (size_t i = 1; i <= znode.worker_cnt(); i++) {
-                add_node(znode.type(), znode.ip(), znode.port(), i);
+                add_node(znode.type(), znode.host(), znode.port(), i);
             }
             LOG_DEBUG("update zk znode info done! path: %s", znode.path().c_str());
         }
     }
 
-    std::string host = format_str("%s:%d", znode.ip().c_str(), znode.port());
+    std::string host = format_str("%s:%d", znode.host().c_str(), znode.port());
     m_host_zk_paths[host] = znode.path();
     return true;
 }
@@ -97,19 +97,19 @@ bool Nodes::del_zk_node(const std::string& path) {
     /* delete nodes. */
     const zk_node& znode = it->second;
     for (size_t i = 1; i <= znode.worker_cnt(); i++) {
-        del_node(format_nodes_id(znode.ip(), znode.port(), i));
+        del_node(format_nodes_id(znode.host(), znode.port(), i));
     }
 
     /* delete host & path info. */
-    std::string host = format_str("%s:%d", znode.ip().c_str(), znode.port());
+    std::string host = format_str("%s:%d", znode.host().c_str(), znode.port());
     auto itr = m_host_zk_paths.find(host);
     if (itr != m_host_zk_paths.end()) {
         m_host_zk_paths.erase(itr);
     }
 
-    LOG_INFO("delete zk node, path: %s, type: %s, ip: %s, port: %d, worker_cnt: %d",
+    LOG_INFO("delete zk node, path: %s, type: %s, host %s, port: %d, worker_cnt: %d",
              znode.path().c_str(), znode.type().c_str(),
-             znode.ip().c_str(), znode.port(), znode.worker_cnt());
+             znode.host().c_str(), znode.port(), znode.worker_cnt());
     m_zk_nodes.erase(it);
     return true;
 }
@@ -129,11 +129,11 @@ void Nodes::get_zk_diff_nodes(const std::string& type, std::vector<std::string>&
               vec.size(), adds.size(), dels.size());
 }
 
-bool Nodes::add_node(const std::string& node_type, const std::string& ip, int port, int worker) {
-    LOG_INFO("add node, node type: %s, ip: %s, port: %d, worker: %d",
-             node_type.c_str(), ip.c_str(), port, worker);
+bool Nodes::add_node(const std::string& node_type, const std::string& host, int port, int worker) {
+    LOG_INFO("add node, node type: %s, host %s, port: %d, worker: %d",
+             node_type.c_str(), host.c_str(), port, worker);
 
-    std::string node_id = format_nodes_id(ip, port, worker);
+    std::string node_id = format_nodes_id(host, port, worker);
     if (m_nodes.find(node_id) != m_nodes.end()) {
         LOG_DEBUG("node (%s) has been added!", node_id.c_str());
         return true;
@@ -147,14 +147,14 @@ bool Nodes::add_node(const std::string& node_type, const std::string& ip, int po
     size_t old_vnode_cnt = vnode2node.size();
 
     vnodes = gen_vnodes(node_id);
-    node = new node_t{node_id, node_type, ip, port, worker, vnodes};
+    node = new node_t{node_id, node_type, host, port, worker, vnodes};
 
     for (auto& v : vnodes) {
         if (!vnode2node.insert({v, node}).second) {
             LOG_WARN(
                 "duplicate virtual nodes! "
-                "vnode: %lu, node type: %s, ip: %s, port: %d, worker: %d.",
-                v, node_type.c_str(), ip.c_str(), port, worker);
+                "vnode: %lu, node type: %s, host %s, port: %d, worker: %d.",
+                v, node_type.c_str(), host.c_str(), port, worker);
             continue;
         }
     }
@@ -266,9 +266,9 @@ void Nodes::print_debug_nodes_info() {
     LOG_DEBUG("zk nodes (%lu):", m_zk_nodes.size());
     for (auto& v : m_zk_nodes) {
         const zk_node& znode = v.second;
-        LOG_DEBUG("zk node type: %s, path: %s, ip: %s, port: %d, wc: %d",
+        LOG_DEBUG("zk node type: %s, path: %s, host: %s, port: %d, wc: %d",
                   znode.type().c_str(), znode.path().c_str(),
-                  znode.ip().c_str(), znode.port(), znode.worker_cnt());
+                  znode.host().c_str(), znode.port(), znode.worker_cnt());
     }
 
     /* vnodes */
@@ -281,9 +281,9 @@ void Nodes::print_debug_nodes_info() {
     LOG_DEBUG("nodes (%lu):", m_nodes.size());
     for (auto& v : m_nodes) {
         node_t* node = v.second;
-        LOG_DEBUG("id: %s, node type: %s, ip: %s, port: %d, worker index: %d",
+        LOG_DEBUG("id: %s, node type: %s, host %s, port: %d, worker index: %d",
                   v.first.c_str(), node->type.c_str(),
-                  node->ip.c_str(), node->port, node->worker_index);
+                  node->host.c_str(), node->port, node->worker_index);
     }
     LOG_DEBUG("------------");
 }

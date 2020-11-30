@@ -19,7 +19,7 @@ typedef struct fd_s {
     uint64_t id;
 } fd_t;
 
-class Connection : public Timer {
+class Connection : public Timer, Logger {
    public:
     enum class STATE {
         UNKOWN = 0,
@@ -79,6 +79,12 @@ class Connection : public Timer {
     virtual bool is_need_alive_check();
     virtual double keep_alive();
 
+    /* statistics api. */
+    int write_cnt() { return m_write_cnt; }
+    uint64_t write_bytes() { return m_write_bytes; }
+    int read_cnt() { return m_read_cnt; }
+    uint64_t read_bytes() { return m_read_bytes; }
+
    protected:
     bool conn_read();
     Codec::STATUS decode_http(HttpMsg& msg);
@@ -88,12 +94,10 @@ class Connection : public Timer {
 
    private:
     fd_t m_fd_data;
-    Log* m_logger = nullptr;     // logger.
     void* m_privdata = nullptr;  // private data.
     ev_io* m_ev_io = nullptr;    // libev io event.
     Codec* m_codec = nullptr;
 
-    int m_fd = -1;                  // socket fd.
     STATE m_state = STATE::UNKOWN;  // connection status.
     int m_errno = 0;                // error number.
 
@@ -104,6 +108,12 @@ class Connection : public Timer {
     size_t m_saddr_len = 0;
     struct sockaddr* m_saddr = nullptr;
     std::string m_node_id; /* for nodes contact. */
+
+    /* statistics */
+    int m_read_cnt = 0;
+    uint64_t m_read_bytes = 0;
+    int m_write_cnt = 0;
+    uint64_t m_write_bytes = 0;
 };
 
 }  // namespace kim

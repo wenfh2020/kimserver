@@ -10,6 +10,23 @@ SysCmd::SysCmd(Log* logger, INet* net)
     : m_net(net), m_logger(logger) {
 }
 
+bool SysCmd::check_rsp(const Request& req) {
+    if (!req.msg_body()->has_rsp_result()) {
+        LOG_ERROR("no rsp result! fd: %d, cmd: %d", req.fd(), req.msg_head()->cmd());
+        return false;
+    }
+
+    if (req.msg_body()->rsp_result().code() != ERR_OK) {
+        LOG_ERROR("rsp code is not ok, error! fd: %d, error: %d, errstr: %s",
+                  req.fd(),
+                  req.msg_body()->rsp_result().code(),
+                  req.msg_body()->rsp_result().msg().c_str());
+        return false;
+    }
+
+    return true;
+}
+
 bool SysCmd::send_req_connect_to_worker(Connection* c) {
     /* A1 contact with B1. */
     LOG_TRACE("send CMD_REQ_CONNECT_TO_WORKER, fd: %d", c->fd());
@@ -39,6 +56,21 @@ bool SysCmd::send_parent_sync_zk_nodes(int version) {
     if (!m_net->send_to_parent(
             CMD_REQ_SYNC_ZK_NODES, m_net->new_seq(), std::to_string(version))) {
         LOG_ERROR("send CMD_REQ_SYNC_ZK_NODES failed!");
+        return false;
+    }
+    return true;
+}
+
+bool SysCmd::send_parent_payload(const Payload& pl) {
+    LOG_TRACE("send CMD_REQ_UPDATE_PAYLOAD");
+    // std::string data;
+    // if (!proto_to_json(pl, data)) {
+    //     LOG_ERROR("CMD_REQ_UPDATE_PAYLOAD proto json failed!");
+    //     return false;
+    // }
+    if (!m_net->send_to_parent(
+            CMD_REQ_UPDATE_PAYLOAD, m_net->new_seq(), pl.SerializeAsString())) {
+        LOG_ERROR("send CMD_REQ_UPDATE_PAYLOAD failed!");
         return false;
     }
     return true;
@@ -101,6 +133,9 @@ Cmd::STATUS SysCmd::process_manager_msg(const Request& req) {
         case CMD_REQ_SYNC_ZK_NODES: {
             return on_req_sync_zk_nodes(req);
         }
+        case CMD_REQ_UPDATE_PAYLOAD: {
+            return on_req_update_payload(req);
+        }
         default: {
             return Cmd::STATUS::UNKOWN;
         }
@@ -133,6 +168,9 @@ Cmd::STATUS SysCmd::process_worker_msg(const Request& req) {
         }
         case CMD_RSP_SYNC_ZK_NODES: {
             return on_rsp_sync_zk_nodes(req);
+        }
+        case CMD_RSP_UPDATE_PAYLOAD: {
+            return on_rsp_update_payload(req);
         }
         default: {
             return Cmd::STATUS::UNKOWN;
@@ -424,21 +462,40 @@ Cmd::STATUS SysCmd::on_rsp_sync_zk_nodes(const Request& req) {
     return Cmd::STATUS::OK;
 }
 
-bool SysCmd::check_rsp(const Request& req) {
-    if (!req.msg_body()->has_rsp_result()) {
-        LOG_ERROR("no rsp result! fd: %d, cmd: %d", req.fd(), req.msg_head()->cmd());
-        return false;
+Cmd::STATUS SysCmd::on_req_update_payload(const Request& req) {
+    LOG_TRACE("handle CMD_REQ_UPDATE_PAYLOAD. fd: % d", req.fd());
+
+    kim::Payload pl;
+    worker_info_t* info;
+
+    if (!pl.ParseFromString(req.msg_body()->data())) {
+        LOG_ERROR("parse CMD_REQ_UPDATE_PAYLOAD data failed! fd: %d", req.fd());
+        return Cmd::STATUS::ERROR;
     }
 
-    if (req.msg_body()->rsp_result().code() != ERR_OK) {
-        LOG_ERROR("rsp code is not ok, error! fd: %d, error: %d, errstr: %s",
-                  req.fd(),
-                  req.msg_body()->rsp_result().code(),
-                  req.msg_body()->rsp_result().msg().c_str());
-        return false;
+    info = m_net->worker_data_mgr()->get_worker_info(pl.worker_index());
+    if (info == nullptr) {
+        m_net->send_ack(req, ERR_INVALID_WORKER_INDEX, "can not find worker index!");
+        LOG_ERROR("can not find worker index: %d", pl.worker_index());
+        return Cmd::STATUS::ERROR;
     }
 
-    return true;
+    info->payload = pl;
+
+    if (!m_net->send_ack(req, ERR_OK, "ok")) {
+        LOG_ERROR("send CMD_RSP_UPDATE_PAYLOAD failed! fd: %d", req.fd());
+        return Cmd::STATUS::ERROR;
+    }
+
+    return Cmd::STATUS::OK;
+}
+
+Cmd::STATUS SysCmd::on_rsp_update_payload(const Request& req) {
+    if (!check_rsp(req)) {
+        LOG_ERROR("CMD_RSP_UPDATE_PAYLOAD is not ok! fd: %d", req.fd());
+        return Cmd::STATUS::ERROR;
+    }
+    return Cmd::STATUS::OK;
 }
 
 }  // namespace kim

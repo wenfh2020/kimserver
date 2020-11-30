@@ -6,7 +6,7 @@
 
 namespace kim {
 
-Connection::Connection(Log* logger, int fd, uint64_t id) : m_logger(logger) {
+Connection::Connection(Log* logger, int fd, uint64_t id) : Logger(logger) {
     set_fd_data(fd, id);
     set_active_time(time_now());
 }
@@ -63,6 +63,8 @@ bool Connection::conn_read() {
         return false;
     }
 
+    m_read_cnt++;
+
     int read_len = m_recv_buf->read_fd(fd(), m_errno);
     LOG_TRACE("read from fd: %d, data len: %d, readed data len: %d",
               fd(), read_len, m_recv_buf->readable_len());
@@ -78,6 +80,7 @@ bool Connection::conn_read() {
     }
 
     if (read_len > 0) {
+        m_read_bytes += read_len;
         /* recovery socket buffer. */
         if (m_recv_buf->capacity() > SocketBuffer::BUFFER_MAX_READ &&
             m_recv_buf->readable_len() < m_recv_buf->capacity() / 2) {
@@ -95,7 +98,10 @@ Codec::STATUS Connection::conn_write() {
         return Codec::STATUS::ERR;
     }
 
-    SocketBuffer* sbuf = m_send_buf;
+    int write_len;
+    SocketBuffer* sbuf;
+
+    sbuf = m_send_buf;
     if (is_connected()) {
         /* pls send waiting buffer firstly, when connected. */
         if (m_wait_send_buf != nullptr && m_wait_send_buf->readable_len() > 0) {
@@ -108,7 +114,9 @@ Codec::STATUS Connection::conn_write() {
         return Codec::STATUS::OK;
     }
 
-    int write_len = sbuf->write_fd(fd(), m_errno);
+    m_write_cnt++;
+
+    write_len = sbuf->write_fd(fd(), m_errno);
     if (write_len < 0) {
         if (m_errno == EAGAIN) {
             m_active_time = time_now();
@@ -119,6 +127,8 @@ Codec::STATUS Connection::conn_write() {
             return Codec::STATUS::ERR;
         }
     }
+
+    m_write_bytes += write_len;
 
     LOG_TRACE("send to fd: %d, conn id: %llu, write len: %d, readed data len: %d",
               fd(), id(), write_len, sbuf->readable_len());

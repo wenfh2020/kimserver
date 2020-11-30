@@ -1,6 +1,6 @@
 {
     "server_name": "kimserver",
-    "worker_cnt": 2,
+    "worker_cnt": 1,
     "node_type": "gate",
     "node_host": "127.0.0.1",
     "node_port": 3344,
@@ -31,11 +31,16 @@
     },
     "zookeeper": {
         "servers": "127.0.0.1:2181",
-        "root": "/kimserver",
-        "subscribe_node_type": [
-            "gate",
-            "logic"
-        ],
-        "log_path": "zk.log"
+        "log_path": "zk.log",
+        "nodes": {
+            "root": "/kimserver/nodes",
+            "subscribe_node_type": [
+                "gate",
+                "logic"
+            ]
+        },
+        "payload": {
+            "root": "/kimserver/payload"
+        }
     }
 }

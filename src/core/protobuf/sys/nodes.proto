@@ -24,7 +24,7 @@ message node_info {
 message zk_node {
     string path = 1;        /* zookeeper path. store which return from zk. */
     string type = 2;        /* node type. */
-    string ip = 3;          /* node ip. */
+    string host = 3;        /* node host. */
     uint32 port = 4;        /* node port. */
     uint32 worker_cnt = 5;  /* node worker count. */
     double active_time = 6; /* node refresh time. */

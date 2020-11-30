@@ -48,6 +48,18 @@ class Log {
     bool m_is_manager = false;
 };
 
+class Logger {
+   public:
+    Logger(Log* logger) : m_logger(logger) {}
+    virtual ~Logger() {}
+
+    Log* logger() { return m_logger; }
+    void set_logger(Log* logger) { m_logger = logger; }
+
+   protected:
+    Log* m_logger = nullptr;
+};
+
 }  // namespace kim
 
 #endif  //__KIM_LOG_H__

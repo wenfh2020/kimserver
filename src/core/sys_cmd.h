@@ -4,6 +4,7 @@
 #include "cmd.h"
 #include "nodes.h"
 #include "protobuf/sys/nodes.pb.h"
+#include "protobuf/sys/payload.pb.h"
 #include "util/log.h"
 #include "worker_data_mgr.h"
 
@@ -24,6 +25,7 @@ class SysCmd {
     bool send_children_del_zk_node(const std::string& zk_path);
     bool send_children_reg_zk_node(const register_node& rn);
     bool send_parent_sync_zk_nodes(int version);
+    bool send_parent_payload(const Payload& pl);
 
    public:
     /* communication between nodes.  */
@@ -47,6 +49,8 @@ class SysCmd {
     Cmd::STATUS on_rsp_reg_zk_node(const Request& req);
     Cmd::STATUS on_req_sync_zk_nodes(const Request& req);
     Cmd::STATUS on_rsp_sync_zk_nodes(const Request& req);
+    Cmd::STATUS on_req_update_payload(const Request& req);
+    Cmd::STATUS on_rsp_update_payload(const Request& req);
 
    private:
     Cmd::STATUS process_worker_msg(const Request& req);

@@ -15,7 +15,7 @@ namespace kim {
 typedef struct node_s {
     std::string id;               /* node id: "ip:port.worker_index" */
     std::string type;             /* node type. */
-    std::string ip;               /* node ip. */
+    std::string host;             /* node host. */
     int port;                     /* node port. */
     int worker_index;             /* worker index. */
     std::vector<uint32_t> vnodes; /* virtual nodes which point to me. */
