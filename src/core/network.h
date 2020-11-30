@@ -53,7 +53,7 @@ class Network : public EventsCallback, public INet {
     bool load_db();
     bool load_redis_mgr();
     bool load_worker_data_mgr();
-    bool load_public();
+    bool load_public(const CJsonObject& config);
     bool load_zk_mgr();
 
     bool set_gate_codec(const std::string& codec);
@@ -147,9 +147,9 @@ class Network : public EventsCallback, public INet {
     virtual void on_mysql_query_callback(const MysqlAsyncConn* c, sql_task_t* task, MysqlResult* res) override;
 
    private:
+    bool create_events();
     void close_fd(int fd);
     void check_wait_send_fds();
-    bool create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker);
 
     ev_io* add_write_event(Connection* c);
 
@@ -209,7 +209,7 @@ class Network : public EventsCallback, public INet {
     Nodes* m_nodes = nullptr;            /* server nodes. ketama nodes manager. */
     SysCmd* m_sys_cmd = nullptr;         /* for node communication.  */
     ZkClient* m_zk_client = nullptr;     /* zookeeper client. */
-    Payload m_payload;
+    Payload m_payload;                   /* payload data. */
 };
 
 }  // namespace kim

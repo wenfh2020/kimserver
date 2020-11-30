@@ -53,13 +53,16 @@ Events* Network::events() {
 bool Network::load_config(const CJsonObject& config) {
     double secs;
     m_conf = config;
-    std::string codec = m_conf("gate_codec");
+    std::string codec;
 
-    if (!set_gate_codec(codec)) {
-        LOG_ERROR("invalid codec: %s", codec.c_str());
-        return false;
+    codec = m_conf("gate_codec");
+    if (!codec.empty()) {
+        if (set_gate_codec(codec)) {
+            LOG_ERROR("invalid codec: %s", codec.c_str());
+            return false;
+        }
+        LOG_DEBUG("gate codec: %s", codec.c_str());
     }
-    LOG_DEBUG("gate codec: %s", codec.c_str());
 
     if (m_conf.Get("keep_alive", secs)) {
         set_keep_alive(secs);
@@ -95,8 +98,18 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
         return false;
     }
 
-    if (!load_config(config)) {
-        LOG_ERROR("load config failed!");
+    if (!load_public(config)) {
+        LOG_ERROR("load public failed!");
+        return false;
+    }
+
+    if (!load_worker_data_mgr()) {
+        LOG_ERROR("new worker data mgr failed!");
+        return false;
+    }
+
+    if (!load_zk_mgr()) {
+        LOG_ERROR("load zookeeper mgr failed!");
         return false;
     }
 
@@ -107,7 +120,15 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
                       ai->node_host().c_str(), ai->node_port());
             return false;
         }
+
         m_node_host_fd = fd;
+        LOG_INFO("node fd: %d", m_node_host_fd);
+
+        if (!add_read_event(m_node_host_fd, Codec::TYPE::PROTOBUF, false)) {
+            close_fd(m_node_host_fd);
+            LOG_ERROR("add read event failed, fd: %d", m_node_host_fd);
+            return false;
+        }
     }
 
     if (!ai->gate_host().empty()) {
@@ -117,31 +138,17 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
                       ai->gate_host().c_str(), ai->gate_port());
             return false;
         }
+
         m_gate_host_fd = fd;
         m_gate_host = ai->gate_host();
         m_gate_port = ai->gate_port();
-    }
+        LOG_INFO("gate fd: %d", m_gate_host_fd);
 
-    LOG_INFO("node fd: %d, gate fd: %d", m_node_host_fd, m_gate_host_fd);
-
-    if (!create_events(m_node_host_fd, m_gate_host_fd, m_gate_codec, false)) {
-        LOG_ERROR("create events failed!");
-        return false;
-    }
-
-    if (!load_worker_data_mgr()) {
-        LOG_ERROR("new worker data mgr failed!");
-        return false;
-    }
-
-    if (!load_public()) {
-        LOG_ERROR("load public failed!");
-        return false;
-    }
-
-    if (!load_zk_mgr()) {
-        LOG_ERROR("load zookeeper mgr failed!");
-        return false;
+        if (!add_read_event(m_gate_host_fd, m_gate_codec, false)) {
+            close_fd(m_gate_host_fd);
+            LOG_ERROR("add read event failed, fd: %d", m_gate_host_fd);
+            return false;
+        }
     }
 
     return true;
@@ -149,19 +156,8 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
 
 /* children. */
 bool Network::create_w(const CJsonObject& config, int ctrl_fd, int data_fd, int index) {
-    if (!create_events(ctrl_fd, data_fd, Codec::TYPE::PROTOBUF, true)) {
-        LOG_ERROR("create events failed!");
-        return false;
-    }
-    m_conf = config;
-    m_manager_ctrl_fd = ctrl_fd;
-    m_manager_data_fd = data_fd;
-    LOG_INFO("create network done!");
-
-    m_worker_index = index;
-
-    if (!load_config(config)) {
-        LOG_ERROR("load config failed!");
+    if (!load_public(config)) {
+        LOG_ERROR("load public failed!");
         return false;
     }
 
@@ -181,15 +177,37 @@ bool Network::create_w(const CJsonObject& config, int ctrl_fd, int data_fd, int 
     }
     LOG_INFO("load modules ok!");
 
-    if (!load_public()) {
-        LOG_ERROR("load public failed!");
+    if (!add_read_event(ctrl_fd, Codec::TYPE::PROTOBUF, true)) {
+        close_fd(ctrl_fd);
+        LOG_ERROR("add read event failed, fd: %d", ctrl_fd);
         return false;
     }
 
+    if (!add_read_event(data_fd, Codec::TYPE::PROTOBUF, true)) {
+        close_fd(data_fd);
+        LOG_ERROR("add read event failed, fd: %d", data_fd);
+        return false;
+    }
+
+    m_conf = config;
+    m_manager_ctrl_fd = ctrl_fd;
+    m_manager_data_fd = data_fd;
+    m_worker_index = index;
+    LOG_INFO("create network done!");
     return true;
 }
 
-bool Network::load_public() {
+bool Network::load_public(const CJsonObject& config) {
+    if (!load_config(config)) {
+        LOG_ERROR("load config failed!");
+        return false;
+    }
+
+    if (!create_events()) {
+        LOG_ERROR("create events failed!");
+        return false;
+    }
+
     m_sys_cmd = new SysCmd(m_logger, this);
     if (m_sys_cmd == nullptr) {
         LOG_ERROR("alloc sys cmd failed!");
@@ -211,7 +229,7 @@ bool Network::load_public() {
     return true;
 }
 
-bool Network::create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker) {
+bool Network::create_events() {
     m_events = new Events(m_logger);
     if (m_events == nullptr) {
         LOG_ERROR("new events failed!");
@@ -225,26 +243,13 @@ bool Network::create_events(int fd1, int fd2, Codec::TYPE codec, bool is_worker)
 
     if (!EventsCallback::init(m_logger, this)) {
         LOG_ERROR("init events callback failed!");
-        return false;
+        goto error;
     }
 
     setup_io_callback();
     setup_io_timer_callback();
     setup_cmd_timer_callback();
     setup_session_timer_callback();
-
-    if (!add_read_event(fd1, codec, is_worker)) {
-        close_conn(fd1);
-        LOG_ERROR("add read event failed, fd: %d", fd1);
-        goto error;
-    }
-
-    if (!add_read_event(fd2, codec, is_worker)) {
-        close_conn(fd2);
-        LOG_ERROR("add read event failed, fd: %d", fd2);
-        goto error;
-    }
-
     return true;
 
 error:
