@@ -11,7 +11,7 @@
 
 namespace kim {
 
-Events::Events(Log* logger) : m_logger(logger) {
+Events::Events(Log* logger) : Logger(logger) {
 }
 
 Events::~Events() {
@@ -25,7 +25,6 @@ bool Events::create() {
         LOG_ERROR("new libev loop failed!");
         return false;
     }
-
     return true;
 }
 

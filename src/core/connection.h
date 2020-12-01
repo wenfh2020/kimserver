@@ -7,6 +7,7 @@
 
 #include "codec/codec_http.h"
 #include "codec/codec_proto.h"
+#include "events.h"
 #include "protobuf/proto/http.pb.h"
 #include "timer.h"
 #include "util/log.h"
@@ -40,6 +41,9 @@ class Connection : public Timer, Logger {
     uint64_t id() const { return m_fd_data.id; }
     const fd_t& fd_data() const { return m_fd_data; }
     void set_fd_data(int fd, uint64_t id) { m_fd_data = {fd, id}; }
+
+    double now();
+    void set_events(Events* e) { m_events = e; }
 
     void set_privdata(void* data) { m_privdata = data; }
     void* privdata() const { return m_privdata; }
@@ -85,7 +89,7 @@ class Connection : public Timer, Logger {
     int read_cnt() { return m_read_cnt; }
     uint64_t read_bytes() { return m_read_bytes; }
 
-   protected:
+   private:
     bool conn_read();
     Codec::STATUS decode_http(HttpMsg& msg);
     Codec::STATUS decode_proto(MsgHead& head, MsgBody& body);
@@ -97,6 +101,7 @@ class Connection : public Timer, Logger {
     void* m_privdata = nullptr;  // private data.
     ev_io* m_ev_io = nullptr;    // libev io event.
     Codec* m_codec = nullptr;
+    Events* m_events = nullptr;
 
     STATE m_state = STATE::UNKOWN;  // connection status.
     int m_errno = 0;                // error number.
@@ -109,7 +114,7 @@ class Connection : public Timer, Logger {
     struct sockaddr* m_saddr = nullptr;
     std::string m_node_id; /* for nodes contact. */
 
-    /* statistics */
+    /* statistics info. */
     int m_read_cnt = 0;
     uint64_t m_read_bytes = 0;
     int m_write_cnt = 0;

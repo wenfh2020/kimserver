@@ -18,9 +18,10 @@ void add_node(int cur) {
     kim::zk_node znode;
     znode.set_path(format_str("%s.%d", "test_path", cur));
     znode.set_type(NODE_TYPE);
-    znode.set_ip(format_str("192.168.0.%d", cur));
+    znode.set_host(format_str("192.168.0.%d", cur));
     znode.set_port(1223 + cur);
     znode.set_worker_cnt(WORKERS);
+    znode.set_active_time(time_now());
     nodes->add_zk_node(znode);
     g_znode_path[znode.path()] = znode;
 }

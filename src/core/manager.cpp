@@ -127,14 +127,10 @@ bool Manager::load_network() {
 
     if (!m_net->create_m(m_node_info.mutable_addr_info(), m_conf)) {
         LOG_ERROR("init network failed!");
-        goto error;
+        SAFE_DELETE(m_net);
+        return false;
     }
-
     return true;
-
-error:
-    SAFE_DELETE(m_net);
-    return false;
 }
 
 void Manager::on_repeat_timer(void* privdata) {

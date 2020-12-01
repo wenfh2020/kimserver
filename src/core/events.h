@@ -1,16 +1,15 @@
-#ifndef __EVENTS_H__
-#define __EVENTS_H__
+#ifndef __KIM_EVENTS_H__
+#define __KIM_EVENTS_H__
 
 #include <ev.h>
 #include <hiredis/async.h>
 
-#include "net.h"
 #include "server.h"
 #include "util/log.h"
 
 namespace kim {
 
-class Events {
+class Events : public Logger {
    public:
     Events(Log* logger);
     virtual ~Events();
@@ -63,7 +62,6 @@ class Events {
     void destory();
 
    private:
-    Log* m_logger = nullptr;
     struct ev_loop* m_ev_loop = nullptr;
 
     /* callback fn. */
@@ -77,4 +75,4 @@ class Events {
 
 }  // namespace kim
 
-#endif
+#endif  //__KIM_EVENTS_H__

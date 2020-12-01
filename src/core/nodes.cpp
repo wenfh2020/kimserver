@@ -53,7 +53,7 @@ bool Nodes::add_zk_node(const zk_node& znode) {
     if (!is_valid_zk_node(znode)) {
         LOG_ERROR(
             "add zk znode failed, invalid znode data! "
-            "znode path: %s, host %s,  port: %d, type: %s, worker_cnt: %d",
+            "znode path: %s, host: %s,  port: %d, type: %s, worker_cnt: %d",
             znode.path().c_str(), znode.host().c_str(), znode.port(),
             znode.type().c_str(), znode.worker_cnt());
         return false;
@@ -107,7 +107,7 @@ bool Nodes::del_zk_node(const std::string& path) {
         m_host_zk_paths.erase(itr);
     }
 
-    LOG_INFO("delete zk node, path: %s, type: %s, host %s, port: %d, worker_cnt: %d",
+    LOG_INFO("delete zk node, path: %s, type: %s, host: %s, port: %d, worker_cnt: %d",
              znode.path().c_str(), znode.type().c_str(),
              znode.host().c_str(), znode.port(), znode.worker_cnt());
     m_zk_nodes.erase(it);
@@ -130,7 +130,7 @@ void Nodes::get_zk_diff_nodes(const std::string& type, std::vector<std::string>&
 }
 
 bool Nodes::add_node(const std::string& node_type, const std::string& host, int port, int worker) {
-    LOG_INFO("add node, node type: %s, host %s, port: %d, worker: %d",
+    LOG_INFO("add node, node type: %s, host: %s, port: %d, worker: %d",
              node_type.c_str(), host.c_str(), port, worker);
 
     std::string node_id = format_nodes_id(host, port, worker);
@@ -153,7 +153,7 @@ bool Nodes::add_node(const std::string& node_type, const std::string& host, int 
         if (!vnode2node.insert({v, node}).second) {
             LOG_WARN(
                 "duplicate virtual nodes! "
-                "vnode: %lu, node type: %s, host %s, port: %d, worker: %d.",
+                "vnode: %lu, node type: %s, host: %s, port: %d, worker: %d.",
                 v, node_type.c_str(), host.c_str(), port, worker);
             continue;
         }
@@ -281,7 +281,7 @@ void Nodes::print_debug_nodes_info() {
     LOG_DEBUG("nodes (%lu):", m_nodes.size());
     for (auto& v : m_nodes) {
         node_t* node = v.second;
-        LOG_DEBUG("id: %s, node type: %s, host %s, port: %d, worker index: %d",
+        LOG_DEBUG("id: %s, node type: %s, host: %s, port: %d, worker index: %d",
                   v.first.c_str(), node->type.c_str(),
                   node->host.c_str(), node->port, node->worker_index);
     }

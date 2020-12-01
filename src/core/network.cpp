@@ -175,6 +175,7 @@ bool Network::create_w(const CJsonObject& config, int ctrl_fd, int data_fd, int 
         LOG_ERROR("load module failed!");
         return false;
     }
+
     LOG_INFO("load modules ok!");
 
     if (!add_read_event(ctrl_fd, Codec::TYPE::PROTOBUF, true)) {
@@ -316,6 +317,7 @@ Connection* Network::create_conn(int fd) {
         return nullptr;
     }
 
+    c->set_events(m_events);
     c->set_keep_alive(m_keep_alive);
     m_conns[fd] = c;
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
@@ -700,7 +702,7 @@ bool Network::process_msg(Connection* c) {
 
 bool Network::process_tcp_msg(Connection* c) {
     int fd;
-    int old_cnt, old_bytes;
+    uint32_t old_cnt, old_bytes;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
     Request req(c->fd_data(), false);
@@ -1508,12 +1510,12 @@ void Network::close_fd(int fd) {
 }
 
 bool Network::load_db() {
-    SAFE_DELETE(m_db_pool);
     m_db_pool = new DBMgr(m_logger, m_events->ev_loop());
     if (m_db_pool == nullptr) {
         LOG_ERROR("load db pool failed!");
         return false;
     }
+
     if (!m_db_pool->init(m_conf["database"])) {
         LOG_ERROR("init db pool failed!");
         SAFE_DELETE(m_db_pool);
@@ -1523,9 +1525,9 @@ bool Network::load_db() {
 }
 
 bool Network::load_redis_mgr() {
-    SAFE_DELETE(m_redis_pool);
     m_redis_pool = new kim::RedisMgr(m_logger, m_events->ev_loop());
     if (m_redis_pool == nullptr || !m_redis_pool->init(m_conf["redis"])) {
+        SAFE_DELETE(m_redis_pool);
         LOG_ERROR("init redis mgr failed!");
         return false;
     }
