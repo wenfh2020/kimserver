@@ -11,7 +11,7 @@ Cmd::Cmd(Log* logger, INet* n, uint64_t id, const std::string& name)
     set_active_time(net()->now());
 }
 
-Cmd::~Cmd() {}
+Cmd::~Cmd() { SAFE_DELETE(m_req); }
 
 void Cmd::set_req(const Request& req) {
     SAFE_DELETE(m_req);
