@@ -488,7 +488,7 @@ bool Network::report_payload_to_parent() {
     }
 
     m_payload.set_worker_index(worker_index());
-    m_payload.set_load(m_cmds.size());
+    m_payload.set_cmd_cnt(m_cmds.size());
     m_payload.set_conn_cnt(m_conns.size() + m_node_conns.size());
     m_payload.set_create_time(now());
 
@@ -511,7 +511,7 @@ bool Network::report_payload_to_zookeeper() {
     PayloadStats pls;
     Payload *manager_pls, *worker_pls;
     std::string json_data;
-    int load = 0, conn_cnt = 0, read_cnt = 0, write_cnt = 0,
+    int cmd_cnt = 0, conn_cnt = 0, read_cnt = 0, write_cnt = 0,
         read_bytes = 0, write_bytes = 0;
     const std::unordered_map<int, worker_info_t*>& infos =
         m_worker_data_mgr->get_infos();
@@ -528,7 +528,7 @@ bool Network::report_payload_to_zookeeper() {
 
     /* worker payload infos. */
     for (const auto& it : infos) {
-        load += it.second->payload.load();
+        cmd_cnt += it.second->payload.cmd_cnt();
         conn_cnt += it.second->payload.conn_cnt();
         read_cnt += it.second->payload.read_cnt();
         read_bytes += it.second->payload.read_bytes();
@@ -544,7 +544,7 @@ bool Network::report_payload_to_zookeeper() {
     /* manager statistics data results。 */
     manager_pls = pls.mutable_manager();
     manager_pls->set_worker_index(worker_index());
-    manager_pls->set_load(load);
+    manager_pls->set_cmd_cnt(cmd_cnt);
     manager_pls->set_conn_cnt(conn_cnt + m_conns.size());
     manager_pls->set_read_cnt(read_cnt + m_payload.read_cnt());
     manager_pls->set_read_bytes(read_bytes + m_payload.read_bytes());

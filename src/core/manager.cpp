@@ -68,15 +68,15 @@ bool Manager::init(const char* conf_path) {
 }
 
 bool Manager::load_logger() {
+    char path[MAX_PATH];
+    snprintf(path, sizeof(path), "%s/%s",
+             m_node_info.work_path().c_str(), m_conf("log_path").c_str());
+
     m_logger = new Log;
     if (m_logger == nullptr) {
         LOG_ERROR("new log failed!");
         return false;
     }
-
-    char path[MAX_PATH];
-    snprintf(path, sizeof(path), "%s/%s",
-             m_node_info.work_path().c_str(), m_conf("log_path").c_str());
 
     if (!m_logger->set_log_path(path)) {
         LOG_ERROR("set log path failed! path: %s", path);
@@ -130,6 +130,7 @@ bool Manager::load_network() {
         SAFE_DELETE(m_net);
         return false;
     }
+
     return true;
 }
 
@@ -248,6 +249,7 @@ bool Manager::create_worker(int worker_index) {
         m_net->worker_data_mgr()->add_worker_info(
             worker_index, pid, ctrl_fds[0], data_fds[0]);
         LOG_INFO("manager ctrl_fd: %d, data_fd: %d", ctrl_fds[0], data_fds[0]);
+
         return true;
     } else {
         m_net->close_chanel(data_fds);

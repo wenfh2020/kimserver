@@ -152,7 +152,9 @@ bool Pressure::send_packets(Connection* c) {
             }
             m_send_cnt++;
             e->stat.send_cnt++;
+
             if (!send_proto(c, KP_REQ_TEST_AUTO_SEND, format_str("%d", i))) {
+                // if (!send_proto(c, KP_REQ_TEST_PROTO, format_str("%d", i))) {
                 return false;
             }
             continue;

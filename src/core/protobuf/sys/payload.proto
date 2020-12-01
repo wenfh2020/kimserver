@@ -13,8 +13,8 @@ message NodeData {
 
 message Payload {
     uint32 worker_index = 1; /* 0 is manager else is worker. */
-    uint32 load = 2;         /* cmd cnt. */
-    uint32 conn_cnt = 3; 
+    uint32 conn_cnt = 2;     /* cmd cnt. */
+    uint32 cmd_cnt = 3;         
     uint32 read_cnt = 4; 
     uint32 read_bytes = 5;
     uint32 write_cnt = 6;
