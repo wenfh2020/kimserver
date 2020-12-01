@@ -32,7 +32,8 @@ class CmdAutoSend : public Cmd {
                 head.set_cmd(KP_REQ_TEST_PROTO);
                 LOG_DEBUG("auto send head seq: %d, cmd id: %llu", head.seq(), id());
                 /* send to other nodes. */
-                if (!net()->send_to_node("gate", "hello", head, *m_req->msg_body())) {
+                if (!net()->send_to_node("logic", m_req->msg_body()->data(),
+                                         head, *m_req->msg_body())) {
                     return Cmd::STATUS::ERROR;
                 }
                 set_next_step();
