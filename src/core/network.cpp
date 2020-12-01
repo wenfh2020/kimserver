@@ -69,12 +69,11 @@ bool Network::load_config(const CJsonObject& config) {
     }
 
     m_node_type = m_conf("node_type");
-    m_node_host = m_conf("node_host");
-    m_node_port = str_to_int(m_conf("node_port"));
-    if (m_node_type.empty() || m_node_host.empty() || m_node_port == 0) {
+    if (m_node_type.empty()) {
         LOG_ERROR("invalid inner node info!");
         return false;
     }
+
     return true;
 }
 
@@ -122,6 +121,8 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
         }
 
         m_node_host_fd = fd;
+        m_node_host = ai->node_host();
+        m_node_port = ai->node_port();
         LOG_INFO("node fd: %d", m_node_host_fd);
 
         if (!add_read_event(m_node_host_fd, Codec::TYPE::PROTOBUF, false)) {
@@ -523,7 +524,7 @@ bool Network::report_payload_to_zookeeper() {
     node->set_node_host(node_host());
     node->set_node_port(node_port());
     node->set_gate_host(m_gate_host);
-    node->set_node_port(m_gate_port);
+    node->set_gate_port(m_gate_port);
     node->set_worker_cnt(infos.size());
 
     /* worker payload infos. */
