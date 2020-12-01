@@ -290,7 +290,7 @@ struct sockaddr* Connection::sockaddr() {
 }
 
 double Connection::now() {
-    return (m_events != nullptr) ? now() : time_now();
+    return (m_events != nullptr) ? m_events->now() : time_now();
 }
 
 }  // namespace kim
