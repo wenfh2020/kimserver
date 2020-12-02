@@ -348,40 +348,43 @@ void Pressure::async_handle_read(Connection* c) {
                   body.data().length(), body.data().c_str());
         check_rsp(c, head, body);
         show_statics_result();
+        if (e->stat.callback_cnt == e->stat.packets) {
+            LOG_INFO("handle all packets! fd: %d", c->fd());
+            del_connect(c);
+            return;
+        }
 
         head.Clear();
         body.Clear();
         status = c->fetch_data(head, body);
     }
 
+    LOG_TRACE("status: %d, fd: %d, packets: %d", status, c->fd(), e->stat.packets);
+
     if (status == Codec::STATUS::PAUSE) {
         LOG_DEBUG("wait next decoding......fd: %d", c->fd());
         show_statics_result();
+        if (e->stat.callback_cnt == e->stat.packets) {
+            LOG_INFO("handle all packets! fd: %d", c->fd());
+            del_connect(c);
+            return;
+        }
+
         add_read_event(c);
         if (!send_packets(c)) {
             return;
         }
-        return;
-    }
-
-    if (status == Codec::STATUS::ERR) {
+    } else if (status == Codec::STATUS::ERR) {
         m_cur_callback_cnt++;
         m_err_callback_cnt++;
         e->stat.callback_cnt++;
         LOG_ERROR("read data failed! fd: %d", c->fd());
         del_connect(c);
         show_statics_result();
-    }
-
-    if (status == Codec::STATUS::CLOSED) {
+    } else if (status == Codec::STATUS::CLOSED) {
         LOG_TRACE("read data failed! fd: %d", c->fd());
         del_connect(c);
         show_statics_result();
-    }
-
-    if (e->stat.callback_cnt == e->stat.packets) {
-        LOG_TRACE("handle all packets! fd: %d", c->fd());
-        del_connect(c);
     }
 }
 

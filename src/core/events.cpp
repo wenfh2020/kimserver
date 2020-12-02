@@ -207,7 +207,7 @@ ev_timer* Events::add_timer_event(double secs, ev_timer* w, cb_timer tcb, void* 
     }
     w->data = privdata;
 
-    LOG_TRACE("start timer, seconds: %f", secs);
+    LOG_TRACE("start timer, timer: %p, seconds: %f", w, secs);
     return w;
 }
 

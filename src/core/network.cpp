@@ -666,8 +666,8 @@ void Network::on_io_timer(void* privdata) {
             return;
         }
 
-        LOG_INFO("time up, close connection! secs: %f, fd: %d, seq: %llu",
-                 secs, c->fd(), c->id());
+        LOG_INFO("time up, close connection! fd: %d, secs: %f, seq: %llu",
+                 c->fd(), secs, c->id());
         close_conn(c);
     }
 }
