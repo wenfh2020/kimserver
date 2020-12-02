@@ -703,10 +703,10 @@ bool Network::process_msg(Connection* c) {
 
 bool Network::process_tcp_msg(Connection* c) {
     int fd;
-    uint32_t old_cnt, old_bytes;
     Cmd::STATUS cmd_ret;
     Codec::STATUS codec_ret;
     Request req(c->fd_data(), false);
+    uint32_t old_cnt, old_bytes;
 
     fd = c->fd();
     old_cnt = c->read_cnt();
@@ -749,14 +749,14 @@ bool Network::process_tcp_msg(Connection* c) {
             req.msg_head()->Clear();
             req.msg_body()->Clear();
             codec_ret = c->fetch_data(*req.msg_head(), *req.msg_body());
-            if (codec_ret == Codec::STATUS::ERR) {
+            if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
                 LOG_TRACE("conn read failed. fd: %d", fd);
                 goto error;
             }
         }
     }
 
-    if (codec_ret == Codec::STATUS::ERR) {
+    if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
         LOG_TRACE("conn read failed. fd: %d", fd);
         goto error;
     }
@@ -793,7 +793,7 @@ bool Network::process_http_msg(Connection* c) {
         LOG_TRACE("cmd status: %d", cmd_ret);
     }
 
-    if (codec_ret == Codec::STATUS::ERR) {
+    if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
         LOG_TRACE("conn read failed. fd: %d", c->fd());
         close_conn(c);
         return false;

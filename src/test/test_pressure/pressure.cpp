@@ -54,6 +54,7 @@ bool Pressure::start(const char* host, int port, int users, int packets) {
     }
 
     m_packets = packets;
+    m_send_cnt = users * packets;
     m_begin_time = time_now();
     return true;
 }
@@ -150,7 +151,7 @@ bool Pressure::send_packets(Connection* c) {
             if (e->stat.send_cnt >= e->stat.packets) {
                 return true;
             }
-            m_send_cnt++;
+
             e->stat.send_cnt++;
 
             if (!send_proto(c, KP_REQ_TEST_AUTO_SEND, format_str("%d", i))) {
@@ -367,9 +368,20 @@ void Pressure::async_handle_read(Connection* c) {
         m_cur_callback_cnt++;
         m_err_callback_cnt++;
         e->stat.callback_cnt++;
-        LOG_DEBUG("read data failed! fd: %d", c->fd());
+        LOG_ERROR("read data failed! fd: %d", c->fd());
         del_connect(c);
         show_statics_result();
+    }
+
+    if (status == Codec::STATUS::CLOSED) {
+        LOG_TRACE("read data failed! fd: %d", c->fd());
+        del_connect(c);
+        show_statics_result();
+    }
+
+    if (e->stat.callback_cnt == e->stat.packets) {
+        LOG_TRACE("handle all packets! fd: %d", c->fd());
+        del_connect(c);
     }
 }
 

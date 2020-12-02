@@ -23,6 +23,7 @@ class Codec {
         OK = 0,
         ERR = 1,
         PAUSE = 2,
+        CLOSED = 3,
     };
 
     Codec() {}

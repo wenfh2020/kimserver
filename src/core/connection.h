@@ -90,7 +90,7 @@ class Connection : public Timer, Logger {
     uint64_t read_bytes() { return m_read_bytes; }
 
    private:
-    bool conn_read();
+    Codec::STATUS conn_read();
     Codec::STATUS decode_http(HttpMsg& msg);
     Codec::STATUS decode_proto(MsgHead& head, MsgBody& body);
     Codec::STATUS conn_write(const HttpMsg& msg, SocketBuffer** buf);
