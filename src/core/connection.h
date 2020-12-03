@@ -69,6 +69,9 @@ class Connection : public Timer, Logger {
     void set_node_id(const std::string& node_id) { m_node_id = node_id; }
     const std::string& get_node_id() const { return m_node_id; }
 
+    void set_system(bool is_sys) { m_is_system = is_sys; }
+    bool is_system() { return m_is_system; }
+
     Codec::STATUS conn_read(HttpMsg& msg);
     Codec::STATUS conn_write(const HttpMsg& msg);
     Codec::STATUS conn_write_waiting(HttpMsg& msg);
@@ -98,13 +101,14 @@ class Connection : public Timer, Logger {
 
    private:
     fd_t m_fd_data;
-    void* m_privdata = nullptr;  // private data.
-    ev_io* m_ev_io = nullptr;    // libev io event.
-    Codec* m_codec = nullptr;
-    Events* m_events = nullptr;
+    void* m_privdata = nullptr; /* private data. */
+    ev_io* m_ev_io = nullptr;   /* libev io event. */
+    Codec* m_codec = nullptr;   /* protocol parser。 */
+    Events* m_events = nullptr; /* events ptr for getting libev's time now(). */
+    bool m_is_system = false;   /* system connection. */
 
-    STATE m_state = STATE::UNKOWN;  // connection status.
-    int m_errno = 0;                // error number.
+    int m_errno = 0;               /* error number. */
+    STATE m_state = STATE::UNKOWN; /* connection status. */
 
     SocketBuffer* m_recv_buf = nullptr;
     SocketBuffer* m_send_buf = nullptr;

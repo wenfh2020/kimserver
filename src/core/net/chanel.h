@@ -15,6 +15,7 @@ typedef struct channel_s {
     int fd;
     int family;
     int codec;
+    int is_system;
 } channel_t;
 
 int write_channel(int fd, channel_t* ch, size_t size, Log* logger = nullptr);

@@ -125,7 +125,7 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
         m_node_port = ai->node_port();
         LOG_INFO("node fd: %d", m_node_host_fd);
 
-        if (!add_read_event(m_node_host_fd, Codec::TYPE::PROTOBUF, false)) {
+        if (!add_read_event(m_node_host_fd, Codec::TYPE::PROTOBUF)) {
             close_fd(m_node_host_fd);
             LOG_ERROR("add read event failed, fd: %d", m_node_host_fd);
             return false;
@@ -145,7 +145,7 @@ bool Network::create_m(const addr_info* ai, const CJsonObject& config) {
         m_gate_port = ai->gate_port();
         LOG_INFO("gate fd: %d", m_gate_host_fd);
 
-        if (!add_read_event(m_gate_host_fd, m_gate_codec, false)) {
+        if (!add_read_event(m_gate_host_fd, m_gate_codec)) {
             close_fd(m_gate_host_fd);
             LOG_ERROR("add read event failed, fd: %d", m_gate_host_fd);
             return false;
@@ -296,6 +296,10 @@ Connection* Network::add_read_event(int fd, Codec::TYPE codec, bool is_chanel) {
         return nullptr;
     }
     c->set_ev_io(w);
+
+    if (is_chanel) {
+        c->set_system(true);
+    }
 
     LOG_TRACE("add read event done! fd: %d", fd);
     return c;
@@ -711,6 +715,7 @@ bool Network::process_tcp_msg(Connection* c) {
     fd = c->fd();
     old_cnt = c->read_cnt();
     old_bytes = c->read_bytes();
+    cmd_ret = Cmd::STATUS::UNKOWN;
 
     codec_ret = c->conn_read(*req.msg_head(), *req.msg_body());
     if (codec_ret != Codec::STATUS::ERR) {
@@ -721,17 +726,21 @@ bool Network::process_tcp_msg(Connection* c) {
     LOG_TRACE("conn read result, fd: %d, ret: %d", fd, (int)codec_ret);
 
     while (codec_ret == Codec::STATUS::OK) {
-        cmd_ret = m_sys_cmd->process(req);
-        if (cmd_ret == Cmd::STATUS::RUNNING) {
-            /* send waiting buffer. */
-            if (add_write_event(c) == nullptr) {
-                LOG_ERROR("add write event failed! fd: %d", fd);
-                goto error;
+        if (c->is_system()) {
+            cmd_ret = m_sys_cmd->process(req);
+            if (cmd_ret == Cmd::STATUS::RUNNING) {
+                /* send waiting buffer. */
+                if (add_write_event(c) == nullptr) {
+                    LOG_ERROR("add write event failed! fd: %d", fd);
+                    goto error;
+                }
+            } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
+                close_conn(c);
+                return true;
             }
-        } else if (cmd_ret == Cmd::STATUS::COMPLETED) {
-            close_conn(c);
-            return true;
-        } else if (cmd_ret == Cmd::STATUS::UNKOWN) {
+        }
+
+        if (cmd_ret == Cmd::STATUS::UNKOWN) {
             if (is_request(req.msg_head()->cmd())) {
                 cmd_ret = m_module_mgr->process_req(req);
             } else {
@@ -740,7 +749,8 @@ bool Network::process_tcp_msg(Connection* c) {
         }
 
         if (cmd_ret == Cmd::STATUS::UNKOWN) {
-            LOG_WARN("can not find cmd handler. fd: %d", fd)
+            LOG_WARN("can not find cmd handler. fd: %d, cmd: %d",
+                     fd, req.msg_head()->cmd());
             goto error;
         } else if (cmd_ret == Cmd::STATUS::ERROR) {
             LOG_TRACE("process tcp msg failed! fd: %d", fd);
@@ -748,6 +758,8 @@ bool Network::process_tcp_msg(Connection* c) {
         } else {
             req.msg_head()->Clear();
             req.msg_body()->Clear();
+            cmd_ret = Cmd::STATUS::UNKOWN;
+
             codec_ret = c->fetch_data(*req.msg_head(), *req.msg_body());
             if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
                 LOG_TRACE("conn read failed. fd: %d", fd);
@@ -803,6 +815,7 @@ bool Network::process_http_msg(Connection* c) {
 }
 
 void Network::accept_server_conn(int listen_fd) {
+    Connection* c;
     char ip[NET_IP_STR_LEN];
     int fd, port, family, max = MAX_ACCEPTS_PER_CALL;
 
@@ -818,11 +831,13 @@ void Network::accept_server_conn(int listen_fd) {
 
         LOG_INFO("accepted server %s:%d", ip, port);
 
-        if (!add_read_event(fd, Codec::TYPE::PROTOBUF)) {
+        c = add_read_event(fd, Codec::TYPE::PROTOBUF);
+        if (c == nullptr) {
             close_conn(fd);
             LOG_ERROR("add read event failed, client fd: %d", fd);
             return;
         }
+        c->set_system(true);
     }
 }
 
@@ -851,7 +866,7 @@ void Network::accept_and_transfer_fd(int listen_fd) {
 
     LOG_TRACE("send client fd: %d to worker through chanel fd %d", fd, chanel_fd);
 
-    ch = {fd, family, static_cast<int>(m_gate_codec)};
+    ch = {fd, family, static_cast<int>(m_gate_codec), 0};
     err = write_channel(chanel_fd, &ch, sizeof(channel_t), m_logger);
     if (err != 0) {
         if (err == EAGAIN) {
@@ -891,14 +906,18 @@ void Network::read_transfer_fd(int fd) {
             }
         }
 
-        LOG_TRACE("read from channel, get data: fd: %d, family: %d, codec: %d",
-                  ch.fd, ch.family, ch.codec);
+        LOG_TRACE("read from channel, get data: fd: %d, family: %d, codec: %d, system: %d",
+                  ch.fd, ch.family, ch.codec, ch.is_system);
 
         codec = static_cast<Codec::TYPE>(ch.codec);
         c = add_read_event(ch.fd, codec);
         if (c == nullptr) {
             LOG_ERROR("add data fd read event failed, fd: %d", ch.fd);
             goto error;
+        }
+
+        if (ch.is_system) {
+            c->set_system(true);
         }
 
         // add timer.
@@ -1051,11 +1070,9 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
 
     int fd;
     ev_io* w;
-    // size_t saddr_len;
-    // struct sockaddr saddr;
-    struct sockaddr_in saddr;
-    std::string node_id;
     Connection* c;
+    std::string node_id;
+    struct sockaddr_in saddr;
 
     /* create socket. */
     saddr.sin_family = AF_INET;
@@ -1097,7 +1114,7 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     c->init(Codec::TYPE::PROTOBUF);
     c->set_privdata(this);
     c->set_active_time(now());
-    // c->set_addr_info(&saddr, saddr_len);
+    c->set_system(true);
 
     /* read event. */
     w = m_events->add_read_event(fd, c->get_ev_io(), this);

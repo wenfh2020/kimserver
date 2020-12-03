@@ -169,7 +169,7 @@ bool Pressure::send_packets(Connection* c) {
 }
 
 bool Pressure::send_proto(Connection* c, int cmd, const std::string& data) {
-    LOG_DEBUG("send proto, fd: %d, cmd: %d!", c->fd(), cmd);
+    LOG_DEBUG("send proto, fd: %d, cmd: %d, data: %s!", c->fd(), cmd, data.c_str());
 
     MsgHead head;
     MsgBody body;

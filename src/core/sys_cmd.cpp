@@ -209,7 +209,7 @@ Cmd::STATUS SysCmd::on_req_connect_to_worker(const Request& req) {
     }
 
     chanel = m_net->worker_data_mgr()->get_worker_data_fd(worker_index);
-    ch = {fd, AF_INET, static_cast<int>(Codec::TYPE::PROTOBUF)};
+    ch = {fd, AF_INET, static_cast<int>(Codec::TYPE::PROTOBUF), 1};
     err = write_channel(chanel, &ch, sizeof(channel_t), m_logger);
     if (err != 0) {
         LOG_ERROR("transfer fd failed! ch fd: %d, fd: %d, errno: %d",

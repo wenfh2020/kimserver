@@ -50,7 +50,7 @@ bool Log::set_level(const char* level) {
         ll = LL_INFO;
     } else if (strcasecmp(level, "NOTICE") == 0) {
         ll = LL_NOTICE;
-    } else if (strcasecmp(level, "WARNING") == 0) {
+    } else if (strcasecmp(level, "WARN") == 0) {
         ll = LL_WARNING;
     } else if (strcasecmp(level, "ERR") == 0) {
         ll = LL_ERR;

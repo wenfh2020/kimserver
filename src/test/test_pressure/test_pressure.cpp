@@ -50,7 +50,7 @@ int main(int args, char** argv) {
     }
 
     m_logger->set_level(kim::Log::LL_INFO);
-    // m_logger->set_level(kim::Log::LL_DEBUG);
+    // m_logger->set_level(kim::Log::LL_TRACE);
     m_logger->set_worker_index(0);
     m_logger->set_process_type(true);
 
