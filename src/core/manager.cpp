@@ -56,6 +56,11 @@ bool Manager::init(const char* conf_path) {
         return false;
     }
 
+    if (!setup_signal_events()) {
+        LOG_ERROR("setup signal events failed!");
+        return false;
+    }
+
     if (!setup_timer()) {
         LOG_ERROR("load timer failed!");
         return false;
@@ -139,10 +144,25 @@ void Manager::on_repeat_timer(void* privdata) {
         m_net->on_repeat_timer(privdata);
     }
     restart_workers();
+
+    if (m_net != nullptr) {
+        /* check socketpair between parent/children. */
+        worker_info_t* info;
+        const std::unordered_map<int, worker_info_t*>& infos =
+            m_net->worker_data_mgr()->get_infos();
+
+        for (const auto& it : infos) {
+            info = it.second;
+            if (!m_net->check_conn(info->ctrl_fd) || !m_net->check_conn(info->data_fd)) {
+                LOG_CRIT("kill worker, index: %d, pid: %d", info->index, info->pid);
+                kill(info->pid, SIGKILL);
+            }
+        }
+    }
 }
 
 void Manager::on_terminated(ev_signal* s) {
-    LOG_WARN("%s terminated by signal %d!", m_conf("server_name").c_str(), s->signum);
+    LOG_CRIT("%s terminated by signal %d!", m_conf("server_name").c_str(), s->signum);
     SAFE_DELETE(s);
     destory();
     exit(s->signum);

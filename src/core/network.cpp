@@ -411,13 +411,17 @@ void Network::close_conns() {
 }
 
 void Network::close_fds() {
-    Connection* c;
     for (const auto& it : m_conns) {
-        c = it.second;
+        Connection* c = it.second;
         if (!c->is_invalid()) {
             close_conn(c);
         }
     }
+}
+
+bool Network::check_conn(int fd) {
+    auto it = m_conns.find(fd);
+    return ((it != m_conns.end() && !it->second->is_invalid()));
 }
 
 void Network::on_io_read(int fd) {
@@ -969,6 +973,8 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
         LOG_ERROR("send_to_node only for worker!");
         return false;
     }
+
+    LOG_TRACE("send to node, type: %s, obj: %s", node_type.c_str(), obj.c_str());
 
     node_t* node;
     Connection* c;

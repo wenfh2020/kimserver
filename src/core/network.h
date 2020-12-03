@@ -62,6 +62,7 @@ class Network : public EventsCallback, public INet {
     bool is_request(int cmd) { return (cmd & 0x00000001); }
     bool handle_cmd_callback(wait_cmd_info_t* index, int err, void* data);
     Connection* get_conn(const fd_t& f);
+    bool check_conn(int fd);
 
     /* payload. */
     bool report_payload_to_parent();

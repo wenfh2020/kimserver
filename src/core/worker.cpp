@@ -124,6 +124,16 @@ void Worker::on_repeat_timer(void* privdata) {
     if (m_net != nullptr) {
         m_net->on_repeat_timer(privdata);
     }
+
+    if (m_net != nullptr) {
+        /* check socketpair between parent/children. */
+        if (!m_net->check_conn(m_worker_info.ctrl_fd) ||
+            !m_net->check_conn(m_worker_info.data_fd)) {
+            LOG_CRIT("invalid socket pair, exit! worker index: %d",
+                     m_worker_info.index);
+            exit(EXIT_CHILD);
+        }
+    }
 }
 
 }  // namespace kim
