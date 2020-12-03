@@ -322,9 +322,9 @@ Connection* Network::create_conn(int fd) {
         return nullptr;
     }
 
+    m_conns[fd] = c;
     c->set_events(m_events);
     c->set_keep_alive(m_keep_alive);
-    m_conns[fd] = c;
     LOG_DEBUG("create connection fd: %d, seq: %llu", fd, seq);
     return c;
 }
@@ -564,7 +564,7 @@ bool Network::report_payload_to_zookeeper() {
     m_payload.Clear();
 
     if (!proto_to_json(pls, json_data)) {
-        LOG_TRACE("proto to json failed!");
+        LOG_ERROR("proto to json failed!");
         return false;
     }
 
@@ -582,6 +582,7 @@ void Network::check_wait_send_fds() {
 
     for (auto it = m_wait_send_fds.begin(); it != m_wait_send_fds.end();) {
         data = *it;
+
         chanel_fd = m_worker_data_mgr->get_next_worker_data_fd();
         if (chanel_fd <= 0) {
             LOG_ERROR("can not find next worker chanel!");
@@ -589,7 +590,8 @@ void Network::check_wait_send_fds() {
         }
 
         err = write_channel(chanel_fd, &data->ch, sizeof(channel_t), m_logger);
-        if (err == 0 || (err != 0 && err != EAGAIN)) {
+        if (err == 0 || (err != 0 && err != EAGAIN) ||
+            ((err == EAGAIN) && (++data->count >= 3))) {
             if (err != 0) {
                 LOG_ERROR("resend chanel failed! fd: %d, errno: %d", data->ch.fd, err);
             }
@@ -599,19 +601,9 @@ void Network::check_wait_send_fds() {
             continue;
         }
 
-        //  err == EAGAIN)
-        if (++data->count >= 3) {
-            LOG_INFO("resend chanel too much! fd: %d, errno: %d", err, data->ch.fd);
-            close_fd(data->ch.fd);
-            free(data);
-            m_wait_send_fds.erase(it++);
-            continue;
-        }
-
         it++;
         LOG_DEBUG("wait to write channel, errno: %d", err);
     }
-    // LOG_DEBUG("wait send list cnt: %d", m_wait_send_fds.size());
 }
 
 void Network::on_cmd_timer(void* privdata) {
@@ -745,11 +737,9 @@ bool Network::process_tcp_msg(Connection* c) {
         }
 
         if (cmd_ret == Cmd::STATUS::UNKOWN) {
-            if (is_request(req.msg_head()->cmd())) {
-                cmd_ret = m_module_mgr->process_req(req);
-            } else {
-                cmd_ret = m_module_mgr->process_ack(req);
-            }
+            cmd_ret = is_request(req.msg_head()->cmd())
+                          ? m_module_mgr->process_req(req)
+                          : m_module_mgr->process_ack(req);
         }
 
         if (cmd_ret == Cmd::STATUS::UNKOWN) {
@@ -949,27 +939,26 @@ void Network::end_ev_loop() {
 }
 
 bool Network::set_gate_codec(const std::string& codec_type) {
-    Codec codec;
-    Codec::TYPE type = codec.get_codec_type(codec_type);
-    if (type == Codec::TYPE::UNKNOWN) {
-        return false;
+    Codec::TYPE type = Codec::get_codec_type(codec_type);
+    if (type != Codec::TYPE::UNKNOWN) {
+        m_gate_codec = type;
+        return true;
     }
-    m_gate_codec = type;
-    return true;
+    return false;
 }
 
 bool Network::load_modules() {
     m_module_mgr = new ModuleMgr(new_seq(), m_logger, this);
-    if (m_module_mgr == nullptr) {
-        LOG_ERROR("alloc module mgr failed!");
-        return false;
+    if (m_module_mgr != nullptr) {
+        return m_module_mgr->init(m_conf);
     }
-    return m_module_mgr->init(m_conf);
+    LOG_ERROR("alloc module mgr failed!");
+    return false;
 }
 
 bool Network::send_to_node(const std::string& node_type, const std::string& obj,
                            const MsgHead& head, const MsgBody& body) {
-    if (is_manager()) {
+    if (!is_worker()) {
         LOG_ERROR("send_to_node only for worker!");
         return false;
     }
@@ -1220,8 +1209,7 @@ bool Network::send_req(Connection* c, uint32_t cmd, uint32_t seq,
     return send_to(c, head, body);
 }
 
-bool Network::send_req(const fd_t& f, uint32_t cmd,
-                       uint32_t seq, const std::string& data) {
+bool Network::send_req(const fd_t& f, uint32_t cmd, uint32_t seq, const std::string& data) {
     MsgHead head;
     MsgBody body;
     body.set_data(data);
@@ -1231,8 +1219,8 @@ bool Network::send_req(const fd_t& f, uint32_t cmd,
     return send_to(f, head, body);
 }
 
-bool Network::send_ack(const Request& req, int err,
-                       const std::string& errstr, const std::string& data) {
+bool Network::send_ack(const Request& req, int err, const std::string& errstr,
+                       const std::string& data) {
     MsgHead head;
     MsgBody body;
 
@@ -1262,8 +1250,8 @@ bool Network::handle_write_events(Connection* c) {
 }
 
 bool Network::handle_write_events(Connection* c, const HttpMsg& msg) {
-    int old_cnt, old_bytes;
     Codec::STATUS ret;
+    int old_cnt, old_bytes;
 
     old_cnt = c->write_cnt();
     old_bytes = c->write_bytes();

@@ -41,8 +41,7 @@ bool SysCmd::send_req_connect_to_worker(Connection* c) {
         return false;
     }
 
-    if (!m_net->send_req(c, CMD_REQ_CONNECT_TO_WORKER,
-                         m_net->new_seq(), std::to_string(worker_index))) {
+    if (!m_net->send_req(c, CMD_REQ_CONNECT_TO_WORKER, m_net->new_seq(), std::to_string(worker_index))) {
         LOG_ERROR("send CMD_REQ_CONNECT_TO_WORKER failed! fd: %d", c->fd());
         return false;
     }
@@ -53,8 +52,7 @@ bool SysCmd::send_req_connect_to_worker(Connection* c) {
 
 bool SysCmd::send_parent_sync_zk_nodes(int version) {
     LOG_TRACE("send CMD_REQ_SYNC_ZK_NODES");
-    if (!m_net->send_to_parent(
-            CMD_REQ_SYNC_ZK_NODES, m_net->new_seq(), std::to_string(version))) {
+    if (!m_net->send_to_parent(CMD_REQ_SYNC_ZK_NODES, m_net->new_seq(), std::to_string(version))) {
         LOG_ERROR("send CMD_REQ_SYNC_ZK_NODES failed!");
         return false;
     }
@@ -63,13 +61,7 @@ bool SysCmd::send_parent_sync_zk_nodes(int version) {
 
 bool SysCmd::send_parent_payload(const Payload& pl) {
     LOG_TRACE("send CMD_REQ_UPDATE_PAYLOAD");
-    // std::string data;
-    // if (!proto_to_json(pl, data)) {
-    //     LOG_ERROR("CMD_REQ_UPDATE_PAYLOAD proto json failed!");
-    //     return false;
-    // }
-    if (!m_net->send_to_parent(
-            CMD_REQ_UPDATE_PAYLOAD, m_net->new_seq(), pl.SerializeAsString())) {
+    if (!m_net->send_to_parent(CMD_REQ_UPDATE_PAYLOAD, m_net->new_seq(), pl.SerializeAsString())) {
         LOG_ERROR("send CMD_REQ_UPDATE_PAYLOAD failed!");
         return false;
     }
@@ -78,8 +70,7 @@ bool SysCmd::send_parent_payload(const Payload& pl) {
 
 bool SysCmd::send_children_add_zk_node(const zk_node& node) {
     LOG_TRACE("send CMD_REQ_ADD_ZK_NODE");
-    return m_net->send_to_children(
-        CMD_REQ_ADD_ZK_NODE, m_net->new_seq(), node.SerializeAsString());
+    return m_net->send_to_children(CMD_REQ_ADD_ZK_NODE, m_net->new_seq(), node.SerializeAsString());
 }
 
 bool SysCmd::send_children_del_zk_node(const std::string& zk_path) {
@@ -89,8 +80,7 @@ bool SysCmd::send_children_del_zk_node(const std::string& zk_path) {
 
 bool SysCmd::send_children_reg_zk_node(const register_node& rn) {
     LOG_TRACE("send CMD_REQ_REGISTER_NODE, path: %s", rn.my_zk_path().c_str());
-    return m_net->send_to_children(
-        CMD_REQ_REGISTER_NODE, m_net->new_seq(), rn.SerializeAsString());
+    return m_net->send_to_children(CMD_REQ_REGISTER_NODE, m_net->new_seq(), rn.SerializeAsString());
 }
 
 /* auto_send(...)

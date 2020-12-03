@@ -35,7 +35,7 @@ class Codec {
 
     bool set_codec(Codec::TYPE codec);
     Codec::TYPE codec() { return m_codec; }
-    Codec::TYPE get_codec_type(const std::string& codec_type);
+    static Codec::TYPE get_codec_type(const std::string& codec_type);
 
     bool gzip(const std::string& src, std::string& dst);
     bool ungzip(const std::string& src, std::string& dst);
