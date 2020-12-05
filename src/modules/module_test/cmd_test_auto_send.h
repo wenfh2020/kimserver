@@ -34,6 +34,7 @@ class CmdAutoSend : public Cmd {
                 /* send to other nodes. */
                 if (!net()->send_to_node("logic", m_req->msg_body()->data(),
                                          head, *m_req->msg_body())) {
+                    response_tcp(ERR_FAILED, "send to node failed!");
                     return Cmd::STATUS::ERROR;
                 }
                 set_next_step();

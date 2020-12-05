@@ -17,8 +17,7 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
 
     size_t len = 0;
     size_t write_len = 0;
-
-    LOG_TRACE("head len: %d, body len: %d", head.ByteSizeLong(), body.ByteSizeLong());
+    size_t body_len = body.ByteSizeLong();
 
     write_len = sbuf->_write(head.SerializeAsString().c_str(), PROTO_MSG_HEAD_LEN);
     if (write_len != PROTO_MSG_HEAD_LEN) {
@@ -33,10 +32,10 @@ CodecProto::encode(const MsgHead& head, const MsgBody& body, SocketBuffer* sbuf)
         return CodecProto::STATUS::OK;
     }
 
-    write_len = sbuf->_write(body.SerializeAsString().c_str(), body.ByteSizeLong());
-    if (write_len != body.ByteSizeLong()) {
+    write_len = sbuf->_write(body.SerializeAsString().c_str(), body_len);
+    if (write_len != body_len) {
         LOG_ERROR("encode failed! cmd: %d, seq: %d, write len: %d, body len: %d",
-                  head.cmd(), head.seq(), write_len, body.ByteSizeLong());
+                  head.cmd(), head.seq(), write_len, body_len);
         sbuf->set_write_index(sbuf->write_index() - len);
         return CodecProto::STATUS::ERR;
     }
@@ -84,8 +83,7 @@ Codec::STATUS CodecProto::decode(SocketBuffer* sbuf, MsgHead& head, MsgBody& bod
     }
 
     sbuf->skip_bytes(PROTO_MSG_HEAD_LEN + head.len());
-    LOG_TRACE("sbuf readable len: %d, body size: %d",
-              sbuf->readable_len(), body.ByteSizeLong());
+    LOG_TRACE("sbuf readable len: %d, body size: %d", sbuf->readable_len());
     return CodecProto::STATUS::OK;
 }
 

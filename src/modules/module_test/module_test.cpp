@@ -32,9 +32,7 @@ Cmd::STATUS MoudleTest::test_proto(const Request& req) {
               head->cmd(), head->seq(), head->len());
 
     const MsgBody* body = req.msg_body();
-    LOG_DEBUG("body len: %d, data: <%s>",
-              body->ByteSizeLong(),
-              body->SerializeAsString().c_str());
+    LOG_DEBUG("body data: <%s>", body->SerializeAsString().c_str());
 
     return net()->send_ack(req, ERR_OK, "ok", "good job!")
                ? Cmd::STATUS::OK
