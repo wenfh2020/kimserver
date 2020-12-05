@@ -173,16 +173,17 @@ bool Pressure::send_proto(Connection* c, int cmd, const std::string& data) {
 
     MsgHead head;
     MsgBody body;
+    size_t body_len;
 
     body.set_data(data);
+    body_len = body.ByteSizeLong();
+
     head.set_cmd(cmd);
     head.set_seq(new_seq());
-    head.set_len(body.ByteSizeLong());
+    head.set_len(body_len);
 
-    LOG_DEBUG("send seq: %d, body len: %d, data: <%s>",
-              head.seq(),
-              body.ByteSizeLong(),
-              body.SerializeAsString().c_str());
+    LOG_TRACE("send seq: %d, body len: %d, data: <%s>",
+              head.seq(), body_len, body.SerializeAsString().c_str());
     return send_proto(c, head, body);
 }
 
@@ -338,7 +339,6 @@ void Pressure::async_handle_read(Connection* c) {
 
     status = c->conn_read(head, body);
     while (status == Codec::STATUS::OK) {
-        m_ok_callback_cnt++;
         m_cur_callback_cnt++;
         e->stat.callback_cnt++;
         LOG_DEBUG("xxxxcallback: %d", e->stat.callback_cnt);
@@ -346,7 +346,7 @@ void Pressure::async_handle_read(Connection* c) {
         LOG_DEBUG("cmd: %d, seq: %d, len: %d, body len: %zu, %s",
                   head.cmd(), head.seq(), head.len(),
                   body.data().length(), body.data().c_str());
-        check_rsp(c, head, body);
+        check_rsp(c, head, body) ? m_ok_callback_cnt++ : m_err_callback_cnt++;
         show_statics_result();
         if (e->stat.callback_cnt == e->stat.packets) {
             LOG_INFO("handle all packets! fd: %d", c->fd());
