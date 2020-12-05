@@ -745,20 +745,18 @@ bool Network::process_tcp_msg(Connection* c) {
         if (cmd_ret == Cmd::STATUS::UNKOWN) {
             LOG_WARN("can not find cmd handler. fd: %d, cmd: %d",
                      fd, req.msg_head()->cmd());
-            goto error;
         } else if (cmd_ret == Cmd::STATUS::ERROR) {
             LOG_TRACE("process tcp msg failed! fd: %d", fd);
-            goto error;
-        } else {
-            req.msg_head()->Clear();
-            req.msg_body()->Clear();
-            cmd_ret = Cmd::STATUS::UNKOWN;
+        }
 
-            codec_ret = c->fetch_data(*req.msg_head(), *req.msg_body());
-            if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
-                LOG_TRACE("conn read failed. fd: %d", fd);
-                goto error;
-            }
+        req.msg_head()->Clear();
+        req.msg_body()->Clear();
+        cmd_ret = Cmd::STATUS::UNKOWN;
+
+        codec_ret = c->fetch_data(*req.msg_head(), *req.msg_body());
+        if (codec_ret == Codec::STATUS::ERR || codec_ret == Codec::STATUS::CLOSED) {
+            LOG_TRACE("conn read failed. fd: %d", fd);
+            goto error;
         }
     }
 
@@ -971,7 +969,7 @@ bool Network::send_to_node(const std::string& node_type, const std::string& obj,
 
     node = m_nodes->get_node_in_hash(node_type, obj);
     if (node == nullptr) {
-        LOG_ERROR("cant not find node type: %s", node_type.c_str());
+        LOG_ERROR("can not find node type: %s", node_type.c_str());
         return false;
     }
 
