@@ -371,29 +371,23 @@ bool Network::close_conn(int fd) {
     return true;
 }
 
-int Network::listen_to_port(const char* ip, int port) {
+int Network::listen_to_port(const char* host, int port) {
     int fd = -1;
     char errstr[256];
 
-    if (strchr(ip, ':')) {
-        /* Bind IPv6 address. */
-        fd = anet_tcp6_server(errstr, port, ip, TCP_BACK_LOG);
-        if (fd == -1) {
-            LOG_ERROR("bind tcp ipv6 failed! %s", errstr);
-        }
-    } else {
-        /* Bind IPv4 address. */
-        fd = anet_tcp_server(errstr, port, ip, TCP_BACK_LOG);
-        if (fd == -1) {
-            LOG_ERROR("bind tcp ipv4 failed! %s", errstr);
-        }
+    fd = anet_tcp_server(errstr, host, port, TCP_BACK_LOG);
+    if (fd == -1) {
+        LOG_ERROR("bind tcp ipv4 failed! %s", errstr);
+        return -1;
     }
 
-    if (fd != -1) {
-        anet_no_block(NULL, fd);
+    if (anet_no_block(m_errstr, fd) != ANET_OK) {
+        LOG_ERROR("set socket no block failed! fd: %d, errstr: %s", fd, m_errstr);
+        close_fd(fd);
+        return -1;
     }
 
-    LOG_INFO("listen to port, %s:%d", ip, port);
+    LOG_INFO("listen to port, %s:%d", host, port);
     return fd;
 }
 
@@ -1065,17 +1059,9 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     ev_io* w;
     Connection* c;
     std::string node_id;
-    struct sockaddr_in saddr;
-
-    /* create socket. */
-    saddr.sin_family = AF_INET;
-    saddr.sin_port = htons(port);
-    saddr.sin_addr.s_addr = inet_addr(host.c_str());
-    bzero(&(saddr.sin_zero), 8);
-    fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
     /* connect. */
-    // fd = anet_tcp_connect(m_errstr, host.c_str(), port, false, &saddr, &saddr_len);
+    fd = anet_tcp_connect(m_errstr, host.c_str(), port);
     if (fd == -1) {
         LOG_ERROR("client connect server failed! errstr: %s", m_errstr);
         return false;
@@ -1084,14 +1070,9 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     /* connection. */
     c = create_conn(fd);
     if (c == nullptr) {
-        close_fd(fd);
         LOG_ERROR("create conn failed! fd: %d", fd);
+        close_fd(fd);
         return false;
-    }
-
-    if (anet_no_block(m_errstr, fd) != ANET_OK) {
-        LOG_ERROR("set noblock failed! fd: %d, errstr: %s", fd, m_errstr);
-        goto error;
     }
 
     if (anet_keep_alive(m_errstr, fd, 100) != ANET_OK) {
@@ -1142,7 +1123,6 @@ bool Network::auto_send(const std::string& host, int port, int worker_index,
     node_id = format_nodes_id(host, port, worker_index);
     m_node_conns[node_id] = c;
     c->set_node_id(node_id);
-    connect(fd, (struct sockaddr*)&saddr, sizeof(struct sockaddr));
     return true;
 
 error:
@@ -1319,7 +1299,7 @@ bool Network::redis_send_to(const char* node, Cmd* cmd, const std::vector<std::s
 
     // delete index when callback.
     cmd_id = cmd->id();
-    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_cur_step()};
     if (index == nullptr) {
         LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;
@@ -1346,7 +1326,7 @@ bool Network::db_exec(const char* node, const char* sql, Cmd* cmd) {
     wait_cmd_info_t* index;
 
     cmd_id = cmd->id();
-    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_cur_step()};
     if (index == nullptr) {
         LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;
@@ -1373,7 +1353,7 @@ bool Network::db_query(const char* node, const char* sql, Cmd* cmd) {
     wait_cmd_info_t* index;
 
     cmd_id = cmd->id();
-    index = new wait_cmd_info_t{this, cmd_id, cmd->get_exec_step()};
+    index = new wait_cmd_info_t{this, cmd_id, cmd->get_cur_step()};
     if (index == nullptr) {
         LOG_ERROR("add wait cmd index failed! cmd id: %llu", cmd_id);
         return false;

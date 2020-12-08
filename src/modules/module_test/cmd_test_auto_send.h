@@ -19,7 +19,7 @@ class CmdAutoSend : public Cmd {
 
    public:
     Cmd::STATUS execute_steps(int err, void* data) {
-        switch (get_exec_step()) {
+        switch (get_cur_step()) {
             case STEP_PARSE_REQUEST: {
                 MsgHead* head = req()->msg_head();
                 LOG_DEBUG("cmd: %d, seq: %u, len: %d",

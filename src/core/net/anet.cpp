@@ -89,15 +89,14 @@ static int anet_v6_only(char *err, int s) {
     return ANET_OK;
 }
 
-static int _anet_tcp_server(char *err, int port, const char *bindaddr, int af,
-                            int backlog) {
+int anet_tcp_server(char *err, const char *bindaddr, int port, int backlog) {
     int s = -1, rv;
     char _port[6]; /* strlen("65535") */
     struct addrinfo hints, *servinfo, *p;
 
     snprintf(_port, 6, "%d", port);
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = af;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; /* No effect if bindaddr != NULL */
 
@@ -110,7 +109,7 @@ static int _anet_tcp_server(char *err, int port, const char *bindaddr, int af,
         if ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
 
-        if (af == AF_INET6 && anet_v6_only(err, s) == ANET_ERR) goto error;
+        if (p->ai_family == AF_INET6 && anet_v6_only(err, s) == ANET_ERR) goto error;
         if (anet_set_reuse_addr(err, s) == ANET_ERR) goto error;
         if (anet_listen(err, s, p->ai_addr, p->ai_addrlen, backlog) == ANET_ERR)
             s = ANET_ERR;
@@ -125,17 +124,10 @@ static int _anet_tcp_server(char *err, int port, const char *bindaddr, int af,
 error:
     if (s != -1) close(s);
     s = ANET_ERR;
+
 end:
     freeaddrinfo(servinfo);
     return s;
-}
-
-int anet_tcp_server(char *err, int port, const char *bindaddr, int backlog) {
-    return _anet_tcp_server(err, port, bindaddr, AF_INET, backlog);
-}
-
-int anet_tcp6_server(char *err, int port, const char *bindaddr, int backlog) {
-    return _anet_tcp_server(err, port, bindaddr, AF_INET6, backlog);
 }
 
 static int anet_generic_accept(char *err, int s, struct sockaddr *sa,

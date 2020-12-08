@@ -29,7 +29,7 @@ class CmdTestMysql : public Cmd {
 
    protected:
     Cmd::STATUS execute_steps(int err, void* data) {
-        switch (get_exec_step()) {
+        switch (get_cur_step()) {
             case STEP_PARSE_REQUEST: {
                 const HttpMsg* msg = m_req->http_msg();
                 if (msg == nullptr) {

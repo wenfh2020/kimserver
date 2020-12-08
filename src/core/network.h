@@ -155,7 +155,7 @@ class Network : public EventsCallback, public INet {
     ev_io* add_write_event(Connection* c);
 
     /* socket. */
-    int listen_to_port(const char* ip, int port);
+    int listen_to_port(const char* host, int port);
     void accept_server_conn(int listen_fd);
     void accept_and_transfer_fd(int listen_fd);
     void read_transfer_fd(int fd);
