@@ -76,7 +76,7 @@ class MysqlAsyncConn {
 
     // sql task.
     bool wait_next_task(int mysql_status = MYSQL_WAIT_WRITE);
-    int task_size() const { return m_tasks.size() + (m_cur_task ? 1 : 0); }
+    bool is_task_empty() { return (m_tasks.empty() && m_cur_task == nullptr); }
     sql_task_t* fetch_next_task();
     void callback(sql_task_t* task);
     void stop_task();

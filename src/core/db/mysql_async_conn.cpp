@@ -330,7 +330,7 @@ void MysqlAsyncConn::ping_start() {
         return;
     }
 
-    LOG_TRACE("ping start: %d, %d...", m_is_connected, m_tasks.size());
+    // LOG_TRACE("ping start: %d, %d...", m_is_connected, m_tasks.size());
 
     int ret, status;
     status = mysql_ping_start(&ret, &m_mysql);
@@ -411,7 +411,7 @@ bool MysqlAsyncConn::add_task(sql_task_t* task) {
 }
 
 bool MysqlAsyncConn::wait_next_task(int mysql_status) {
-    if (task_size() > 0) {
+    if (!is_task_empty()) {
         active_ev_io(mysql_status);
         return true;
     }
@@ -420,8 +420,7 @@ bool MysqlAsyncConn::wait_next_task(int mysql_status) {
 
 sql_task_t* MysqlAsyncConn::fetch_next_task() {
     sql_task_t* task = nullptr;
-    if (m_tasks.size() > 0) {
-        LOG_DEBUG("task cnt: %d", m_tasks.size());
+    if (!m_tasks.empty()) {
         task = m_tasks.front();
         m_tasks.pop_front();
     }
