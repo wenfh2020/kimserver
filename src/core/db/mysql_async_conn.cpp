@@ -429,16 +429,21 @@ sql_task_t* MysqlAsyncConn::fetch_next_task() {
 
 void MysqlAsyncConn::active_ev_io(int mysql_status) {
     int wait_event = mysql_status_to_libev_event(mysql_status);
-    if (ev_is_active(&m_watcher)) {
-        ev_io_stop(m_loop, &m_watcher);
-        ev_io_set(&m_watcher, m_watcher.fd, m_watcher.events | wait_event);
-        ev_io_start(m_loop, &m_watcher);
-    } else {
+
+    if (!ev_is_active(&m_watcher)) {
         int fd = mysql_get_socket(&m_mysql);
         ev_io_init(&m_watcher, libev_io_cb, fd, wait_event);
         ev_io_start(m_loop, &m_watcher);
+        m_watcher.data = this;
+    } else {
+        if (!(m_watcher.events & EV_READ) ||
+            !(m_watcher.events & EV_WRITE)) {
+            ev_io_stop(m_loop, &m_watcher);
+            ev_io_set(&m_watcher, m_watcher.fd, m_watcher.events | wait_event);
+            ev_io_start(m_loop, &m_watcher);
+            m_watcher.data = this;
+        }
     }
-    m_watcher.data = this;
 }
 
 void MysqlAsyncConn::handle_task() {
