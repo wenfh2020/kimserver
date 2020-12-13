@@ -90,14 +90,14 @@ void MysqlAsyncConn::on_timer_callback(struct ev_loop* loop, ev_timer* w, int ev
 }
 
 int MysqlAsyncConn::mysql_status_to_libev_event(int status) {
-    int wait_event = 0;
+    int events = 0;
     if (status & MYSQL_WAIT_READ) {
-        wait_event |= EV_READ;
+        events |= EV_READ;
     }
     if (status & MYSQL_WAIT_WRITE) {
-        wait_event |= EV_WRITE;
+        events |= EV_WRITE;
     }
-    return wait_event;
+    return events;
 }
 
 int MysqlAsyncConn::libev_event_to_mysql_status(int event) {
@@ -428,21 +428,32 @@ sql_task_t* MysqlAsyncConn::fetch_next_task() {
 }
 
 void MysqlAsyncConn::active_ev_io(int mysql_status) {
-    int wait_event = mysql_status_to_libev_event(mysql_status);
+    bool old_read = m_reading;
+    bool old_wrie = m_writing;
+    int events = mysql_status_to_libev_event(mysql_status);
+
+    if (events & EV_READ) {
+        if (!m_reading) {
+            m_reading = true;
+        }
+    }
+
+    if (events & EV_WRITE) {
+        if (!m_writing) {
+            m_writing = true;
+        }
+    }
 
     if (!ev_is_active(&m_watcher)) {
         int fd = mysql_get_socket(&m_mysql);
-        ev_io_init(&m_watcher, libev_io_cb, fd, wait_event);
+        ev_io_init(&m_watcher, libev_io_cb, fd, events);
+    }
+
+    if (old_read != m_reading || old_wrie != m_writing) {
+        ev_io_stop(m_loop, &m_watcher);
+        ev_io_set(&m_watcher, m_watcher.fd, m_watcher.events | events);
         ev_io_start(m_loop, &m_watcher);
         m_watcher.data = this;
-    } else {
-        if (!(m_watcher.events & EV_READ) ||
-            !(m_watcher.events & EV_WRITE)) {
-            ev_io_stop(m_loop, &m_watcher);
-            ev_io_set(&m_watcher, m_watcher.fd, m_watcher.events | wait_event);
-            ev_io_start(m_loop, &m_watcher);
-            m_watcher.data = this;
-        }
     }
 }
 

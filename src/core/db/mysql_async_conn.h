@@ -88,8 +88,11 @@ class MysqlAsyncConn {
 
    private:
     Log* m_logger = nullptr;
+
     ev_io m_watcher;
     ev_timer m_timer;
+    bool m_reading = false;
+    bool m_writing = false;
     struct ev_loop* m_loop = nullptr;
 
     bool m_is_connected = true;
@@ -99,9 +102,10 @@ class MysqlAsyncConn {
     MYSQL m_mysql;
     MYSQL_RES* m_query_res = nullptr;
     STATE m_state = STATE::NO_CONNECTED;
+    MysqlResult m_mysql_result;
+
     std::list<sql_task_t*> m_tasks;
     sql_task_t* m_cur_task = nullptr;
-    MysqlResult m_mysql_result;
 };
 
 }  // namespace kim
